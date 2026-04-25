@@ -1,0 +1,175 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+---
+
+<MainLayout title="BillFlow - Precision Billing">
+  <style>
+    @keyframes bg-fade {
+      0%, 25% { opacity: 1; }
+      33.33%, 91.66% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    .carousel-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: -20;
+      animation: bg-fade 24s ease-in-out infinite;
+    }
+    .img-1 { animation-delay: 0s; }
+    .img-2 { animation-delay: 8s; }
+    .img-3 { animation-delay: 16s; }
+  </style>
+
+  <nav class="fixed top-0 w-full z-50 border-b border-slate-200/50 dark:border-slate-800/50 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl shadow-sm">
+    <div class="flex justify-between items-center h-20 px-8 lg:px-16 max-w-[1280px] mx-auto font-['Inter'] tracking-tight">
+      <a class="text-2xl font-black text-indigo-600 dark:text-white" href="#">BillFlow</a>
+      <div class="hidden md:flex gap-8 items-center">
+        <a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 dark:hover:text-indigo-300 transition-all duration-200 active:scale-95 transition-transform" href="#features">Features</a>
+        <a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 dark:hover:text-indigo-300 transition-all duration-200 active:scale-95 transition-transform" href="#solutions">Solutions</a>
+        <a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 dark:hover:text-indigo-300 transition-all duration-200 active:scale-95 transition-transform" href="#pricing">Pricing</a>
+        <a class="text-slate-600 dark:text-slate-400 font-medium hover:text-indigo-500 dark:hover:text-indigo-300 transition-all duration-200 active:scale-95 transition-transform" href="#resources">Resources</a>
+      </div>
+      <div class="flex gap-4 items-center">
+        <a class="hidden md:block font-button text-button text-primary hover:text-primary-container transition-colors" href="#">Log In</a>
+        <a class="bg-primary-container text-on-primary font-button text-button px-6 py-3 rounded hover:bg-surface-tint hover:bg-gradient-to-r hover:from-primary-container hover:to-secondary-container transition-all shadow-[0_10px_30px_rgba(79,70,229,0.2)]" href="#">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="relative pt-[120px] pb-xl lg:pt-[160px] lg:pb-[100px] flex items-center justify-center min-h-[819px] overflow-hidden">
+    <img alt="Background 1" class="carousel-image img-1" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCeTqOrzSeipB4JwseawkX_ZUhyIkiaGsnBwXAgGW4kvkJ_GtWwxZiQlmIIXdEOrPS92N74cBLOaOulF14vyZZIkgEdbRWgv0qzxPC5F9JB9nqk7DzUHIqN2Lw3G1_YZN5OnC8vvxjk0kLgvvllsYohrXu4UmJT9ft4uenRR35M3uRAsNSkX0sMJB6w68q2Dwh4DyTDM5_iXuRToV3f-7xPwECMjIGpYwW9H8UW6scoM94x2Io1kJlmRxLFqTfDYVMy0Ip8HeCI0z4" />
+    <img alt="Background 2" class="carousel-image img-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB69IDSS5sd9szWuzX6XwTVgzFw-vn0_oYt7FA8E7c_QuVu9PGu48P-ZzKusAkWp1h0fjnbbJc8RDj_l25I0AmxQR4MVQoJZimp3qJ7Rx7zKef6WIO7JRUNks3X9gxsXNzlsIKx99WXvvJ3KGq5yQ1RC2T7BjSLckEDHsS8YNrBh9Ne2YtHbEorRrWb4QuwbBJ326AGpajxbXO9dLeaIfk9PSicU933HgjQ69vLm3MHPGkqvhoO7pGNVwyJgZcYaldHcKnEwiJPODo" />
+    <img alt="Background 3" class="carousel-image img-3" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpc-sXjicuYFJtMfm6SP0axv3NyzPQ4EU5blOlDV4DCgx1SvWBUpxl6k28vU7Ys63DpclndT9Y6bJujmjNJUJSUS-KHUiDamqM5gvpKjMD9BaoBUe7uv4vkKwC95mORy_lioeNmE-G3SB2qwY0goZzZujsSYwTzUyb_RWyRl6aNQ5piFDLUTxkdVM9YtHDTF62dw-348chz_y3ufUbQWnC3XapxwQwMp2kVr5418aKBFTSwV4oha0lJUDL9BSh3coIgdPeSZpBQvw" />
+    <div class="absolute inset-0 bg-black/40 bg-gradient-to-b from-transparent to-black/60 -z-10"></div>
+    <div class="max-w-[1280px] mx-auto px-gutter text-center z-10">
+      <h1 class="font-display text-display text-white drop-shadow-md mb-sm mx-auto max-w-4xl tracking-tight leading-tight">
+        Precision Billing for <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary-container to-secondary-container drop-shadow-sm">High-Energy Growth</span>
+      </h1>
+      <p class="font-body-lg text-body-lg text-white/90 drop-shadow-sm max-w-2xl mx-auto mb-lg">
+        Automate your invoicing, track expenses seamlessly, and accelerate your cash flow with a platform designed for modern enterprises.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-md justify-center items-center">
+        <button class="bg-primary-container text-on-primary font-button text-button px-8 py-4 rounded hover:bg-gradient-to-r hover:from-primary-container hover:to-secondary-container transition-all shadow-[0_10px_30px_rgba(79,70,229,0.3)] w-full sm:w-auto">
+          Start Free Trial
+        </button>
+        <div class="flex flex-col items-center sm:items-start gap-1 pl-4 border-l border-white/30 hidden sm:flex">
+          <div class="flex gap-1 text-[#f59e0b]">
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+            <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+          </div>
+          <p class="font-body-sm text-[13px] text-white/90 font-medium whitespace-nowrap drop-shadow-sm">Trusted by 10,000+ professionals</p>
+        </div>
+      </div>
+      <div class="mt-8 flex flex-col items-center gap-1 sm:hidden">
+        <div class="flex gap-1 text-[#f59e0b]">
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+          <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+        </div>
+        <p class="font-body-sm text-[13px] text-white/90 font-medium drop-shadow-sm">Trusted by 10,000+ professionals globally</p>
+      </div>
+    </div>
+  </header>
+
+  <section class="py-xl bg-surface-container-lowest border-y border-outline-variant/20">
+    <div class="max-w-[1280px] mx-auto px-gutter">
+      <p class="text-center font-label-bold text-label-bold text-outline uppercase tracking-wider mb-lg">Powering forward-thinking teams at</p>
+      <div class="flex flex-wrap justify-center items-center gap-xl opacity-60 grayscale hover:grayscale-0 transition-all duration-500">
+        <div class="flex items-center gap-2 font-h3 text-h3 text-on-surface-variant font-bold tracking-tighter"><div class="w-8 h-8 rounded bg-primary-container"></div>AcmeCorp</div>
+        <div class="flex items-center gap-2 font-h3 text-h3 text-on-surface-variant font-bold tracking-tighter"><div class="w-8 h-8 rounded-full bg-secondary-container"></div>GlobalTech</div>
+        <div class="flex items-center gap-2 font-h3 text-h3 text-on-surface-variant font-bold tracking-tighter"><div class="w-0 h-0 border-l-[16px] border-l-transparent border-b-[24px] border-b-tertiary-container border-r-[16px] border-r-transparent"></div>Nexus</div>
+        <div class="flex items-center gap-2 font-h3 text-h3 text-on-surface-variant font-bold tracking-tighter"><div class="w-8 h-8 rounded bg-on-surface-variant transform rotate-45"></div>Vertex</div>
+        <div class="flex items-center gap-2 font-h3 text-h3 text-on-surface-variant font-bold tracking-tighter hidden sm:flex"><div class="w-8 h-8 rounded-full bg-outline-variant flex items-center justify-center text-white text-xs">A</div>Aura</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="py-xl lg:py-[100px] bg-background">
+    <div class="max-w-[1280px] mx-auto px-gutter">
+      <div class="text-center mb-xl">
+        <h2 class="font-h1 text-h1 text-on-background mb-sm">Built for speed and precision.</h2>
+        <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto">Everything you need to manage revenue, without the enterprise bloat.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+        <div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-lg shadow-[0_10px_30px_rgba(79,70,229,0.05)] hover:shadow-[0_10px_30px_rgba(79,70,229,0.1)] transition-all flex flex-col md:col-span-1">
+          <div class="w-12 h-12 rounded-lg bg-surface-variant flex items-center justify-center text-primary-container mb-md"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cycle</span></div>
+          <h3 class="font-h3 text-h3 text-on-background mb-xs">Automated Billing</h3>
+          <p class="font-body-md text-body-md text-on-surface-variant flex-grow">Set it and forget it. Recurring invoices, automatic retries, and dynamic prorations handled with zero manual input.</p>
+        </div>
+        <div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-lg shadow-[0_10px_30px_rgba(79,70,229,0.05)] hover:shadow-[0_10px_30px_rgba(79,70,229,0.1)] transition-all flex flex-col md:col-span-1">
+          <div class="w-12 h-12 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-container mb-md"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">receipt_long</span></div>
+          <h3 class="font-h3 text-h3 text-on-background mb-xs">Custom Invoices</h3>
+          <p class="font-body-md text-body-md text-on-surface-variant flex-grow">Design invoices that reflect your brand. Add custom fields, terms, and distinct payment gateways per client.</p>
+        </div>
+        <div class="bg-surface-container-lowest border border-outline-variant/30 rounded-xl p-lg shadow-[0_10px_30px_rgba(79,70,229,0.05)] hover:shadow-[0_10px_30px_rgba(79,70,229,0.1)] transition-all flex flex-col md:col-span-1">
+          <div class="w-12 h-12 rounded-lg bg-tertiary-fixed flex items-center justify-center text-on-tertiary-container mb-md"><span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">query_stats</span></div>
+          <h3 class="font-h3 text-h3 text-on-background mb-xs">Expense Tracking</h3>
+          <p class="font-body-md text-body-md text-on-surface-variant flex-grow">Categorize and reconcile expenses in real-time. Link directly to your bank feed for a unified financial view.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-xl lg:py-[100px] relative overflow-hidden bg-on-background">
+    <div class="absolute inset-0 bg-gradient-to-br from-primary-container/20 to-transparent"></div>
+    <div class="max-w-[1280px] mx-auto px-gutter relative z-10">
+      <div class="text-center mb-xl">
+        <h2 class="font-h1 text-h1 text-on-primary mb-sm">Up and running in minutes.</h2>
+        <p class="font-body-lg text-body-lg text-primary-fixed-dim max-w-2xl mx-auto">No complex integrations. Just a smooth, linear path to getting paid faster.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-lg lg:gap-xl relative">
+        <div class="hidden md:block absolute top-1/4 left-[10%] right-[10%] h-[2px] bg-outline-variant/20 -z-10"></div>
+        <div class="text-center flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-primary-container text-on-primary font-h2 text-h2 flex items-center justify-center mb-md border-4 border-on-background shadow-[0_0_20px_rgba(79,70,229,0.5)]">1</div>
+          <h3 class="font-h3 text-h3 text-on-primary mb-xs">Create Account</h3>
+          <p class="font-body-md text-body-md text-outline-variant">Sign up in seconds and define your basic billing profile and tax settings.</p>
+        </div>
+        <div class="text-center flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-surface-variant text-on-surface font-h2 text-h2 flex items-center justify-center mb-md border-4 border-on-background">2</div>
+          <h3 class="font-h3 text-h3 text-on-primary mb-xs">Connect Systems</h3>
+          <p class="font-body-md text-body-md text-outline-variant">Link your bank, CRM, or accounting software with one-click native integrations.</p>
+        </div>
+        <div class="text-center flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-surface-variant text-on-surface font-h2 text-h2 flex items-center justify-center mb-md border-4 border-on-background">3</div>
+          <h3 class="font-h3 text-h3 text-on-primary mb-xs">Start Invoicing</h3>
+          <p class="font-body-md text-body-md text-outline-variant">Send your first branded invoice and watch the automated tracking take over.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="py-xl lg:py-[120px] bg-surface-container-lowest">
+    <div class="max-w-4xl mx-auto px-gutter text-center">
+      <h2 class="font-display text-display text-on-background mb-md">Ready to optimize your billing?</h2>
+      <p class="font-body-lg text-body-lg text-on-surface-variant mb-lg">Join thousands of high-growth companies that rely on BillFlow for precision revenue management.</p>
+      <div class="flex flex-wrap justify-center items-center gap-x-8 gap-y-4 text-outline font-label-bold text-label-bold uppercase tracking-wider">
+        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-primary-container">check_circle</span>No credit card required</div>
+        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-primary-container">check_circle</span>Cancel anytime</div>
+        <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[18px] text-primary-container">check_circle</span>24/7 Support</div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="w-full border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
+    <div class="py-16 px-8 lg:px-16 max-w-[1280px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex flex-col items-center md:items-start gap-2">
+        <span class="text-xl font-bold text-slate-900 dark:text-white">BillFlow</span>
+        <p class="font-['Inter'] text-sm antialiased text-slate-500 dark:text-slate-400">© 2024 BillFlow. Precision billing for high-energy growth.</p>
+      </div>
+      <div class="flex gap-6 flex-wrap justify-center">
+        <a class="font-['Inter'] text-sm antialiased text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 underline-offset-4 hover:underline opacity-90 hover:opacity-100 transition-opacity" href="#">Privacy Policy</a>
+        <a class="font-['Inter'] text-sm antialiased text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 underline-offset-4 hover:underline opacity-90 hover:opacity-100 transition-opacity" href="#">Terms of Service</a>
+        <a class="font-['Inter'] text-sm antialiased text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 underline-offset-4 hover:underline opacity-90 hover:opacity-100 transition-opacity" href="#">Security</a>
+        <a class="font-['Inter'] text-sm antialiased text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 underline-offset-4 hover:underline opacity-90 hover:opacity-100 transition-opacity" href="#">Status</a>
+      </div>
+    </div>
+  </footer>
+</MainLayout>
