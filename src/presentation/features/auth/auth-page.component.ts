@@ -1,9 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import type { OnDestroy, OnInit } from '@angular/core';
 import { AUTH_TEXT, detectAuthLocale } from './auth.dictionary';
 import type { AuthLoginPayload } from './auth.dictionary';
 import { LoginFormComponent } from './components/login-form.component';
+import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -159,6 +160,8 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
   `
 })
 export class AuthPageComponent implements OnInit, OnDestroy {
+  private readonly feedback = inject(UiFeedbackService);
+
   locale = signal(detectAuthLocale());
   activeSlide = signal(0);
   copy = computed(() => AUTH_TEXT[this.locale()]);
@@ -276,9 +279,14 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
+      await this.feedback.toast('success', this.copy().feedback.success);
+      window.setTimeout(() => {
+        window.location.assign('/dashboard');
+      }, 650);
     } catch {
       this.loginStatusTone.set('error');
       this.loginStatusMessage.set(this.copy().feedback.invalid);
+      await this.feedback.toast('error', this.copy().feedback.invalid);
     }
   }
 

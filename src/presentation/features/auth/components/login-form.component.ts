@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
+import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 
 @Component({
   selector: 'billflow-login-form',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   host: { class: 'block w-full' },
   template: `
     <div class="w-full max-w-[460px]">
@@ -21,21 +23,45 @@ import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
         <p class="font-body-md text-body-md text-on-surface-variant">{{ copy.login.subtitle }}</p>
       </div>
 
-      <form class="flex flex-col gap-md flex-grow justify-center" (submit)="submitLogin.emit({ identifier: employeeId.value.trim(), secret: pin.value }); $event.preventDefault(); employeeId.value=''; pin.value='';">
+      <form #loginForm="ngForm" class="flex flex-col gap-md flex-grow justify-center" (ngSubmit)="handleSubmit(loginForm)">
         <div class="app-auth-field">
           <label class="font-label-bold text-label-bold text-on-surface" for="employee-id">{{ copy.login.employeeLabel }}</label>
           <div class="app-auth-field__input-wrap">
             <span class="material-symbols-outlined app-auth-field__icon">badge</span>
-            <input #employeeId id="employee-id" class="app-auth-field__input" [placeholder]="copy.login.employeePlaceholder" type="text" />
+            <input
+              id="employee-id"
+              name="employeeId"
+              class="app-auth-field__input"
+              [placeholder]="copy.login.employeePlaceholder"
+              type="text"
+              [(ngModel)]="employeeId"
+              #employeeIdModel="ngModel"
+              required
+              minlength="3"
+            />
           </div>
+          <p *ngIf="showErrors && employeeIdModel.errors?.['required']" class="app-auth-field__error">{{ copy.validation.employeeRequired }}</p>
+          <p *ngIf="showErrors && employeeIdModel.errors?.['minlength']" class="app-auth-field__error">{{ copy.validation.employeeMinLength }}</p>
         </div>
 
         <div class="app-auth-field">
           <label class="font-label-bold text-label-bold text-on-surface" for="pin">{{ copy.login.pinLabel }}</label>
           <div class="app-auth-field__input-wrap">
             <span class="material-symbols-outlined app-auth-field__icon">pin</span>
-            <input #pin id="pin" class="app-auth-field__input" [placeholder]="copy.login.pinPlaceholder" type="password" />
+            <input
+              id="pin"
+              name="pin"
+              class="app-auth-field__input"
+              [placeholder]="copy.login.pinPlaceholder"
+              type="password"
+              [(ngModel)]="pin"
+              #pinModel="ngModel"
+              required
+              minlength="4"
+            />
           </div>
+          <p *ngIf="showErrors && pinModel.errors?.['required']" class="app-auth-field__error">{{ copy.validation.pinRequired }}</p>
+          <p *ngIf="showErrors && pinModel.errors?.['minlength']" class="app-auth-field__error">{{ copy.validation.pinMinLength }}</p>
         </div>
 
         <div class="mt-xs">
@@ -60,9 +86,26 @@ import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
   `
 })
 export class LoginFormComponent {
+  private readonly feedback = inject(UiFeedbackService);
+
   @Input({ required: true }) copy!: AuthText;
   @Input() statusMessage: string | null = null;
   @Input() statusTone: 'idle' | 'success' | 'error' = 'idle';
   @Output() submitLogin = new EventEmitter<AuthLoginPayload>();
   @Output() requestSupport = new EventEmitter<void>();
+
+  employeeId = '';
+  pin = '';
+  showErrors = false;
+
+  async handleSubmit(form: { valid: boolean }) {
+    this.showErrors = true;
+
+    if (!form.valid) {
+      await this.feedback.toast('error', this.copy.validation.formInvalid);
+      return;
+    }
+
+    this.submitLogin.emit({ identifier: this.employeeId.trim(), secret: this.pin });
+  }
 }

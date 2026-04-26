@@ -13,6 +13,13 @@ export interface AuthText {
     submit: string;
     help: string;
   };
+  validation: {
+    employeeRequired: string;
+    employeeMinLength: string;
+    pinRequired: string;
+    pinMinLength: string;
+    formInvalid: string;
+  };
   support: {
     title: string;
     description: string;
@@ -61,6 +68,13 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       submit: 'Unlock Terminal',
       help: 'Need help? Contact IT Support'
     },
+    validation: {
+      employeeRequired: 'Employee ID or email is required.',
+      employeeMinLength: 'Employee ID or email must be at least 3 characters.',
+      pinRequired: 'PIN or password is required.',
+      pinMinLength: 'PIN or password must be at least 4 characters.',
+      formInvalid: 'Please complete the required login fields.'
+    },
     support: {
       title: 'Contact IT Support',
       description: 'Choose your email service to send a message to',
@@ -101,6 +115,13 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       pinPlaceholder: '••••••••',
       submit: 'Desbloquear Terminal',
       help: '¿Necesitás ayuda? Contactá al Soporte IT'
+    },
+    validation: {
+      employeeRequired: 'El ID de empleado o correo es obligatorio.',
+      employeeMinLength: 'El ID de empleado o correo debe tener al menos 3 caracteres.',
+      pinRequired: 'El PIN o contraseña es obligatorio.',
+      pinMinLength: 'El PIN o contraseña debe tener al menos 4 caracteres.',
+      formInvalid: 'Completá los campos obligatorios para ingresar.'
     },
     support: {
       title: 'Contactar Soporte IT',
