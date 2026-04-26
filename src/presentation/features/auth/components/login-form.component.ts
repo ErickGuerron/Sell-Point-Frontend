@@ -6,35 +6,50 @@ import type { AuthText } from '../auth.dictionary';
   standalone: true,
   host: { class: 'block w-full' },
   template: `
-    <div class="w-full mx-auto">
-      <div class="flex items-center gap-3 mb-6 md:mb-12">
-        <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
-          <span class="material-symbols-outlined text-2xl">payments</span>
+    <div class="w-full max-w-[460px]">
+      <div class="flex items-center gap-xs mb-xl">
+        <div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center text-on-primary-container">
+          <span class="material-symbols-outlined text-2xl">point_of_sale</span>
         </div>
-        <span class="font-h3 text-h3 text-on-surface tracking-tight">{{ copy.brand }}</span>
+        <span class="font-h3 text-h3 text-primary font-bold tracking-tight">{{ copy.brand }}</span>
       </div>
 
-      <h2 class="font-h2 text-h2 text-on-surface mb-3">{{ copy.login.title }}</h2>
-      <p class="font-body-md text-body-md text-on-surface-variant mb-6 md:mb-10">{{ copy.login.subtitle }}</p>
+      <div class="mb-lg">
+        <h1 class="font-h1 text-h1 text-on-surface mb-xs">{{ copy.login.title }}</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant">{{ copy.login.subtitle }}</p>
+      </div>
 
-      <form class="space-y-4 md:space-y-6" (submit)="$event.preventDefault()">
-        <div>
-          <label class="block font-label-bold text-label-bold text-on-surface-variant mb-3">{{ copy.login.emailLabel }}</label>
-          <input class="w-full bg-surface-container-low border border-transparent focus:border-primary focus:ring-1 focus:ring-primary focus:bg-surface-container-lowest rounded-lg px-5 py-3.5 font-body-sm text-on-surface transition-colors outline-none placeholder:text-outline-variant" [placeholder]="copy.login.emailPlaceholder" type="email" required />
-        </div>
-
-        <div>
-          <label class="block font-label-bold text-label-bold text-on-surface-variant mb-3">{{ copy.login.passwordLabel }}</label>
-          <input class="w-full bg-surface-container-low border border-transparent focus:border-primary focus:ring-1 focus:ring-primary focus:bg-surface-container-lowest rounded-lg px-5 py-3.5 font-body-sm text-on-surface transition-colors outline-none placeholder:text-outline-variant" [placeholder]="copy.login.passwordPlaceholder" type="password" required />
-          <div class="flex justify-end mt-3">
-            <a class="font-label-bold text-label-bold text-primary hover:text-surface-tint transition-colors py-1" href="#">{{ copy.login.forgotPassword }}</a>
+      <form class="flex flex-col gap-md flex-grow justify-center" (submit)="$event.preventDefault()">
+        <div class="flex flex-col gap-base">
+          <label class="font-label-bold text-label-bold text-on-surface" for="employee-id">{{ copy.login.employeeLabel }}</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-[20px] text-outline pointer-events-none">badge</span>
+            <input id="employee-id" class="bg-surface-container-low border border-outline-variant rounded-lg pl-[48px] pr-sm py-[12px] font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors w-full" [placeholder]="copy.login.employeePlaceholder" type="text" />
           </div>
         </div>
 
-        <button class="w-full bg-primary hover:bg-surface-tint text-on-primary font-button text-button rounded-lg py-3.5 mt-3 md:mt-5 transition-all duration-300 shadow-md hover:shadow-lg active:scale-[0.98]" type="submit">
-          {{ copy.login.submit }}
-        </button>
+        <div class="flex flex-col gap-base">
+          <label class="font-label-bold text-label-bold text-on-surface" for="pin">{{ copy.login.pinLabel }}</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-[20px] text-outline pointer-events-none">pin</span>
+            <input id="pin" class="bg-surface-container-low border border-outline-variant rounded-lg pl-[48px] pr-sm py-[12px] font-body-md text-body-md text-on-surface placeholder:text-outline focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-colors w-full" [placeholder]="copy.login.pinPlaceholder" type="password" />
+          </div>
+        </div>
+
+        <div class="mt-xs">
+          <button class="w-full bg-primary text-on-primary font-button text-button py-[14px] rounded-lg hover:bg-gradient-to-r hover:from-primary hover:to-secondary-container transition-all duration-300 shadow-[0_4px_14px_0_rgba(53,37,205,0.39)] hover:shadow-[0_6px_20px_rgba(53,37,205,0.23)] hover:-translate-y-px flex items-center justify-center gap-xs" type="button">
+            <span class="material-symbols-outlined text-[20px]">lock_open</span>
+            <span>{{ copy.login.submit }}</span>
+          </button>
+        </div>
       </form>
+
+      <div class="mt-xl text-center">
+        <a class="font-body-sm text-body-sm text-primary hover:text-secondary-container transition-colors inline-flex items-center gap-base" href="#">
+          <span class="material-symbols-outlined text-[16px]">help</span>
+          <span>{{ copy.login.help }}</span>
+        </a>
+      </div>
     </div>
   `
 })

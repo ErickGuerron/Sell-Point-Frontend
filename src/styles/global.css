@@ -12,7 +12,24 @@
   --color-on-surface-variant: #475569;
   --color-outline-variant: #CBD5E1;
 
+  --spacing-4xs: 2px;
+  --spacing-3xs: 4px;
+  --spacing-2xs: 8px;
+  --spacing-xs: 12px;
+  --spacing-sm: 16px;
+  --spacing-md: 24px;
+  --spacing-lg: 32px;
+  --spacing-xl: 48px;
+  --spacing-2xl: 64px;
+  --spacing-3xl: 96px;
+
   --font-sans: "Inter", sans-serif;
+  --font-display: "Inter", sans-serif;
+
+  --text-display: 3rem;
+  --text-display--line-height: 1.1;
+  --text-display--letter-spacing: -0.03em;
+  --text-display--font-weight: 800;
 
   --text-h1: 2.5rem;
   --text-h1--line-height: 1.2;
