@@ -1,0 +1,12 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { AuthPageComponent } from '../presentation/features/auth/auth-page.component';
+
+const initialMode = Astro.url.searchParams.get('mode') === 'signup' ? 'signup' : 'login';
+---
+
+<MainLayout title="BillFlow - Authentication">
+  <div class="min-h-screen flex items-center justify-center p-6 md:p-12 overflow-x-hidden antialiased bg-background">
+    <AuthPageComponent client:load initialMode={initialMode} />
+  </div>
+</MainLayout>
