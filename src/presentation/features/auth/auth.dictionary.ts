@@ -13,6 +13,16 @@ export interface AuthText {
     submit: string;
     help: string;
   };
+  support: {
+    title: string;
+    description: string;
+    close: string;
+    services: {
+      gmail: string;
+      outlook: string;
+      yahoo: string;
+    };
+  };
   feedback: {
     success: string;
     invalid: string;
@@ -42,6 +52,16 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       submit: 'Unlock Terminal',
       help: 'Need help? Contact IT Support'
     },
+    support: {
+      title: 'Contact IT Support',
+      description: 'Choose your email service to send a message to guerronerick.10d@gmail.com.',
+      close: 'Close',
+      services: {
+        gmail: 'Open Gmail',
+        outlook: 'Open Outlook',
+        yahoo: 'Open Yahoo Mail'
+      }
+    },
     feedback: {
       success: 'Login successful.',
       invalid: 'Invalid employee ID/email or PIN/password.'
@@ -63,6 +83,16 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       pinPlaceholder: '••••••••',
       submit: 'Desbloquear Terminal',
       help: '¿Necesitás ayuda? Contactá al Soporte IT'
+    },
+    support: {
+      title: 'Contactar Soporte IT',
+      description: 'Elegí tu servicio de correo para enviar un mensaje a guerronerick.10d@gmail.com.',
+      close: 'Cerrar',
+      services: {
+        gmail: 'Abrir Gmail',
+        outlook: 'Abrir Outlook',
+        yahoo: 'Abrir Yahoo Mail'
+      }
     },
     feedback: {
       success: 'Inicio de sesión correcto.',

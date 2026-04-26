@@ -29,6 +29,7 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
           [copy]="copy()"
           [statusMessage]="loginStatusMessage()"
           [statusTone]="loginStatusTone()"
+          (requestSupport)="openSupportModal()"
           (submitLogin)="handleLogin($event)"
         />
       </section>
@@ -62,6 +63,29 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
         </div>
       </section>
       </main>
+
+      <div *ngIf="supportOpen()" class="fixed inset-0 z-[999] flex items-center justify-center px-4 py-6">
+        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" (click)="closeSupportModal()"></div>
+        <div class="relative z-10 w-full max-w-xl md:max-w-2xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg md:p-xl shadow-2xl max-h-[calc(100dvh-3rem)] overflow-auto">
+          <div class="flex items-start justify-between gap-4 mb-md">
+            <div>
+              <h2 class="font-h2 text-h2 text-on-surface mb-xs">{{ copy().support.title }}</h2>
+              <p class="font-body-sm text-body-sm text-on-surface-variant">{{ copy().support.description }}</p>
+            </div>
+            <button type="button" class="text-on-surface-variant hover:text-on-surface" (click)="closeSupportModal()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-sm">
+            <button type="button" class="app-auth-button justify-start" (click)="openMailService('gmail')">{{ copy().support.services.gmail }}</button>
+            <button type="button" class="app-auth-button justify-start" (click)="openMailService('outlook')">{{ copy().support.services.outlook }}</button>
+            <button type="button" class="app-auth-button justify-start" (click)="openMailService('yahoo')">{{ copy().support.services.yahoo }}</button>
+          </div>
+
+          <p class="mt-md text-xs text-on-surface-variant break-all">guerronerick.10d@gmail.com</p>
+        </div>
+      </div>
     </div>
   `
 })
@@ -71,6 +95,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   copy = computed(() => AUTH_TEXT[this.locale()]);
   loginStatusMessage = signal<string | null>(null);
   loginStatusTone = signal<'idle' | 'success' | 'error'>('idle');
+  supportOpen = signal(false);
 
   slides = [
     {
@@ -104,6 +129,31 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   showSlide(index: number) {
     this.activeSlide.set(index);
     this.restartCarousel();
+  }
+
+  openSupportModal() {
+    this.supportOpen.set(true);
+  }
+
+  closeSupportModal() {
+    this.supportOpen.set(false);
+  }
+
+  openMailService(service: 'gmail' | 'outlook' | 'yahoo') {
+    const subject = encodeURIComponent('BillFlow POS - IT Support Request');
+    const body = encodeURIComponent('Hello IT Support,\n\nI need help with BillFlow POS.\n\nBest regards,');
+    const to = encodeURIComponent('guerronerick.10d@gmail.com');
+
+    const urls: Record<'gmail' | 'outlook' | 'yahoo', string> = {
+      gmail: `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`,
+      outlook: `https://outlook.office.com/mail/deeplink/compose?to=${to}&subject=${subject}&body=${body}`,
+      yahoo: `https://compose.mail.yahoo.com/?to=${to}&subject=${subject}&body=${body}`,
+    };
+
+    if (typeof window !== 'undefined') {
+      window.open(urls[service], '_blank', 'noopener,noreferrer');
+    }
+    this.supportOpen.set(false);
   }
 
   async handleLogin(payload: AuthLoginPayload) {

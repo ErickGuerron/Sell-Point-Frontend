@@ -51,10 +51,10 @@ import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
       </p>
 
       <div class="app-auth-help">
-        <a class="app-auth-help__link font-body-sm text-body-sm" href="#">
+        <button type="button" class="app-auth-help__link font-body-sm text-body-sm bg-transparent border-0 p-0" (click)="requestSupport.emit()">
           <span class="material-symbols-outlined text-[16px]">help</span>
           <span>{{ copy.login.help }}</span>
-        </a>
+        </button>
       </div>
     </div>
   `
@@ -64,4 +64,5 @@ export class LoginFormComponent {
   @Input() statusMessage: string | null = null;
   @Input() statusTone: 'idle' | 'success' | 'error' = 'idle';
   @Output() submitLogin = new EventEmitter<AuthLoginPayload>();
+  @Output() requestSupport = new EventEmitter<void>();
 }

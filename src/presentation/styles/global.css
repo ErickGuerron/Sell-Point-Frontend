@@ -204,7 +204,7 @@ body {
     isolation: isolate;
     width: 100%;
     max-width: 1024px;
-    min-height: 600px;
+    min-height: min(600px, calc(100dvh - 2rem));
   }
 
   .app-auth-theme-toggle {
@@ -238,7 +238,7 @@ body {
     position: relative;
     z-index: 10;
     width: 100%;
-    min-height: 600px;
+    min-height: min(600px, calc(100dvh - 2rem));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -514,6 +514,11 @@ body {
       flex-direction: row;
     }
 
+    .app-auth-shell,
+    .app-auth-card {
+      min-height: min(600px, calc(100dvh - 4rem));
+    }
+
     .app-auth-login-panel {
       width: 50%;
     }
@@ -578,6 +583,15 @@ body {
 
     .app-auth-help__link:hover {
       color: var(--color-secondary-fixed);
+    }
+
+    .app-auth-visual-title {
+      color: var(--color-on-primary-container);
+    }
+
+    .app-auth-visual-text {
+      color: var(--color-primary-fixed);
+      opacity: 0.95;
     }
   }
 }
