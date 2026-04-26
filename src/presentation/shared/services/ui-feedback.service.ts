@@ -47,7 +47,7 @@ export class UiFeedbackService {
     });
   }
 
-  async confirm(title: string, text: string, confirmButtonText = 'Confirmar') {
+  async confirm(title: string, text: string, confirmButtonText = 'Confirmar', cancelButtonText = 'Cancelar') {
     const Swal = await this.loadSwal();
     const dark = this.isDarkMode();
 
@@ -57,7 +57,7 @@ export class UiFeedbackService {
       text,
       showCancelButton: true,
       confirmButtonText,
-      cancelButtonText: 'Cancelar',
+      cancelButtonText,
       background: dark ? '#11182b' : '#ffffff',
       color: dark ? '#eef0ff' : '#131b2e',
       confirmButtonColor: '#3525cd',

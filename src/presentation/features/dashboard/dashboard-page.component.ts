@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
@@ -50,6 +50,107 @@ interface QuickAction {
   label: string;
   icon: string;
   tone: 'primary' | 'secondary' | 'tertiary';
+}
+
+type DashboardLocale = 'es' | 'en';
+
+interface DashboardCopy {
+  activeClients: string;
+  searchPlaceholder: string;
+  revenueTitle: string;
+  invoicesTitle: string;
+  invoicesViewAll: string;
+  quickActionsTitle: string;
+  productsTitle: string;
+  productsSubtitle: string;
+  customersTitle: string;
+  notificationsTitle: string;
+  notificationsText: string;
+  settingsTitle: string;
+  settingsText: string;
+  logoutTitle: string;
+  logoutText: string;
+  logoutConfirm: string;
+  logoutCancel: string;
+  languageShort: string;
+  languageToggleAria: string;
+  invoiceEmptyTitle: string;
+  invoiceEmptyText: string;
+  invoiceEmptySearchTitle: string;
+  invoiceEmptySearchText: string;
+  productsEmptyTitle: string;
+  productsEmptyText: string;
+  customersEmptyTitle: string;
+  customersEmptyText: string;
+}
+
+const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
+  es: {
+    activeClients: 'clientes activos',
+    searchPlaceholder: 'Buscar facturas...',
+    revenueTitle: 'Tendencia de Ingresos',
+    invoicesTitle: 'Facturas Recientes',
+    invoicesViewAll: 'Ver todas',
+    quickActionsTitle: 'Acciones Rápidas',
+    productsTitle: 'Productos',
+    productsSubtitle: '(inventario actual)',
+    customersTitle: 'Clientes recientes',
+    notificationsTitle: 'Notificaciones',
+    notificationsText: 'Tienes 3 movimientos críticos pendientes de revisión.',
+    settingsTitle: 'Configuración de usuario',
+    settingsText: 'Aquí podrías ajustar tu perfil, contraseña y preferencias.',
+    logoutTitle: 'Cerrar sesión',
+    logoutText: '¿Seguro que quieres salir del dashboard?',
+    logoutConfirm: 'Salir',
+    logoutCancel: 'Cancelar',
+    languageShort: 'ES',
+    languageToggleAria: 'Cambiar idioma',
+    invoiceEmptyTitle: 'Sin facturas registradas',
+    invoiceEmptyText: 'Aún no hay facturas para mostrar.',
+    invoiceEmptySearchTitle: 'Sin resultados para esa búsqueda',
+    invoiceEmptySearchText: 'Probá con otro número de factura, cliente o fecha.',
+    productsEmptyTitle: 'Sin productos cargados',
+    productsEmptyText: 'No hay productos disponibles para mostrar en este momento.',
+    customersEmptyTitle: 'Sin clientes registrados',
+    customersEmptyText: 'No hay clientes disponibles para mostrar en este momento.',
+  },
+  en: {
+    activeClients: 'active clients',
+    searchPlaceholder: 'Search invoices...',
+    revenueTitle: 'Revenue Trend',
+    invoicesTitle: 'Recent Invoices',
+    invoicesViewAll: 'View all',
+    quickActionsTitle: 'Quick Actions',
+    productsTitle: 'Products',
+    productsSubtitle: '(current inventory)',
+    customersTitle: 'Recent Customers',
+    notificationsTitle: 'Notifications',
+    notificationsText: 'You have 3 critical movements waiting for review.',
+    settingsTitle: 'User settings',
+    settingsText: 'Here you could adjust your profile, password, and preferences.',
+    logoutTitle: 'Sign out',
+    logoutText: 'Are you sure you want to leave the dashboard?',
+    logoutConfirm: 'Sign out',
+    logoutCancel: 'Cancel',
+    languageShort: 'EN',
+    languageToggleAria: 'Change language',
+    invoiceEmptyTitle: 'No invoices registered',
+    invoiceEmptyText: 'There are no invoices to show yet.',
+    invoiceEmptySearchTitle: 'No results for that search',
+    invoiceEmptySearchText: 'Try another invoice number, customer, or date.',
+    productsEmptyTitle: 'No products loaded',
+    productsEmptyText: 'There are no products available to show right now.',
+    customersEmptyTitle: 'No customers registered',
+    customersEmptyText: 'There are no customers available to show right now.',
+  },
+};
+
+function detectDashboardLocale(): DashboardLocale {
+  if (typeof window === 'undefined') return 'es';
+  const stored = window.localStorage.getItem('billflow-lang');
+  if (stored === 'es' || stored === 'en') return stored;
+  const browser = (window.navigator.language || window.navigator.languages?.[0] || 'es').toLowerCase();
+  return browser.startsWith('en') ? 'en' : 'es';
 }
 
 @Component({
@@ -116,16 +217,16 @@ interface QuickAction {
       </nav>
 
       <main class="app-dashboard-main">
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-10 min-w-0">
-          <div class="flex items-start gap-3 min-w-0">
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-30 isolate overflow-visible min-w-0">
+          <div class="flex items-start gap-3 min-w-0 flex-wrap">
             <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" aria-label="Abrir menú" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
               <span class="material-symbols-outlined">menu</span>
             </button>
 
             <div class="min-w-0">
-              <h2 class="font-h2 text-h2 dashboard-gradient-text">Hola de nuevo, {{ displayName }}</h2>
+              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ locale() === 'es' ? 'Hola de nuevo' : 'Welcome back' }}, {{ displayName }}</h2>
               <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
-                Resumen de actividad de hoy · {{ stats()?.totalClientes ?? 0 }} clientes activos
+                {{ locale() === 'es' ? 'Resumen de actividad de hoy' : 'Today activity summary' }} · {{ stats()?.totalClientes ?? 0 }} {{ copy().activeClients }}
               </p>
             </div>
           </div>
@@ -133,17 +234,44 @@ interface QuickAction {
           <div class="flex w-full md:w-auto items-center gap-2 md:gap-4 min-w-0">
             <div class="relative flex-1 min-w-0 md:w-72">
               <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/70">search</span>
-              <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" placeholder="Buscar facturas..." type="text" [value]="searchQuery()" (input)="searchQuery.set(($any($event.target).value))" />
+              <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" type="text" [value]="searchQuery()" (input)="searchQuery.set(($any($event.target).value))" />
             </div>
 
-            <div class="flex items-center justify-end gap-2 shrink-0 self-auto">
+            <div class="flex items-center justify-end gap-2 shrink-0 self-auto relative z-40">
               <button type="button" class="app-dashboard-notification-button relative bg-surface-container-lowest border border-outline-variant/60 hover:bg-surface-container-low transition-colors text-on-surface shadow-sm hover:shadow" (click)="showNotifications()">
                 <span class="material-symbols-outlined text-[22px]">notifications</span>
                 <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-white"></span>
               </button>
 
-              <div class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer">
+              <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer" (click)="toggleUserMenu($event)" [attr.aria-expanded]="userMenuOpen()" aria-haspopup="menu">
                 {{ userInitials }}
+              </button>
+
+              <div *ngIf="userMenuVisible()" #userMenuPanel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="userMenuClosing()" role="menu">
+                <button type="button" class="app-dashboard-user-menu__backdrop" aria-label="Cerrar menú" (click)="closeUserMenu()"></button>
+                <div class="app-dashboard-user-menu__panel">
+                  <div class="app-dashboard-user-menu__header">
+                    <div class="app-dashboard-user-menu__avatar">{{ userInitials }}</div>
+                    <div class="min-w-0">
+                      <p class="app-dashboard-user-menu__title">{{ displayName }}</p>
+                      <p class="app-dashboard-user-menu__subtitle">{{ locale() === 'es' ? 'Opciones de cuenta' : 'Account options' }}</p>
+                    </div>
+                  </div>
+
+                  <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="toggleDashboardLocale()">
+                    <span class="material-symbols-outlined">language</span>
+                    <span>{{ locale() === 'es' ? 'English' : 'Español' }}</span>
+                  </button>
+
+                  <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="openUserSettings()">
+                    <span class="material-symbols-outlined">settings</span>
+                    <span>{{ locale() === 'es' ? 'Configuración' : 'Settings' }}</span>
+                  </button>
+                  <button type="button" class="app-dashboard-user-menu__item app-dashboard-user-menu__item--danger" role="menuitem" (click)="logout()">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span>{{ locale() === 'es' ? 'Cerrar sesión' : 'Sign out' }}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -173,10 +301,10 @@ interface QuickAction {
           <div class="lg:col-span-2 space-y-8">
             <div class="dashboard-glass-card rounded-2xl p-7">
               <div class="flex justify-between items-center mb-8 gap-4">
-                <h3 class="font-h3 text-h3 text-on-background tracking-tight">Tendencia de Ingresos</h3>
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
                 <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="period()" (change)="setPeriod(($any($event.target).value))">
-                  <option value="week">Esta Semana</option>
-                  <option value="month">Este Mes</option>
+                  <option value="week">{{ locale() === 'es' ? 'Esta Semana' : 'This Week' }}</option>
+                  <option value="month">{{ locale() === 'es' ? 'Este Mes' : 'This Month' }}</option>
                 </select>
               </div>
 
@@ -201,18 +329,18 @@ interface QuickAction {
 
             <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
               <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
-                <h3 class="font-h3 text-h3 text-on-background tracking-tight">Facturas Recientes</h3>
-                <button type="button" class="text-sm font-button text-primary hover:text-indigo-700 transition-colors flex items-center gap-1 group" (click)="showInvoiceOverview()">Ver todas <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().invoicesTitle }}</h3>
+                <button type="button" class="text-sm font-button text-primary hover:text-indigo-700 transition-colors flex items-center gap-1 group" (click)="showInvoiceOverview()">{{ copy().invoicesViewAll }} <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
               </div>
 
               <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                   <thead>
                     <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">Factura</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">Cliente</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">Fecha</th>
-                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">Total</th>
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ locale() === 'es' ? 'Factura' : 'Invoice' }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Cliente' : 'Customer' }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Fecha' : 'Date' }}</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ locale() === 'es' ? 'Total' : 'Total' }}</th>
                     </tr>
                   </thead>
                   <tbody class="font-body-sm text-body-sm">
@@ -226,8 +354,8 @@ interface QuickAction {
                       <td colspan="4" class="p-8">
                         <div class="dashboard-table-card__empty">
                           <span class="material-symbols-outlined dashboard-table-card__empty-icon">{{ invoices().length === 0 ? 'database' : 'search_off' }}</span>
-                          <p class="dashboard-table-card__empty-title">{{ invoices().length === 0 ? 'Sin facturas registradas' : 'Sin resultados para esa búsqueda' }}</p>
-                          <p class="dashboard-table-card__empty-text">{{ invoices().length === 0 ? 'Aún no hay facturas para mostrar.' : 'Probá con otro número de factura, cliente o fecha.' }}</p>
+                          <p class="dashboard-table-card__empty-title">{{ invoices().length === 0 ? copy().invoiceEmptyTitle : copy().invoiceEmptySearchTitle }}</p>
+                          <p class="dashboard-table-card__empty-text">{{ invoices().length === 0 ? copy().invoiceEmptyText : copy().invoiceEmptySearchText }}</p>
                         </div>
                       </td>
                     </tr>
@@ -239,7 +367,7 @@ interface QuickAction {
 
           <div class="space-y-8">
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">Acciones Rápidas</h3>
+              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
               <div class="flex flex-col gap-3.5">
                 <button *ngFor="let action of quickActions" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
                   <div class="flex items-center gap-3">
@@ -252,7 +380,7 @@ interface QuickAction {
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">Productos <span class="text-outline text-sm font-normal ml-1">(inventario actual)</span></h3>
+              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
               <ng-container *ngIf="topProducts().length > 0; else emptyProducts">
                 <ul class="space-y-5">
                   <li *ngFor="let product of topProducts()" class="app-dashboard-list-item group cursor-pointer p-2 -mx-2 rounded-xl transition-colors" (click)="inspectProduct(product)">
@@ -270,14 +398,14 @@ interface QuickAction {
               <ng-template #emptyProducts>
                 <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
                   <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
-                  <p class="dashboard-table-card__empty-title">Sin productos cargados</p>
-                  <p class="dashboard-table-card__empty-text">No hay productos disponibles para mostrar en este momento.</p>
+                  <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
+                  <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
                 </div>
               </ng-template>
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">Clientes recientes</h3>
+              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().customersTitle }}</h3>
               <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
                 <ul class="space-y-4">
                   <li *ngFor="let customer of recentCustomers()" class="app-dashboard-list-item flex items-center justify-between gap-4 rounded-xl p-3 cursor-pointer transition-colors" (click)="inspectCustomer(customer)">
@@ -292,8 +420,8 @@ interface QuickAction {
               <ng-template #emptyCustomers>
                 <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
                   <span class="material-symbols-outlined dashboard-table-card__empty-icon">group_off</span>
-                  <p class="dashboard-table-card__empty-title">Sin clientes registrados</p>
-                  <p class="dashboard-table-card__empty-text">No hay clientes disponibles para mostrar en este momento.</p>
+                  <p class="dashboard-table-card__empty-title">{{ copy().customersEmptyTitle }}</p>
+                  <p class="dashboard-table-card__empty-text">{{ copy().customersEmptyText }}</p>
                 </div>
               </ng-template>
             </div>
@@ -319,10 +447,17 @@ interface QuickAction {
 export class DashboardPageComponent implements OnInit {
   private readonly api = inject(DashboardApiService);
   private readonly feedback = inject(UiFeedbackService);
+  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  private userMenuCloseTimeout?: number;
 
+  locale = signal<DashboardLocale>(detectDashboardLocale());
+  copy = computed(() => DASHBOARD_TEXT[this.locale()]);
   displayName = 'Usuario';
   userInitials = 'CA';
   tabletSidebarOpen = signal(false);
+  userMenuOpen = signal(false);
+  userMenuVisible = signal(false);
+  userMenuClosing = signal(false);
   loading = signal(true);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
@@ -382,6 +517,9 @@ export class DashboardPageComponent implements OnInit {
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
+
+    document.documentElement.lang = this.locale();
+    window.localStorage.setItem('billflow-lang', this.locale());
 
     try {
       const raw = window.localStorage.getItem('billflow-session');
@@ -447,6 +585,71 @@ export class DashboardPageComponent implements OnInit {
     await this.feedback.toast('success', 'Nueva venta', 'La terminal POS está lista para operar.');
   }
 
+  toggleDashboardLocale() {
+    const next: DashboardLocale = this.locale() === 'es' ? 'en' : 'es';
+    this.locale.set(next);
+    this.closeUserMenu();
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('billflow-lang', next);
+      document.documentElement.lang = next;
+    }
+  }
+
+  toggleUserMenu(event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.userMenuVisible()) {
+      this.closeUserMenu();
+      return;
+    }
+
+    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = undefined;
+    }
+
+    this.userMenuClosing.set(false);
+    this.userMenuVisible.set(true);
+    this.userMenuOpen.set(true);
+  }
+
+  closeUserMenu() {
+    if (!this.userMenuVisible() || this.userMenuClosing()) return;
+
+    this.userMenuClosing.set(true);
+    if (typeof window === 'undefined') return;
+
+    this.userMenuCloseTimeout = window.setTimeout(() => {
+      this.userMenuVisible.set(false);
+      this.userMenuOpen.set(false);
+      this.userMenuClosing.set(false);
+      this.userMenuCloseTimeout = undefined;
+    }, 180);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.userMenuOpen()) return;
+
+    const target = event.target as Node | null;
+    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
+
+    this.closeUserMenu();
+  }
+
+  async openUserSettings() {
+    this.closeUserMenu();
+    await this.feedback.alert('info', this.copy().settingsTitle, this.copy().settingsText);
+  }
+
+  async logout() {
+    this.closeUserMenu();
+    const confirmed = await this.feedback.confirm(this.copy().logoutTitle, this.copy().logoutText, this.copy().logoutConfirm, this.copy().logoutCancel);
+    if (!confirmed || typeof window === 'undefined') return;
+
+    window.localStorage.removeItem('billflow-session');
+    window.location.replace('/auth');
+  }
+
   toggleTabletSidebar() {
     this.tabletSidebarOpen.update((current) => !current);
   }
@@ -456,7 +659,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   async showNotifications() {
-    await this.feedback.alert('info', 'Notificaciones', 'Tienes 3 movimientos críticos pendientes de revisión.');
+    await this.feedback.alert('info', this.copy().notificationsTitle, this.copy().notificationsText);
   }
 
   async showInvoiceOverview() {
