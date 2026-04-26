@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
+import type { OnInit } from '@angular/core';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 
@@ -58,7 +59,39 @@ interface QuickAction {
   host: { class: 'block w-full' },
   template: `
     <div class="app-dashboard-shell">
-      <nav class="hidden md:flex app-dashboard-sidebar">
+      <div *ngIf="tabletSidebarOpen()" class="app-dashboard-tablet-drawer lg:hidden">
+        <button type="button" class="app-dashboard-tablet-drawer__backdrop" aria-label="Cerrar menú" (click)="closeTabletSidebar()"></button>
+        <aside class="app-dashboard-tablet-drawer__panel app-dashboard-tablet-drawer__panel--open">
+          <div class="app-dashboard-tablet-drawer__header">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="material-symbols-outlined text-primary text-[30px] filter drop-shadow-sm" style="font-variation-settings: 'FILL' 1;">point_of_sale</span>
+              <div class="min-w-0">
+                <h1 class="text-2xl font-black text-primary tracking-tight">BillFlow</h1>
+                <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
+              </div>
+            </div>
+            <button type="button" class="app-dashboard-tablet-drawer__close" aria-label="Cerrar menú" (click)="closeTabletSidebar()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+
+          <div class="app-dashboard-tablet-drawer__nav space-y-1.5">
+            <a *ngFor="let item of sidebarItems" [href]="item.href" class="app-dashboard-tablet-drawer__link flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'" (click)="closeTabletSidebar()">
+              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+              {{ item.label }}
+            </a>
+          </div>
+
+          <div class="app-dashboard-tablet-drawer__actions">
+            <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
+              <span class="material-symbols-outlined text-[20px]">add</span>
+              Nueva Venta
+            </button>
+          </div>
+        </aside>
+      </div>
+
+      <nav class="hidden lg:flex app-dashboard-sidebar">
         <div class="mb-10 flex items-center gap-3 px-2">
           <span class="material-symbols-outlined text-primary text-[32px] filter drop-shadow-sm" style="font-variation-settings: 'FILL' 1;">point_of_sale</span>
           <div>
@@ -75,7 +108,7 @@ interface QuickAction {
         </div>
 
         <div class="mt-auto pt-6">
-          <button type="button" class="w-full py-3.5 px-4 bg-primary text-white rounded-xl font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
+          <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
             <span class="material-symbols-outlined text-[20px]">add</span>
             Nueva Venta
           </button>
@@ -83,33 +116,41 @@ interface QuickAction {
       </nav>
 
       <main class="app-dashboard-main">
-        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-10">
-          <div>
-            <h2 class="font-h2 text-h2 dashboard-gradient-text">Hola de nuevo, {{ displayName }}</h2>
-            <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
-              Resumen de actividad de hoy · {{ stats()?.totalClientes ?? 0 }} clientes activos
-            </p>
-          </div>
-
-          <div class="flex items-center gap-5 w-full md:w-auto">
-            <div class="relative w-full md:w-72">
-              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/70">search</span>
-              <input class="w-full pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" placeholder="Buscar facturas..." type="text" [value]="searchQuery()" (input)="searchQuery.set(($any($event.target).value))" />
-            </div>
-
-            <button type="button" class="relative p-2.5 rounded-full bg-surface-container-lowest border border-outline-variant/60 hover:bg-surface-container-low transition-colors text-on-surface shadow-sm hover:shadow" (click)="showNotifications()">
-              <span class="material-symbols-outlined text-[22px]">notifications</span>
-              <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-white"></span>
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-10 min-w-0">
+          <div class="flex items-start gap-3 min-w-0">
+            <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" aria-label="Abrir menú" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
+              <span class="material-symbols-outlined">menu</span>
             </button>
 
-            <div class="w-11 h-11 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer">
-              {{ userInitials }}
+            <div class="min-w-0">
+              <h2 class="font-h2 text-h2 dashboard-gradient-text">Hola de nuevo, {{ displayName }}</h2>
+              <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
+                Resumen de actividad de hoy · {{ stats()?.totalClientes ?? 0 }} clientes activos
+              </p>
+            </div>
+          </div>
+
+          <div class="flex w-full md:w-auto items-center gap-2 md:gap-4 min-w-0">
+            <div class="relative flex-1 min-w-0 md:w-72">
+              <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline/70">search</span>
+              <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" placeholder="Buscar facturas..." type="text" [value]="searchQuery()" (input)="searchQuery.set(($any($event.target).value))" />
+            </div>
+
+            <div class="flex items-center justify-end gap-2 shrink-0 self-auto">
+              <button type="button" class="app-dashboard-notification-button relative bg-surface-container-lowest border border-outline-variant/60 hover:bg-surface-container-low transition-colors text-on-surface shadow-sm hover:shadow" (click)="showNotifications()">
+                <span class="material-symbols-outlined text-[22px]">notifications</span>
+                <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-white"></span>
+              </button>
+
+              <div class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer">
+                {{ userInitials }}
+              </div>
             </div>
           </div>
         </header>
 
         <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 relative z-10">
-          <div *ngFor="let kpi of kpis()" class="dashboard-kpi-card dashboard-glass-card rounded-2xl p-6 relative overflow-hidden group">
+          <div *ngFor="let kpi of kpis()" class="dashboard-kpi-card dashboard-glass-card rounded-2xl p-6 relative overflow-hidden group" [ngClass]="kpiCardTone(kpi.tone)">
             <div class="absolute top-0 right-0 w-40 h-40 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 group-hover:scale-125 transition-transform duration-700" [ngClass]="kpiBackground(kpi.tone)"></div>
             <div class="dashboard-kpi-header flex justify-between items-start mb-5 relative z-10 w-full gap-3">
               <div class="min-w-0 flex-1">
@@ -267,7 +308,7 @@ interface QuickAction {
         </a>
 
         <div class="app-dashboard-mobile-fab-wrap">
-          <button type="button" class="w-14 h-14 bg-primary text-white rounded-full shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-all border-[3px] border-surface" (click)="startNewSale()">
+          <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="startNewSale()">
             <span class="material-symbols-outlined text-[24px]">add</span>
           </button>
         </div>
@@ -281,6 +322,7 @@ export class DashboardPageComponent implements OnInit {
 
   displayName = 'Usuario';
   userInitials = 'CA';
+  tabletSidebarOpen = signal(false);
   loading = signal(true);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
@@ -405,6 +447,14 @@ export class DashboardPageComponent implements OnInit {
     await this.feedback.toast('success', 'Nueva venta', 'La terminal POS está lista para operar.');
   }
 
+  toggleTabletSidebar() {
+    this.tabletSidebarOpen.update((current) => !current);
+  }
+
+  closeTabletSidebar() {
+    this.tabletSidebarOpen.set(false);
+  }
+
   async showNotifications() {
     await this.feedback.alert('info', 'Notificaciones', 'Tienes 3 movimientos críticos pendientes de revisión.');
   }
@@ -453,6 +503,15 @@ export class DashboardPageComponent implements OnInit {
       'bg-secondary-fixed/60 text-secondary': tone === 'secondary',
       'bg-tertiary-fixed/60 text-tertiary': tone === 'tertiary',
       'bg-primary/10 text-primary': tone === 'neutral',
+    };
+  }
+
+  kpiCardTone(tone: DashboardKpi['tone']) {
+    return {
+      'dashboard-kpi-card--primary': tone === 'primary',
+      'dashboard-kpi-card--secondary': tone === 'secondary',
+      'dashboard-kpi-card--tertiary': tone === 'tertiary',
+      'dashboard-kpi-card--neutral': tone === 'neutral',
     };
   }
 
