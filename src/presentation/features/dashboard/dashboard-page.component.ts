@@ -1,22 +1,30 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 
 type Period = 'week' | 'month';
 
 interface DashboardInvoice {
   id: string;
-  client: string;
-  amount: string;
-  status: string;
-  tone: 'success' | 'warning' | 'error';
+  number: string;
+  customer: string;
+  date: string;
+  total: number;
 }
 
 interface DashboardProduct {
   rank: string;
   name: string;
-  units: string;
-  price: string;
+  units: number;
+  price: number;
+}
+
+interface DashboardCustomer {
+  id: string;
+  name: string;
+  cedula: string;
+  email?: string;
 }
 
 interface DashboardKpi {
@@ -78,7 +86,9 @@ interface QuickAction {
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-10">
           <div>
             <h2 class="font-h2 text-h2 dashboard-gradient-text">Hola de nuevo, {{ displayName }}</h2>
-            <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">Resumen de actividad de hoy</p>
+            <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
+              Resumen de actividad de hoy · {{ stats()?.totalClientes ?? 0 }} clientes activos
+            </p>
           </div>
 
           <div class="flex items-center gap-5 w-full md:w-auto">
@@ -99,7 +109,7 @@ interface QuickAction {
         </header>
 
         <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 relative z-10">
-          <div *ngFor="let kpi of kpis" class="dashboard-kpi-card dashboard-glass-card rounded-2xl p-6 relative overflow-hidden group">
+          <div *ngFor="let kpi of kpis()" class="dashboard-kpi-card dashboard-glass-card rounded-2xl p-6 relative overflow-hidden group">
             <div class="absolute top-0 right-0 w-40 h-40 rounded-full blur-2xl -translate-y-1/2 translate-x-1/3 group-hover:scale-125 transition-transform duration-700" [ngClass]="kpiBackground(kpi.tone)"></div>
             <div class="dashboard-kpi-header flex justify-between items-start mb-5 relative z-10 w-full gap-3">
               <div class="min-w-0 flex-1">
@@ -138,18 +148,18 @@ interface QuickAction {
                   <div class="w-full border-b border-outline-variant/30 h-0"></div>
                 </div>
 
-                <div *ngFor="let bar of chartBars" class="dashboard-chart-bar rounded-t-lg relative z-10 group cursor-pointer min-h-[4px] flex-1" [style.height.%]="bar.height" [attr.aria-label]="bar.label" (click)="showPeriodDetail(bar.label, bar.value)">
+                <div *ngFor="let bar of chartBars()" class="dashboard-chart-bar rounded-t-lg relative z-10 group cursor-pointer min-h-[4px] flex-1" [style.height.%]="bar.height" [attr.aria-label]="bar.label" (click)="showPeriodDetail(bar.label, bar.value)">
                   <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-on-surface text-surface text-xs font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{{ bar.value }}</div>
                 </div>
               </div>
 
               <div class="flex justify-between text-[13px] font-medium text-outline mt-1 px-3">
-                <span *ngFor="let bar of chartBars">{{ bar.label }}</span>
+                <span *ngFor="let bar of chartBars()">{{ bar.label }}</span>
               </div>
             </div>
 
-            <div class="dashboard-glass-card rounded-2xl p-0 overflow-hidden">
-              <div class="p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center bg-white/40">
+            <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
                 <h3 class="font-h3 text-h3 text-on-background tracking-tight">Facturas Recientes</h3>
                 <button type="button" class="text-sm font-button text-primary hover:text-indigo-700 transition-colors flex items-center gap-1 group" (click)="showInvoiceOverview()">Ver todas <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
               </div>
@@ -157,24 +167,28 @@ interface QuickAction {
               <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
                   <thead>
-                    <tr class="bg-surface-container-low/50 text-outline font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                      <th class="p-4 pl-7 font-semibold">ID Factura</th>
-                      <th class="p-4 font-semibold">Cliente</th>
-                      <th class="p-4 font-semibold">Monto</th>
-                      <th class="p-4 pr-7 font-semibold">Estado</th>
+                    <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">Factura</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">Cliente</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">Fecha</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">Total</th>
                     </tr>
                   </thead>
                   <tbody class="font-body-sm text-body-sm">
-                    <tr *ngFor="let invoice of filteredInvoices()" class="border-b border-outline-variant/20 hover:bg-white/60 transition-colors group cursor-pointer" (click)="inspectInvoice(invoice)">
-                      <td class="p-4 pl-7 font-semibold text-on-surface">{{ invoice.id }}</td>
-                      <td class="p-4 text-on-surface-variant font-medium">{{ invoice.client }}</td>
-                      <td class="p-4 text-on-surface font-semibold">{{ invoice.amount }}</td>
-                      <td class="p-4 pr-7">
-                        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold shadow-sm" [ngClass]="statusToneClass(invoice.tone)">{{ invoice.status }}</span>
-                      </td>
+                    <tr *ngFor="let invoice of filteredInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
+                      <td class="p-4 pl-7 font-semibold text-on-surface">{{ invoice.number }}</td>
+                      <td class="p-4 text-on-surface-variant font-medium">{{ invoice.customer }}</td>
+                      <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.date) }}</td>
+                      <td class="p-4 pr-7 text-on-surface font-semibold">{{ formatMoney(invoice.total) }}</td>
                     </tr>
                     <tr *ngIf="filteredInvoices().length === 0">
-                      <td colspan="4" class="p-8 text-center text-on-surface-variant">No hay facturas que coincidan con la búsqueda.</td>
+                      <td colspan="4" class="p-8">
+                        <div class="dashboard-table-card__empty">
+                          <span class="material-symbols-outlined dashboard-table-card__empty-icon">{{ invoices().length === 0 ? 'database' : 'search_off' }}</span>
+                          <p class="dashboard-table-card__empty-title">{{ invoices().length === 0 ? 'Sin facturas registradas' : 'Sin resultados para esa búsqueda' }}</p>
+                          <p class="dashboard-table-card__empty-text">{{ invoices().length === 0 ? 'Aún no hay facturas para mostrar.' : 'Probá con otro número de factura, cliente o fecha.' }}</p>
+                        </div>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -186,30 +200,61 @@ interface QuickAction {
             <div class="dashboard-glass-card rounded-2xl p-7">
               <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">Acciones Rápidas</h3>
               <div class="flex flex-col gap-3.5">
-                <button *ngFor="let action of quickActions" type="button" class="w-full flex items-center justify-between p-3.5 rounded-xl border border-outline-variant/60 bg-white/50 hover:border-primary/50 hover:bg-primary/5 hover:shadow-md transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
+                <button *ngFor="let action of quickActions" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
                   <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined text-primary bg-primary/10 p-1.5 rounded-lg group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all">{{ action.icon }}</span>
+                    <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
                     {{ action.label }}
                   </div>
-                  <span class="material-symbols-outlined text-outline/60 group-hover:text-primary transition-colors">arrow_forward</span>
+                  <span class="material-symbols-outlined app-dashboard-quick-action__arrow">arrow_forward</span>
                 </button>
               </div>
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">Productos Top <span class="text-outline text-sm font-normal ml-1">(Hoy)</span></h3>
-              <ul class="space-y-5">
-                <li *ngFor="let product of topProducts" class="flex items-center justify-between group cursor-pointer p-2 -mx-2 rounded-xl hover:bg-white/60 transition-colors" (click)="inspectProduct(product)">
-                  <div class="flex items-center gap-4">
-                    <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
-                    <div>
-                      <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.name }}</p>
-                      <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.units }}</p>
+              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">Productos <span class="text-outline text-sm font-normal ml-1">(inventario actual)</span></h3>
+              <ng-container *ngIf="topProducts().length > 0; else emptyProducts">
+                <ul class="space-y-5">
+                  <li *ngFor="let product of topProducts()" class="app-dashboard-list-item group cursor-pointer p-2 -mx-2 rounded-xl transition-colors" (click)="inspectProduct(product)">
+                    <div class="flex items-center gap-4">
+                      <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
+                      <div>
+                        <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.name }}</p>
+                        <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.units }} uds</p>
+                      </div>
                     </div>
-                  </div>
-                  <span class="font-body-sm font-bold text-on-surface group-hover:text-primary transition-colors">{{ product.price }}</span>
-                </li>
-              </ul>
+                    <span class="font-body-sm font-bold text-on-surface group-hover:text-primary transition-colors">{{ formatMoney(product.price) }}</span>
+                  </li>
+                </ul>
+              </ng-container>
+              <ng-template #emptyProducts>
+                <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
+                  <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
+                  <p class="dashboard-table-card__empty-title">Sin productos cargados</p>
+                  <p class="dashboard-table-card__empty-text">No hay productos disponibles para mostrar en este momento.</p>
+                </div>
+              </ng-template>
+            </div>
+
+            <div class="dashboard-glass-card rounded-2xl p-7">
+              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">Clientes recientes</h3>
+              <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
+                <ul class="space-y-4">
+                  <li *ngFor="let customer of recentCustomers()" class="app-dashboard-list-item flex items-center justify-between gap-4 rounded-xl p-3 cursor-pointer transition-colors" (click)="inspectCustomer(customer)">
+                    <div class="min-w-0">
+                      <p class="font-semibold text-on-surface truncate">{{ customer.name }}</p>
+                      <p class="text-xs text-outline mt-0.5">{{ customer.cedula }}</p>
+                    </div>
+                    <span class="text-xs font-medium text-on-surface-variant truncate max-w-28">{{ customer.email || 'Sin email' }}</span>
+                  </li>
+                </ul>
+              </ng-container>
+              <ng-template #emptyCustomers>
+                <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
+                  <span class="material-symbols-outlined dashboard-table-card__empty-icon">group_off</span>
+                  <p class="dashboard-table-card__empty-title">Sin clientes registrados</p>
+                  <p class="dashboard-table-card__empty-text">No hay clientes disponibles para mostrar en este momento.</p>
+                </div>
+              </ng-template>
             </div>
           </div>
         </div>
@@ -231,10 +276,16 @@ interface QuickAction {
   `,
 })
 export class DashboardPageComponent implements OnInit {
+  private readonly api = inject(DashboardApiService);
   private readonly feedback = inject(UiFeedbackService);
 
-  displayName = 'Carlos';
+  displayName = 'Usuario';
   userInitials = 'CA';
+  loading = signal(true);
+  stats = signal<DashboardStatsDto | null>(null);
+  invoices = signal<DashboardInvoice[]>([]);
+  products = signal<DashboardProduct[]>([]);
+  customers = signal<DashboardCustomer[]>([]);
   period = signal<Period>('week');
   searchQuery = signal('');
 
@@ -253,12 +304,15 @@ export class DashboardPageComponent implements OnInit {
     { label: 'Más', icon: 'menu', href: '#' },
   ];
 
-  readonly kpis: DashboardKpi[] = [
-    { label: 'Ventas del Día', value: '$4,250.00', icon: 'payments', tone: 'primary', trendIcon: 'trending_up', trend: '+12.5%', trendTone: 'success', note: 'vs ayer' },
-    { label: 'Facturas Hoy', value: '124', icon: 'receipt_long', tone: 'secondary', trendIcon: 'trending_up', trend: '+5', trendTone: 'success', note: 'vs ayer' },
-    { label: 'Nuevos Clientes', value: '18', icon: 'person_add', tone: 'tertiary', trendIcon: 'trending_down', trend: '-2', trendTone: 'error', note: 'vs ayer' },
-    { label: 'En Turno', value: '4/5', icon: 'badge', tone: 'neutral', trendIcon: 'circle', trend: 'Operación normal', trendTone: 'neutral', note: '' },
-  ];
+  readonly kpis = computed<DashboardKpi[]>(() => {
+    const stats = this.stats();
+    return [
+      { label: 'Ventas del Día', value: this.formatMoney(stats?.ventasDelDia ?? 0), icon: 'payments', tone: 'primary', trendIcon: 'trending_up', trend: 'Datos sincronizados', trendTone: 'success', note: '' },
+      { label: 'Ventas del Mes', value: this.formatMoney(stats?.ventasDelMes ?? 0), icon: 'receipt_long', tone: 'secondary', trendIcon: 'trending_up', trend: 'Datos sincronizados', trendTone: 'success', note: '' },
+      { label: 'Facturas Totales', value: String(stats?.totalFacturas ?? 0), icon: 'receipt_long', tone: 'tertiary', trendIcon: 'dataset', trend: 'Vista operativa', trendTone: 'neutral', note: '' },
+      { label: 'Stock Bajo', value: String(stats?.productosConStockBajo ?? 0), icon: 'inventory_2', tone: 'neutral', trendIcon: 'warning', trend: 'Alertas de inventario', trendTone: 'error', note: '' },
+    ];
+  });
 
   readonly quickActions: QuickAction[] = [
     { label: 'Nueva Factura', icon: 'post_add', tone: 'primary' },
@@ -266,34 +320,23 @@ export class DashboardPageComponent implements OnInit {
     { label: 'Añadir Producto', icon: 'add_box', tone: 'tertiary' },
   ];
 
-  readonly chartBars = [
-    { label: 'Lun', value: '$1.2k', height: 45 },
-    { label: 'Mar', value: '$1.8k', height: 65 },
-    { label: 'Mié', value: '$1.0k', height: 40 },
-    { label: 'Jue', value: '$2.4k', height: 85 },
-    { label: 'Vie', value: '$1.6k', height: 60 },
-    { label: 'Sáb', value: '$2.7k', height: 95 },
-    { label: 'Dom', value: '$2.2k', height: 80 },
-  ];
-
-  readonly invoices: DashboardInvoice[] = [
-    { id: '#INV-0842', client: 'TechCorp S.A.', amount: '$1,250.00', status: 'Pagado', tone: 'success' },
-    { id: '#INV-0841', client: 'María González', amount: '$345.50', status: 'Pendiente', tone: 'warning' },
-    { id: '#INV-0840', client: 'Librería El Ateneo', amount: '$890.00', status: 'Pagado', tone: 'success' },
-    { id: '#INV-0839', client: 'Juan Pérez', amount: '$120.00', status: 'Vencido', tone: 'error' },
-  ];
-
-  readonly topProducts: DashboardProduct[] = [
-    { rank: '01', name: 'Café de Especialidad', units: '42 uds', price: '$210.00' },
-    { rank: '02', name: 'Croissant Mantequilla', units: '38 uds', price: '$114.00' },
-    { rank: '03', name: 'Té Matcha', units: '25 uds', price: '$150.00' },
-  ];
+  readonly chartBars = computed(() => this.buildChartBars());
 
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return this.invoices;
-    return this.invoices.filter((invoice) => [invoice.id, invoice.client, invoice.amount, invoice.status].some((field) => field.toLowerCase().includes(query)));
+    const invoices = this.invoices();
+    if (!query) return invoices;
+    return invoices.filter((invoice) => [invoice.number, invoice.customer, invoice.date, String(invoice.total)].some((field) => field.toLowerCase().includes(query)));
   });
+
+  readonly topProducts = computed(() => this.products().slice(0, 3).map((product, index) => ({
+    rank: String(index + 1).padStart(2, '0'),
+    name: product.name,
+    units: product.availableQuantity,
+    price: product.unitPrice,
+  })));
+
+  readonly recentCustomers = computed(() => this.customers().slice(0, 4));
 
   ngOnInit() {
     if (typeof window === 'undefined') return;
@@ -305,10 +348,10 @@ export class DashboardPageComponent implements OnInit {
         return;
       }
 
-      const session = JSON.parse(raw) as { user?: { name?: string; firstName?: string; fullName?: string } };
-      const candidate = session.user?.fullName || session.user?.name || session.user?.firstName;
-      if (candidate) {
-        this.displayName = candidate;
+      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
+      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || 'Usuario';
+      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
+      if (candidate !== 'Usuario') {
         this.userInitials = candidate
           .split(/\s+/)
           .filter(Boolean)
@@ -316,8 +359,45 @@ export class DashboardPageComponent implements OnInit {
           .map((part) => part[0]?.toUpperCase() ?? '')
           .join('');
       }
+
+      void this.loadDashboardData();
     } catch {
       window.location.assign('/auth');
+    }
+  }
+
+  private async loadDashboardData() {
+    try {
+      const [statsResult, invoicesResult, productsResult, customersResult] = await Promise.allSettled([
+        this.api.getStats(),
+        this.api.listInvoices(8),
+        this.api.listProducts(8),
+        this.api.listCustomers(8),
+      ]);
+
+      if (statsResult.status === 'fulfilled') {
+        this.stats.set(statsResult.value);
+      }
+
+      if (invoicesResult.status === 'fulfilled') {
+        this.invoices.set(invoicesResult.value.data.map((invoice) => this.mapInvoice(invoice)));
+      }
+
+      if (productsResult.status === 'fulfilled') {
+        this.products.set(productsResult.value.data.map((product) => this.mapProduct(product)));
+      }
+
+      if (customersResult.status === 'fulfilled') {
+        this.customers.set(customersResult.value.data.map((customer) => this.mapCustomer(customer)));
+      }
+
+      if ([statsResult, invoicesResult, productsResult, customersResult].some((result) => result.status === 'rejected')) {
+        await this.feedback.toast('warning', 'Datos parciales', 'Algunos módulos no pudieron cargarse.');
+      }
+    } catch {
+      await this.feedback.alert('error', 'No se pudo cargar el dashboard', 'Revisá la conexión del sistema.');
+    } finally {
+      this.loading.set(false);
     }
   }
 
@@ -334,11 +414,15 @@ export class DashboardPageComponent implements OnInit {
   }
 
   async inspectInvoice(invoice: DashboardInvoice) {
-    await this.feedback.alert('info', invoice.id, `${invoice.client} · ${invoice.amount} · ${invoice.status}`);
+    await this.feedback.alert('info', invoice.number, `${invoice.customer} · ${this.formatDate(invoice.date)} · ${this.formatMoney(invoice.total)}`);
   }
 
   async inspectProduct(product: DashboardProduct) {
-    await this.feedback.toast('info', product.name, `${product.units} · ${product.price}`);
+    await this.feedback.toast('info', product.name, `${product.units} uds · ${this.formatMoney(product.price)}`);
+  }
+
+  async inspectCustomer(customer: DashboardCustomer) {
+    await this.feedback.alert('info', customer.name, `${customer.cedula}${customer.email ? ` · ${customer.email}` : ''}`);
   }
 
   async triggerQuickAction(action: QuickAction) {
@@ -388,7 +472,7 @@ export class DashboardPageComponent implements OnInit {
     };
   }
 
-  statusToneClass(tone: DashboardInvoice['tone']) {
+  statusToneClass(tone: 'success' | 'warning' | 'error') {
     return {
       'bg-[#10b981]/10 text-[#10b981] border border-[#10b981]/20': tone === 'success',
       'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20': tone === 'warning',
@@ -398,5 +482,83 @@ export class DashboardPageComponent implements OnInit {
 
   iconVariationSettings(active = false) {
     return active ? "'FILL' 1" : "'FILL' 0";
+  }
+
+  formatMoney(value: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  }
+
+  formatDate(value: string) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(date);
+  }
+
+  private buildChartBars() {
+    const invoices = this.invoices();
+    const days = this.period() === 'month'
+      ? this.monthLabels()
+      : ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+
+    const values = days.map((label, index) => {
+      const bucket = invoices.filter((invoice) => this.matchesBucket(invoice.date, label, index));
+      const total = bucket.reduce((sum, invoice) => sum + invoice.total, 0);
+      return { label, value: this.formatCompactMoney(total), height: this.scaleChartValue(total) };
+    });
+
+    return values;
+  }
+
+  private monthLabels() {
+    return ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  }
+
+  private matchesBucket(dateValue: string, _label: string, index: number) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return false;
+
+    if (this.period() === 'month') {
+      return date.getMonth() === index;
+    }
+
+    const weekday = date.getDay();
+    const normalized = [1, 2, 3, 4, 5, 6, 0];
+    return normalized[index] === weekday;
+  }
+
+  private scaleChartValue(value: number) {
+    const max = Math.max(...this.invoices().map((invoice) => invoice.total), 1);
+    return Math.max(18, Math.round((value / max) * 95));
+  }
+
+  private formatCompactMoney(value: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(value);
+  }
+
+  private mapInvoice(invoice: InvoiceRowDto): DashboardInvoice {
+    return {
+      id: invoice.id,
+      number: invoice.invoiceNumber,
+      customer: invoice.customerName || 'Cliente sin nombre',
+      date: invoice.invoiceDate,
+      total: invoice.total,
+    };
+  }
+
+  private mapProduct(product: ProductRowDto): DashboardProduct {
+    return {
+      rank: '00',
+      name: `${product.code} · ${product.name}`,
+      units: product.availableQuantity,
+      price: product.unitPrice,
+    };
+  }
+
+  private mapCustomer(customer: CustomerRowDto): DashboardCustomer {
+    return {
+      id: customer.id,
+      name: `${customer.name} ${customer.lastName}`.trim(),
+      cedula: customer.cedula,
+      email: customer.email,
+    };
   }
 }

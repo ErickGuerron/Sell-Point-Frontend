@@ -279,10 +279,10 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
-      await this.feedback.toast('success', this.copy().feedback.success);
+      void this.feedback.toast('success', this.copy().feedback.success);
       window.setTimeout(() => {
-        window.location.assign('/dashboard');
-      }, 650);
+        window.location.replace('/dashboard');
+      }, 180);
     } catch {
       this.loginStatusTone.set('error');
       this.loginStatusMessage.set(this.copy().feedback.invalid);
