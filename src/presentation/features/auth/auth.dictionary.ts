@@ -17,10 +17,19 @@ export interface AuthText {
     title: string;
     description: string;
     close: string;
+    issueLabel: string;
+    detailsLabel: string;
+    detailsPlaceholder: string;
     services: {
       gmail: string;
       outlook: string;
       yahoo: string;
+    };
+    issues: {
+      login: string;
+      access: string;
+      bug: string;
+      other: string;
     };
   };
   feedback: {
@@ -54,12 +63,21 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     support: {
       title: 'Contact IT Support',
-      description: 'Choose your email service to send a message to guerronerick.10d@gmail.com.',
+      description: 'Choose your email service to send a message to',
       close: 'Close',
+      issueLabel: 'What do you need help with?',
+      detailsLabel: 'Additional details',
+      detailsPlaceholder: 'Add context, error messages, device info, or anything relevant...',
       services: {
         gmail: 'Open Gmail',
         outlook: 'Open Outlook',
         yahoo: 'Open Yahoo Mail'
+      },
+      issues: {
+        login: 'Login / access problem',
+        access: 'Need account or role access',
+        bug: 'Bug / unexpected behavior',
+        other: 'Other'
       }
     },
     feedback: {
@@ -86,12 +104,21 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     support: {
       title: 'Contactar Soporte IT',
-      description: 'Elegí tu servicio de correo para enviar un mensaje a guerronerick.10d@gmail.com.',
+      description: 'Elegí tu servicio de correo para enviar un mensaje a',
       close: 'Cerrar',
+      issueLabel: '¿Con qué necesitás ayuda?',
+      detailsLabel: 'Detalles adicionales',
+      detailsPlaceholder: 'Sumá contexto, mensajes de error, dispositivo o cualquier dato relevante...',
       services: {
         gmail: 'Abrir Gmail',
         outlook: 'Abrir Outlook',
         yahoo: 'Abrir Yahoo Mail'
+      },
+      issues: {
+        login: 'Problema de acceso / login',
+        access: 'Necesito acceso o roles',
+        bug: 'Bug / comportamiento inesperado',
+        other: 'Otro'
       }
     },
     feedback: {

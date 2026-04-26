@@ -456,6 +456,206 @@ body {
     color: #dc2626;
   }
 
+  .app-auth-support-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .app-auth-support-overlay__scrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(19, 27, 46, 0.4);
+    backdrop-filter: blur(12px);
+  }
+
+  .app-auth-support-modal {
+    position: relative;
+    z-index: 10;
+    width: 100%;
+    max-width: 72rem;
+    max-height: calc(100dvh - 2rem);
+    overflow: auto;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(199, 196, 216, 0.4);
+    background: var(--color-surface-container-lowest);
+    padding: 1.75rem;
+    box-shadow: 0 10px 30px rgba(79, 70, 229, 0.15);
+  }
+
+  .app-auth-support-modal--enter {
+    animation: support-modal-enter 180ms ease-out;
+  }
+
+  .app-auth-support-modal--exit {
+    animation: support-modal-exit 180ms ease-in forwards;
+  }
+
+  .app-auth-support-modal__close {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 9999px;
+    background: transparent;
+    color: var(--color-on-surface-variant);
+    transition: background-color 160ms ease, color 160ms ease;
+  }
+
+  .app-auth-support-modal__close:hover {
+    background: var(--color-surface-container);
+    color: var(--color-on-surface);
+  }
+
+  .app-auth-support-modal__header {
+    margin-bottom: 1.25rem;
+    padding-right: 3rem;
+  }
+
+  .app-auth-support-modal__icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.75rem;
+    background: rgba(79, 70, 229, 0.12);
+    color: var(--color-primary);
+  }
+
+  .app-auth-support-modal__description {
+    color: var(--color-on-surface-variant);
+    line-height: 1.6;
+  }
+
+  .app-auth-support-modal__issues {
+    margin-bottom: 1.25rem;
+  }
+
+  .app-auth-support-modal__issue-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .app-auth-support-modal__details {
+    margin-bottom: 1.25rem;
+  }
+
+  .app-auth-support-modal__services {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+
+  .app-auth-support-modal__email {
+    font-weight: 600;
+    color: var(--color-on-surface);
+  }
+
+  .app-auth-support-action {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--color-primary);
+    background: transparent;
+    color: var(--color-primary);
+    font: inherit;
+    font-weight: 600;
+    text-align: left;
+    overflow: hidden;
+    transition: background-color 300ms ease, color 300ms ease, transform 300ms ease, box-shadow 300ms ease;
+  }
+
+  .app-auth-support-action:hover {
+    transform: translateY(-1px);
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.2);
+  }
+
+  .app-auth-support-action--selected,
+  .app-auth-support-action--selected:hover {
+    background: var(--color-primary-container);
+    color: var(--color-on-primary-container);
+    border-color: var(--color-primary-container);
+    box-shadow: 0 8px 24px rgba(79, 70, 229, 0.18);
+  }
+
+  .app-auth-support-action__content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .app-auth-support-action__icon {
+    transition: transform 300ms ease;
+  }
+
+  .app-auth-support-action:hover .app-auth-support-action__icon {
+    transform: scale(1.1);
+  }
+
+  .app-auth-support-action__arrow {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+    transition: all 300ms ease;
+  }
+
+  .app-auth-support-action:hover .app-auth-support-action__arrow {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .app-auth-support-modal {
+      border-color: rgba(57, 69, 102, 0.65);
+      background: var(--color-surface-container-lowest);
+    }
+
+    .app-auth-support-modal__close:hover {
+      background: var(--color-surface-container);
+    }
+
+    .app-auth-support-modal__icon {
+      background: rgba(195, 192, 255, 0.16);
+      color: var(--color-primary-fixed);
+    }
+
+    .app-auth-support-action {
+      border-color: var(--color-primary-fixed);
+      color: var(--color-primary-fixed);
+    }
+
+    .app-auth-support-action:hover {
+      background: var(--color-primary-container);
+      color: var(--color-on-primary-container);
+    }
+
+    .app-auth-support-action--selected,
+    .app-auth-support-action--selected:hover {
+      background: var(--color-primary-container);
+      color: var(--color-on-primary-container);
+      border-color: var(--color-primary-fixed);
+    }
+  }
+
   .app-auth-bg {
     position: fixed;
     inset: 0;
@@ -527,6 +727,19 @@ body {
       display: flex;
       width: 50%;
     }
+
+    .app-auth-support-modal {
+      max-width: 72rem;
+      padding: 2rem;
+    }
+
+    .app-auth-support-modal__issue-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .app-auth-support-modal__services {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 
   @media (prefers-color-scheme: dark) {
@@ -592,6 +805,30 @@ body {
     .app-auth-visual-text {
       color: var(--color-primary-fixed);
       opacity: 0.95;
+    }
+  }
+
+  @keyframes support-modal-enter {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes support-modal-exit {
+    from {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    to {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
     }
   }
 }

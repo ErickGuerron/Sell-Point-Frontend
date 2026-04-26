@@ -64,26 +64,95 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
       </section>
       </main>
 
-      <div *ngIf="supportOpen()" class="fixed inset-0 z-[999] flex items-center justify-center px-4 py-6">
-        <div class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" (click)="closeSupportModal()"></div>
-        <div class="relative z-10 w-full max-w-xl md:max-w-2xl rounded-xl border border-outline-variant bg-surface-container-lowest p-lg md:p-xl shadow-2xl max-h-[calc(100dvh-3rem)] overflow-auto">
-          <div class="flex items-start justify-between gap-4 mb-md">
-            <div>
-              <h2 class="font-h2 text-h2 text-on-surface mb-xs">{{ copy().support.title }}</h2>
-              <p class="font-body-sm text-body-sm text-on-surface-variant">{{ copy().support.description }}</p>
+      <div *ngIf="supportOpen() || supportClosing()" class="app-auth-support-overlay">
+        <div class="app-auth-support-overlay__scrim" (click)="closeSupportModal()"></div>
+        <div class="app-auth-support-modal" [class.app-auth-support-modal--enter]="supportOpen() && !supportClosing()" [class.app-auth-support-modal--exit]="supportClosing()">
+          <button type="button" class="app-auth-support-modal__close" (click)="closeSupportModal()" [attr.aria-label]="copy().support.close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+
+          <div class="app-auth-support-modal__header">
+            <div class="app-auth-support-modal__icon">
+              <span class="material-symbols-outlined icon-fill text-[28px]">forum</span>
             </div>
-            <button type="button" class="text-on-surface-variant hover:text-on-surface" (click)="closeSupportModal()">
-              <span class="material-symbols-outlined">close</span>
+            <h2 class="font-h2 text-h2 text-on-surface mb-xs">{{ copy().support.title }}</h2>
+            <p class="font-body-md text-body-md app-auth-support-modal__description">
+              {{ copy().support.description }} <span class="app-auth-support-modal__email">guerronerick.10d@gmail.com</span>
+            </p>
+          </div>
+
+          <div class="app-auth-support-modal__issues">
+            <p class="font-label-bold text-label-bold text-on-surface mb-sm">{{ copy().support.issueLabel }}</p>
+            <div class="app-auth-support-modal__issue-grid">
+              <button type="button" class="app-auth-support-action" [ngClass]="{ 'app-auth-support-action--selected': supportSelectedIssues().includes(copy().support.issues.login) }" (click)="toggleSupportIssue(copy().support.issues.login)">
+                <span class="app-auth-support-action__content">
+                  <span class="material-symbols-outlined app-auth-support-action__icon">login</span>
+                  <span>{{ copy().support.issues.login }}</span>
+                </span>
+                <span class="material-symbols-outlined app-auth-support-action__arrow">{{ supportSelectedIssues().includes(copy().support.issues.login) ? 'check' : 'arrow_forward' }}</span>
+              </button>
+              <button type="button" class="app-auth-support-action" [ngClass]="{ 'app-auth-support-action--selected': supportSelectedIssues().includes(copy().support.issues.access) }" (click)="toggleSupportIssue(copy().support.issues.access)">
+                <span class="app-auth-support-action__content">
+                  <span class="material-symbols-outlined app-auth-support-action__icon">manage_accounts</span>
+                  <span>{{ copy().support.issues.access }}</span>
+                </span>
+                <span class="material-symbols-outlined app-auth-support-action__arrow">{{ supportSelectedIssues().includes(copy().support.issues.access) ? 'check' : 'arrow_forward' }}</span>
+              </button>
+              <button type="button" class="app-auth-support-action" [ngClass]="{ 'app-auth-support-action--selected': supportSelectedIssues().includes(copy().support.issues.bug) }" (click)="toggleSupportIssue(copy().support.issues.bug)">
+                <span class="app-auth-support-action__content">
+                  <span class="material-symbols-outlined app-auth-support-action__icon">bug_report</span>
+                  <span>{{ copy().support.issues.bug }}</span>
+                </span>
+                <span class="material-symbols-outlined app-auth-support-action__arrow">{{ supportSelectedIssues().includes(copy().support.issues.bug) ? 'check' : 'arrow_forward' }}</span>
+              </button>
+              <button type="button" class="app-auth-support-action" [ngClass]="{ 'app-auth-support-action--selected': supportSelectedIssues().includes(copy().support.issues.other) }" (click)="toggleSupportIssue(copy().support.issues.other)">
+                <span class="app-auth-support-action__content">
+                  <span class="material-symbols-outlined app-auth-support-action__icon">more_horiz</span>
+                  <span>{{ copy().support.issues.other }}</span>
+                </span>
+                <span class="material-symbols-outlined app-auth-support-action__arrow">{{ supportSelectedIssues().includes(copy().support.issues.other) ? 'check' : 'arrow_forward' }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="app-auth-support-modal__details">
+            <label class="block font-label-bold text-label-bold text-on-surface mb-sm" for="support-details">{{ copy().support.detailsLabel }}</label>
+            <textarea
+              id="support-details"
+              class="w-full min-h-32 rounded-lg border border-outline-variant bg-surface-container-low px-sm py-sm font-body-md text-body-md text-on-surface outline-none transition-colors focus:border-primary focus:ring-1 focus:ring-primary"
+              [placeholder]="copy().support.detailsPlaceholder"
+              [value]="supportDetails()"
+              (input)="supportDetails.set(($any($event.target).value))"
+            ></textarea>
+          </div>
+
+          <div class="app-auth-support-modal__services">
+            <button type="button" class="app-auth-support-action" (click)="openMailService('gmail')">
+              <span class="app-auth-support-action__content">
+                <span class="material-symbols-outlined app-auth-support-action__icon icon-fill">mail</span>
+                <span>{{ copy().support.services.gmail }}</span>
+              </span>
+              <span class="material-symbols-outlined app-auth-support-action__arrow">arrow_forward</span>
+            </button>
+            <button type="button" class="app-auth-support-action" (click)="openMailService('outlook')">
+              <span class="app-auth-support-action__content">
+                <span class="material-symbols-outlined app-auth-support-action__icon">forward_to_inbox</span>
+                <span>{{ copy().support.services.outlook }}</span>
+              </span>
+              <span class="material-symbols-outlined app-auth-support-action__arrow">arrow_forward</span>
+            </button>
+            <button type="button" class="app-auth-support-action" (click)="openMailService('yahoo')">
+              <span class="app-auth-support-action__content">
+                <span class="material-symbols-outlined app-auth-support-action__icon">mark_email_read</span>
+                <span>{{ copy().support.services.yahoo }}</span>
+              </span>
+              <span class="material-symbols-outlined app-auth-support-action__arrow">arrow_forward</span>
             </button>
           </div>
 
-          <div class="flex flex-col gap-sm">
-            <button type="button" class="app-auth-button justify-start" (click)="openMailService('gmail')">{{ copy().support.services.gmail }}</button>
-            <button type="button" class="app-auth-button justify-start" (click)="openMailService('outlook')">{{ copy().support.services.outlook }}</button>
-            <button type="button" class="app-auth-button justify-start" (click)="openMailService('yahoo')">{{ copy().support.services.yahoo }}</button>
+          <div class="mt-lg pt-sm border-t border-outline-variant/30 text-center">
+            <p class="font-body-sm text-body-sm text-on-surface-variant/70">Your default mail client will open securely.</p>
           </div>
-
-          <p class="mt-md text-xs text-on-surface-variant break-all">guerronerick.10d@gmail.com</p>
         </div>
       </div>
     </div>
@@ -96,6 +165,9 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   loginStatusMessage = signal<string | null>(null);
   loginStatusTone = signal<'idle' | 'success' | 'error'>('idle');
   supportOpen = signal(false);
+  supportClosing = signal(false);
+  supportSelectedIssues = signal<string[]>([]);
+  supportDetails = signal('');
 
   slides = [
     {
@@ -113,6 +185,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   ];
 
   private intervalId: number | undefined;
+  private supportCloseTimeout: number | undefined;
 
   ngOnInit() {
     if (typeof window !== 'undefined' && this.slides.length > 1) {
@@ -124,6 +197,9 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     if (typeof window !== 'undefined' && this.intervalId !== undefined) {
       window.clearInterval(this.intervalId);
     }
+    if (typeof window !== 'undefined' && this.supportCloseTimeout !== undefined) {
+      window.clearTimeout(this.supportCloseTimeout);
+    }
   }
 
   showSlide(index: number) {
@@ -132,16 +208,41 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   }
 
   openSupportModal() {
+    if (typeof window !== 'undefined' && this.supportCloseTimeout !== undefined) {
+      window.clearTimeout(this.supportCloseTimeout);
+      this.supportCloseTimeout = undefined;
+    }
+    this.supportClosing.set(false);
     this.supportOpen.set(true);
   }
 
   closeSupportModal() {
-    this.supportOpen.set(false);
+    if (!this.supportOpen() || this.supportClosing()) return;
+    this.supportClosing.set(true);
+    this.supportCloseTimeout = window.setTimeout(() => {
+      this.supportOpen.set(false);
+      this.supportClosing.set(false);
+      this.supportSelectedIssues.set([]);
+      this.supportDetails.set('');
+      this.supportCloseTimeout = undefined;
+    }, 180);
+  }
+
+  toggleSupportIssue(issue: string) {
+    const current = this.supportSelectedIssues();
+    this.supportSelectedIssues.set(
+      current.includes(issue) ? current.filter((item) => item !== issue) : [...current, issue],
+    );
   }
 
   openMailService(service: 'gmail' | 'outlook' | 'yahoo') {
     const subject = encodeURIComponent('BillFlow POS - IT Support Request');
-    const body = encodeURIComponent('Hello IT Support,\n\nI need help with BillFlow POS.\n\nBest regards,');
+    const issues = this.supportSelectedIssues();
+    const issueBlock = issues.length > 0 ? issues.map((issue) => `- ${issue}`).join('\n') : '- No issue selected';
+    const details = this.supportDetails().trim() || '- None provided';
+    const body = encodeURIComponent(
+      `Hello IT Support,\n\nI need help with BillFlow POS.\n\nSelected issue(s):\n${issueBlock}\n\nAdditional details:\n${details}\n\nEnvironment:\n- Locale: ${this.locale()}\n- Browser: ${typeof window !== 'undefined' ? window.navigator.userAgent : 'Unknown'}\n\nBest regards,`,
+    );
     const to = encodeURIComponent('guerronerick.10d@gmail.com');
 
     const urls: Record<'gmail' | 'outlook' | 'yahoo', string> = {
@@ -153,7 +254,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     if (typeof window !== 'undefined') {
       window.open(urls[service], '_blank', 'noopener,noreferrer');
     }
-    this.supportOpen.set(false);
+    this.closeSupportModal();
   }
 
   async handleLogin(payload: AuthLoginPayload) {
