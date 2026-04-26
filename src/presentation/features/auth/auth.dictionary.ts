@@ -13,10 +13,19 @@ export interface AuthText {
     submit: string;
     help: string;
   };
+  feedback: {
+    success: string;
+    invalid: string;
+  };
   panel: {
     title: string;
     description: string;
   };
+}
+
+export interface AuthLoginPayload {
+  identifier: string;
+  secret: string;
 }
 
 export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
@@ -32,6 +41,10 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       pinPlaceholder: '••••••••',
       submit: 'Unlock Terminal',
       help: 'Need help? Contact IT Support'
+    },
+    feedback: {
+      success: 'Login successful.',
+      invalid: 'Invalid employee ID/email or PIN/password.'
     },
     panel: {
       title: 'Welcome to<br/>BillFlow POS',
@@ -50,6 +63,10 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       pinPlaceholder: '••••••••',
       submit: 'Desbloquear Terminal',
       help: '¿Necesitás ayuda? Contactá al Soporte IT'
+    },
+    feedback: {
+      success: 'Inicio de sesión correcto.',
+      invalid: 'ID/correo o PIN/contraseña inválidos.'
     },
     panel: {
       title: 'Bienvenido a<br/>BillFlow POS',

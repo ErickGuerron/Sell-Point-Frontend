@@ -2,7 +2,10 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, signal } from '@angular/core';
 import type { OnDestroy, OnInit } from '@angular/core';
 import { AUTH_TEXT, detectAuthLocale } from './auth.dictionary';
+import type { AuthLoginPayload } from './auth.dictionary';
 import { LoginFormComponent } from './components/login-form.component';
+
+const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
 @Component({
   selector: 'billflow-auth-page',
@@ -10,25 +13,30 @@ import { LoginFormComponent } from './components/login-form.component';
   imports: [CommonModule, LoginFormComponent],
   host: { class: 'w-full flex justify-center' },
   template: `
-    <div class="relative w-full max-w-[1024px]">
+    <div class="app-auth-shell">
       <button
         type="button"
-        class="absolute top-4 right-4 z-30 inline-flex items-center justify-center gap-2 px-3.5 py-2 rounded-full border border-slate-200 bg-white/90 text-slate-700 shadow-lg backdrop-blur-md transition-all duration-200 hover:-translate-y-0.5 hover:border-indigo-200 hover:text-indigo-600 hover:bg-indigo-50 hover:shadow-[0_12px_26px_rgba(79,70,229,0.14)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+        class="app-auth-theme-toggle"
         (click)="toggleLocale()"
       >
         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">language</span>
         <span>{{ copy().language }}</span>
       </button>
 
-      <main class="w-full bg-surface-container-lowest rounded-xl overflow-hidden shadow-[0px_10px_30px_rgba(79,70,229,0.08)] border border-outline-variant/30 flex flex-col md:flex-row min-h-[600px]">
-      <section class="w-full md:w-1/2 flex flex-col p-lg lg:p-xl justify-center relative z-10">
-        <billflow-login-form [copy]="copy()" />
+      <main class="app-auth-card">
+      <section class="app-auth-login-panel">
+        <billflow-login-form
+          [copy]="copy()"
+          [statusMessage]="loginStatusMessage()"
+          [statusTone]="loginStatusTone()"
+          (submitLogin)="handleLogin($event)"
+        />
       </section>
 
-      <section class="hidden md:flex w-1/2 relative bg-primary overflow-hidden items-end p-xl">
+      <section class="app-auth-visual-panel">
         <ng-container *ngFor="let slide of slides; let index = index">
           <img
-            class="absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-1000"
+            class="app-auth-visual-image"
             [class.opacity-100]="activeSlide() === index"
             [class.opacity-0]="activeSlide() !== index"
             [src]="slide.src"
@@ -38,18 +46,15 @@ import { LoginFormComponent } from './components/login-form.component';
           />
         </ng-container>
 
-        <div class="absolute inset-0 bg-gradient-to-t from-primary via-primary/80 to-transparent z-10 mix-blend-multiply"></div>
-        <div class="absolute inset-0 bg-primary/40 z-10"></div>
-
-        <div class="relative z-20 w-full text-left text-on-primary">
-          <h2 class="font-display text-display text-on-primary mb-sm leading-tight">Welcome to<br/>BillFlow POS</h2>
-          <p class="font-body-lg text-body-lg text-on-primary-container">Precision billing for high-energy growth. Access your terminal to manage sales, inventory, and analytics.</p>
-          <div class="mt-lg flex gap-base items-center">
+        <div class="app-auth-visual-content">
+          <h2 class="font-display text-display app-auth-visual-title leading-tight" [innerHTML]="copy().panel.title"></h2>
+          <p class="font-body-lg text-body-lg app-auth-visual-text">{{ copy().panel.description }}</p>
+          <div class="app-auth-visual-indicators">
             <button
               *ngFor="let slide of slides; let index = index"
               type="button"
-              class="carousel-indicator rounded-full transition-all duration-300"
-              [ngClass]="activeSlide() === index ? 'w-12 h-1 bg-secondary-container' : 'w-2 h-1 bg-on-primary-container opacity-50 hover:opacity-100'"
+              class="app-auth-visual-indicator"
+              [ngClass]="activeSlide() === index ? 'app-auth-visual-indicator--active' : 'app-auth-visual-indicator--inactive'"
               [attr.aria-label]="'Slide ' + (index + 1)"
               (click)="showSlide(index)"
             ></button>
@@ -64,6 +69,8 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   locale = signal(detectAuthLocale());
   activeSlide = signal(0);
   copy = computed(() => AUTH_TEXT[this.locale()]);
+  loginStatusMessage = signal<string | null>(null);
+  loginStatusTone = signal<'idle' | 'success' | 'error'>('idle');
 
   slides = [
     {
@@ -97,6 +104,31 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   showSlide(index: number) {
     this.activeSlide.set(index);
     this.restartCarousel();
+  }
+
+  async handleLogin(payload: AuthLoginPayload) {
+    this.loginStatusMessage.set(null);
+    this.loginStatusTone.set('idle');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error('Invalid credentials');
+      }
+
+      const session = await response.json();
+      window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      this.loginStatusTone.set('success');
+      this.loginStatusMessage.set(this.copy().feedback.success);
+    } catch {
+      this.loginStatusTone.set('error');
+      this.loginStatusMessage.set(this.copy().feedback.invalid);
+    }
   }
 
   toggleLocale() {
