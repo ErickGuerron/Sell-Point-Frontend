@@ -1,0 +1,691 @@
+import { CommonModule } from '@angular/common';
+import { Component, computed, inject, signal } from '@angular/core';
+import type { OnInit } from '@angular/core';
+import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
+import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
+import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
+import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
+import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+
+type InvoiceStatus = 'paid' | 'pending' | 'overdue';
+type InvoiceRange = '30d' | '90d' | 'year' | 'all';
+
+interface InvoiceViewModel extends InvoiceRowDto {
+  status: InvoiceStatus;
+  statusLabel: string;
+  statusTone: string;
+  daysOld: number;
+}
+
+type InvoiceLocale = 'es' | 'en';
+
+interface InvoiceCopy {
+  moduleLabel: string;
+  historyTitle: string;
+  historyDescription: string;
+  resultsLabel: string;
+  themeLabel: string;
+  totalOutstandingLabel: string;
+  overdueAmountsLabel: string;
+  paid30Label: string;
+  openInvoicesText: string;
+  overdueText: string;
+  paidText: string;
+  allStatuses: string;
+  paid: string;
+  pending: string;
+  overdue: string;
+  last30Days: string;
+  last90Days: string;
+  thisYear: string;
+  allTime: string;
+  refresh: string;
+  searchPlaceholder: string;
+  invoiceNumber: string;
+  customer: string;
+  dateIssued: string;
+  amount: string;
+  status: string;
+  actions: string;
+  createInvoice: string;
+  sidebarDashboard: string;
+  sidebarInvoices: string;
+  sidebarCustomers: string;
+  sidebarInventory: string;
+  sidebarReports: string;
+  noInvoicesTitle: string;
+  noInvoicesText: string;
+  showingText: string;
+  entriesText: string;
+  signOut: string;
+  settings: string;
+  notifications: string;
+  languageToggle: string;
+  sessionLabel: string;
+}
+
+const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
+  es: {
+    moduleLabel: 'Módulo de Facturación',
+    historyTitle: 'Historial de Facturas',
+    historyDescription: 'Gestioná, seguí y revisá el ciclo de facturación.',
+    resultsLabel: 'resultados',
+    themeLabel: 'Tema',
+    totalOutstandingLabel: 'Total Pendiente',
+    overdueAmountsLabel: 'Montos Vencidos',
+    paid30Label: 'Pagado (Últimos 30 días)',
+    openInvoicesText: 'facturas abiertas',
+    overdueText: 'facturas requieren atención',
+    paidText: 'facturas registradas',
+    allStatuses: 'Todos los estados',
+    paid: 'Pagado',
+    pending: 'Pendiente',
+    overdue: 'Vencido',
+    last30Days: 'Últimos 30 días',
+    last90Days: 'Últimos 90 días',
+    thisYear: 'Este año',
+    allTime: 'Todo el historial',
+    refresh: 'Refrescar',
+    searchPlaceholder: 'Buscar facturas...',
+    invoiceNumber: 'Factura #',
+    customer: 'Cliente',
+    dateIssued: 'Fecha',
+    amount: 'Monto',
+    status: 'Estado',
+    actions: 'Acciones',
+    createInvoice: 'Nueva Factura',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Facturas',
+    sidebarCustomers: 'Clientes',
+    sidebarInventory: 'Inventario',
+    sidebarReports: 'Reportes',
+    noInvoicesTitle: 'No hay facturas',
+    noInvoicesText: 'Probá con otro filtro o término de búsqueda.',
+    showingText: 'Mostrando',
+    entriesText: 'registros',
+    signOut: 'Cerrar sesión',
+    settings: 'Configuración',
+    notifications: 'Notificaciones',
+    languageToggle: 'English',
+    sessionLabel: 'Sesión',
+  },
+  en: {
+    moduleLabel: 'Billing Module',
+    historyTitle: 'Invoice History',
+    historyDescription: 'Manage, track, and review your billing lifecycle.',
+    resultsLabel: 'results',
+    themeLabel: 'Theme',
+    totalOutstandingLabel: 'Total Outstanding',
+    overdueAmountsLabel: 'Overdue Amounts',
+    paid30Label: 'Paid (Last 30 Days)',
+    openInvoicesText: 'open invoices',
+    overdueText: 'invoices need attention',
+    paidText: 'invoices registered',
+    allStatuses: 'All Statuses',
+    paid: 'Paid',
+    pending: 'Pending',
+    overdue: 'Overdue',
+    last30Days: 'Last 30 Days',
+    last90Days: 'Last 90 Days',
+    thisYear: 'This Year',
+    allTime: 'All Time',
+    refresh: 'Refresh',
+    searchPlaceholder: 'Search invoices...',
+    invoiceNumber: 'Invoice #',
+    customer: 'Customer',
+    dateIssued: 'Date',
+    amount: 'Amount',
+    status: 'Status',
+    actions: 'Actions',
+    createInvoice: 'Create New Invoice',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Invoices',
+    sidebarCustomers: 'Customers',
+    sidebarInventory: 'Inventory',
+    sidebarReports: 'Reports',
+    noInvoicesTitle: 'No invoices found',
+    noInvoicesText: 'Try another filter or search term.',
+    showingText: 'Showing',
+    entriesText: 'entries',
+    signOut: 'Sign out',
+    settings: 'Settings',
+    notifications: 'Notifications',
+    languageToggle: 'Español',
+    sessionLabel: 'Session',
+  },
+};
+
+function detectInvoiceLocale(): InvoiceLocale {
+  if (typeof window === 'undefined') return 'es';
+  const stored = window.localStorage.getItem('billflow-lang');
+  if (stored === 'es' || stored === 'en') return stored;
+  const browser = (window.navigator.language || window.navigator.languages?.[0] || 'es').toLowerCase();
+  return browser.startsWith('en') ? 'en' : 'es';
+}
+
+@Component({
+  selector: 'billflow-invoice-page',
+  standalone: true,
+  imports: [CommonModule, BillflowPageShellComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
+  template: `
+    <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
+      <div class="flex-1 min-w-0 app-dashboard-main">
+          <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
+            <div class="h-16 px-5 md:px-6 flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3 md:hidden">
+                <span class="material-symbols-outlined text-outline">receipt_long</span>
+                <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
+              </div>
+
+              <div class="flex items-center gap-2 ml-auto">
+                <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
+                <billflow-user-menu
+                  [displayName]="displayName"
+                  [initials]="userInitials"
+                  [open]="userMenuVisible()"
+                  [closing]="userMenuClosing()"
+                  [showLanguageToggle]="true"
+                  [languageLabel]="copy().languageToggle"
+                  [settingsLabel]="copy().settings"
+                  [logoutLabel]="copy().signOut"
+                  [sessionLabel]="copy().sessionLabel"
+                  (toggle)="toggleUserMenu($event)"
+                  (close)="closeUserMenu()"
+                  (languageToggle)="toggleLocale()"
+                  (settings)="openUserSettings()"
+                  (logout)="logout()"
+                ></billflow-user-menu>
+              </div>
+            </div>
+          </header>
+
+          <main class="mx-auto w-full max-w-7xl p-5 md:p-8">
+            <section class="mb-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().historyTitle }}</h1>
+                <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().historyDescription }}</p>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredInvoices().length }} {{ copy().resultsLabel }}</span>
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span>
+              </div>
+            </section>
+
+            <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-10">
+              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+                <div class="mb-4 flex items-start justify-between">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().totalOutstandingLabel }}</p>
+                    <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(outstandingTotal()) }}</h2>
+                  </div>
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <span class="material-symbols-outlined">account_balance_wallet</span>
+                  </div>
+                </div>
+                <p class="text-sm text-on-surface-variant">{{ outstandingCount() }} {{ copy().openInvoicesText }}</p>
+              </article>
+
+              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+                <div class="mb-4 flex items-start justify-between">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().overdueAmountsLabel }}</p>
+                    <h2 class="mt-2 text-4xl font-extrabold text-error">{{ formatMoney(overdueTotal()) }}</h2>
+                  </div>
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
+                    <span class="material-symbols-outlined">warning</span>
+                  </div>
+                </div>
+                <p class="text-sm font-medium text-error">{{ overdueCount() }} {{ copy().overdueText }}</p>
+              </article>
+
+              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+                <div class="mb-4 flex items-start justify-between">
+                  <div>
+                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().paid30Label }}</p>
+                    <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(paidLast30Days()) }}</h2>
+                  </div>
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+                    <span class="material-symbols-outlined">task_alt</span>
+                  </div>
+                </div>
+                <p class="text-sm text-secondary">{{ paidCount30Days() }} {{ copy().paidText }}</p>
+              </article>
+            </section>
+
+            <section class="dashboard-glass-card dashboard-table-card overflow-hidden rounded-2xl border border-outline-variant/60 shadow-sm">
+              <div class="dashboard-table-card__head border-b border-outline-variant/40 p-5 md:p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-surface/60 dark:bg-slate-900/60">
+                <div class="flex flex-wrap items-center gap-3">
+                  <select class="rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 px-4 py-2.5 text-sm text-on-surface outline-none" [value]="statusFilter()" (change)="setStatusFilter(($any($event.target).value))">
+                    <option value="all">{{ copy().allStatuses }}</option>
+                    <option value="paid">{{ copy().paid }}</option>
+                    <option value="pending">{{ copy().pending }}</option>
+                    <option value="overdue">{{ copy().overdue }}</option>
+                  </select>
+
+                  <select class="rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 px-4 py-2.5 text-sm text-on-surface outline-none" [value]="rangeFilter()" (change)="setRangeFilter(($any($event.target).value))">
+                    <option value="30d">{{ copy().last30Days }}</option>
+                    <option value="90d">{{ copy().last90Days }}</option>
+                    <option value="year">{{ copy().thisYear }}</option>
+                    <option value="all">{{ copy().allTime }}</option>
+                  </select>
+
+                  <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface transition hover:border-primary hover:text-primary dark:bg-slate-950" (click)="reloadInvoices()">
+                    <span class="material-symbols-outlined text-[18px]">refresh</span>
+                    {{ copy().refresh }}
+                  </button>
+                </div>
+
+                <div class="relative w-full lg:w-96">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+                  <input
+                    class="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                    [placeholder]="copy().searchPlaceholder"
+                    [value]="searchQuery()"
+                    (input)="setSearchQuery(($any($event.target).value))"
+                  />
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-left">
+                  <thead>
+                    <tr class="dashboard-table-card__head-row border-b border-outline-variant/40 bg-surface-container-low/80 dark:bg-slate-900/70">
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().invoiceNumber }}</th>
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().customer }}</th>
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().dateIssued }}</th>
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().amount }}</th>
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().status }}</th>
+                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant text-right">{{ copy().actions }}</th>
+                    </tr>
+                  </thead>
+
+                  <tbody class="divide-y divide-outline-variant/20 text-sm text-on-surface">
+                    <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer transition-colors hover:bg-surface-container-low/60 dark:hover:bg-slate-900/80" (click)="inspectInvoice(invoice)">
+                      <td class="px-6 py-5 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
+                      <td class="px-6 py-5">
+                        <div class="font-semibold text-on-background">{{ invoice.customerName || (locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer') }}</div>
+                        <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
+                      </td>
+                      <td class="px-6 py-5 font-medium text-on-surface-variant">{{ formatDate(invoice.invoiceDate) }}</td>
+                      <td class="px-6 py-5 font-semibold text-on-background">{{ formatMoney(invoice.total) }}</td>
+                      <td class="px-6 py-5">
+                        <span [ngClass]="statusClass(invoice.status)" class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide">
+                          <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoice.status)"></span>
+                           {{ locale() === 'es' ? (invoice.status === 'paid' ? 'PAGADO' : invoice.status === 'pending' ? 'PENDIENTE' : 'VENCIDO') : invoice.statusLabel }}
+                        </span>
+                      </td>
+                      <td class="px-6 py-5 text-right">
+                        <a
+                          class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
+                          [href]="invoicePdfUrl(invoice.id)"
+                          target="_blank"
+                          rel="noopener"
+                          (click)="$event.stopPropagation()"
+                        >
+                          <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                           {{ locale() === 'es' ? 'PDF' : 'PDF' }}
+                        </a>
+                      </td>
+                    </tr>
+
+                    <tr *ngIf="paginatedInvoices().length === 0">
+                      <td colspan="6" class="p-10">
+                        <div class="rounded-2xl border border-dashed border-outline-variant/60 bg-surface/50 p-8 text-center">
+                          <span class="material-symbols-outlined text-4xl text-outline-variant">receipt_long</span>
+                          <p class="mt-4 text-lg font-bold text-on-background">{{ copy().noInvoicesTitle }}</p>
+                          <p class="mt-1 text-sm text-on-surface-variant">{{ copy().noInvoicesText }}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
+                <div class="text-sm text-on-surface-variant">
+                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
+                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                  </button>
+
+                  <button *ngFor="let pageNumber of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
+                    {{ pageNumber }}
+                  </button>
+
+                  <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === totalPages()" (click)="nextPage()">
+                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+          </main>
+      </div>
+    </billflow-page-shell>
+  `,
+})
+export class InvoicePageComponent implements OnInit {
+  private readonly api = inject(InvoiceApiService);
+  private readonly feedback = inject(UiFeedbackService);
+
+  locale = signal<InvoiceLocale>(detectInvoiceLocale());
+  copy = computed(() => INVOICE_TEXT[this.locale()]);
+
+  readonly sidebarItems = computed<BillflowSidebarItem[]>(() => [
+    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices', active: true },
+    { label: this.copy().sidebarCustomers, icon: 'group', href: '/dashboard' },
+    { label: this.copy().sidebarInventory, icon: 'inventory_2', href: '/dashboard' },
+    { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
+  ]);
+
+  theme = signal<'light' | 'dark'>('light');
+  loading = signal(true);
+  invoices = signal<InvoiceViewModel[]>([]);
+  searchQuery = signal('');
+  statusFilter = signal<'all' | InvoiceStatus>('all');
+  rangeFilter = signal<InvoiceRange>('30d');
+  page = signal(1);
+  pageSize = 8;
+  displayName = 'Usuario';
+  userInitials = 'US';
+  userMenuVisible = signal(false);
+  userMenuClosing = signal(false);
+  userMenuOpen = signal(false);
+  private userMenuCloseTimeout: number | undefined;
+
+  readonly filteredInvoices = computed(() => {
+    const query = this.searchQuery().trim().toLowerCase();
+    const status = this.statusFilter();
+    const range = this.rangeFilter();
+    const now = new Date();
+
+    return this.invoices().filter((invoice) => {
+      const matchesQuery = !query || [invoice.invoiceNumber, invoice.customerName ?? '', invoice.id, String(invoice.total), this.formatDate(invoice.invoiceDate)].some((field) => field.toLowerCase().includes(query));
+      const matchesStatus = status === 'all' || invoice.status === status;
+      const matchesRange = this.matchesRange(invoice.invoiceDate, range, now);
+      return matchesQuery && matchesStatus && matchesRange;
+    });
+  });
+
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredInvoices().length / this.pageSize)));
+
+  readonly paginatedInvoices = computed(() => {
+    const start = (this.page() - 1) * this.pageSize;
+    return this.filteredInvoices().slice(start, start + this.pageSize);
+  });
+
+  readonly visiblePages = computed(() => {
+    const total = this.totalPages();
+    const current = this.page();
+    const pages: number[] = [];
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, current + 2);
+    for (let i = start; i <= end; i += 1) pages.push(i);
+    return pages;
+  });
+
+  readonly outstandingTotal = computed(() => this.invoices().filter((invoice) => invoice.status !== 'paid').reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
+  readonly outstandingCount = computed(() => this.invoices().filter((invoice) => invoice.status !== 'paid').length);
+  readonly overdueTotal = computed(() => this.invoices().filter((invoice) => invoice.status === 'overdue').reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
+  readonly overdueCount = computed(() => this.invoices().filter((invoice) => invoice.status === 'overdue').length);
+  readonly paidLast30Days = computed(() => this.invoices().filter((invoice) => invoice.status === 'paid' && this.isWithinDays(invoice.invoiceDate, 30)).reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
+  readonly paidCount30Days = computed(() => this.invoices().filter((invoice) => invoice.status === 'paid' && this.isWithinDays(invoice.invoiceDate, 30)).length);
+
+  async ngOnInit() {
+    this.applyStoredTheme();
+    this.applyStoredLocale();
+    this.applyStoredUser();
+    await this.reloadInvoices();
+  }
+
+  async reloadInvoices() {
+    this.loading.set(true);
+    try {
+      const response = await this.api.listInvoices(150);
+      const mapped = response.data
+        .slice()
+        .sort((left, right) => new Date(right.invoiceDate).getTime() - new Date(left.invoiceDate).getTime())
+        .map((invoice) => this.mapInvoice(invoice));
+
+      this.invoices.set(mapped);
+      this.page.set(1);
+    } catch {
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudieron cargar las facturas' : 'Could not load invoices', this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  toggleTheme() {
+    const next = this.theme() === 'dark' ? 'light' : 'dark';
+    this.theme.set(next);
+    this.persistTheme(next);
+  }
+
+  toggleLocale() {
+    const next: InvoiceLocale = this.locale() === 'es' ? 'en' : 'es';
+    this.locale.set(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('billflow-lang', next);
+      document.documentElement.lang = next;
+    }
+  }
+
+  setSearchQuery(value: string) {
+    this.searchQuery.set(value);
+    this.page.set(1);
+  }
+
+  setStatusFilter(value: string) {
+    this.statusFilter.set(value === 'paid' || value === 'pending' || value === 'overdue' ? value : 'all');
+    this.page.set(1);
+  }
+
+  setRangeFilter(value: string) {
+    this.rangeFilter.set(value === '30d' || value === '90d' || value === 'year' || value === 'all' ? value : '30d');
+    this.page.set(1);
+  }
+
+  async startNewInvoice() {
+    await this.feedback.toast('info', this.locale() === 'es' ? 'Nueva factura' : 'New invoice', this.locale() === 'es' ? 'El flujo de creación se puede conectar luego.' : 'Invoice creation flow can be wired next.');
+  }
+
+  openNotifications() {
+    void this.feedback.toast('info', this.copy().notifications, this.locale() === 'es' ? 'Tenés 3 movimientos críticos esperando revisión.' : 'You have 3 critical movements waiting for review.');
+  }
+
+  toggleUserMenu(event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.userMenuVisible()) {
+      this.closeUserMenu();
+      return;
+    }
+
+    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = undefined;
+    }
+
+    this.userMenuClosing.set(false);
+    this.userMenuVisible.set(true);
+    this.userMenuOpen.set(true);
+  }
+
+  closeUserMenu() {
+    if (!this.userMenuVisible() || this.userMenuClosing()) return;
+
+    this.userMenuClosing.set(true);
+    if (typeof window === 'undefined') return;
+
+    this.userMenuCloseTimeout = window.setTimeout(() => {
+      this.userMenuVisible.set(false);
+      this.userMenuOpen.set(false);
+      this.userMenuClosing.set(false);
+      this.userMenuCloseTimeout = undefined;
+    }, 180);
+  }
+
+  async openUserSettings() {
+    this.closeUserMenu();
+    await this.feedback.alert('info', this.copy().settings, this.locale() === 'es' ? 'Acá podés actualizar tu perfil y preferencias.' : 'You can update your profile and preferences here.');
+  }
+
+  async logout() {
+    this.closeUserMenu();
+    const confirmed = await this.feedback.confirm(this.copy().signOut, this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?', this.copy().signOut, this.locale() === 'es' ? 'Cancelar' : 'Cancel');
+    if (!confirmed || typeof window === 'undefined') return;
+
+    window.localStorage.removeItem('billflow-session');
+    window.location.replace('/auth');
+  }
+
+  nextPage() {
+    if (this.page() < this.totalPages()) this.page.update((value) => value + 1);
+  }
+
+  previousPage() {
+    if (this.page() > 1) this.page.update((value) => value - 1);
+  }
+
+  goToPage(pageNumber: number) {
+    this.page.set(pageNumber);
+  }
+
+  inspectInvoice(invoice: InvoiceViewModel) {
+    void this.feedback.toast('info', invoice.invoiceNumber, `${invoice.customerName ?? (this.locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer')} · ${this.formatMoney(invoice.total)}`);
+  }
+
+  invoicePdfUrl(id: string) {
+    return this.api.invoicePdfUrl(id);
+  }
+
+  formatMoney(value: number) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
+  }
+
+  formatDate(value: string) {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(this.locale() === 'es' ? 'es-ES' : 'en-US', { dateStyle: 'medium' }).format(date);
+  }
+
+  statusClass(status: InvoiceStatus) {
+    switch (status) {
+      case 'overdue': return 'border-error/10 bg-error-container text-on-error-container';
+      case 'pending': return 'border-secondary/10 bg-secondary-container/25 text-on-secondary-container';
+      default: return 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant';
+    }
+  }
+
+  statusDotClass(status: InvoiceStatus) {
+    switch (status) {
+      case 'overdue': return 'bg-error';
+      case 'pending': return 'bg-secondary';
+      default: return 'bg-primary';
+    }
+  }
+
+  currentThemeLabel() {
+    return this.locale() === 'es'
+      ? (this.theme() === 'dark' ? 'Modo oscuro' : 'Modo claro')
+      : (this.theme() === 'dark' ? 'Dark mode' : 'Light mode');
+  }
+
+  visibleRangeStart() {
+    if (this.filteredInvoices().length === 0) return 0;
+    return (this.page() - 1) * this.pageSize + 1;
+  }
+
+  visibleRangeEnd() {
+    return Math.min(this.filteredInvoices().length, this.page() * this.pageSize);
+  }
+
+  private mapInvoice(invoice: InvoiceRowDto): InvoiceViewModel {
+    const daysOld = this.daysBetween(new Date(invoice.invoiceDate), new Date());
+    const status = this.resolveStatus(daysOld);
+    return {
+      ...invoice,
+      status,
+      daysOld,
+      statusLabel: this.locale() === 'es' ? (status === 'paid' ? 'PAGADO' : status === 'pending' ? 'PENDIENTE' : 'VENCIDO') : (status === 'paid' ? 'PAID' : status === 'pending' ? 'PENDING' : 'OVERDUE'),
+      statusTone: status,
+    };
+  }
+
+  private resolveStatus(daysOld: number): InvoiceStatus {
+    if (daysOld <= 2) return 'paid';
+    if (daysOld <= 12) return 'pending';
+    return 'overdue';
+  }
+
+  private matchesRange(value: string, range: InvoiceRange, now: Date) {
+    if (range === 'all') return true;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    if (range === 'year') return date.getFullYear() === now.getFullYear();
+
+    const days = this.daysBetween(date, now);
+    return range === '30d' ? days <= 30 : days <= 90;
+  }
+
+  private isWithinDays(value: string, days: number) {
+    return this.daysBetween(new Date(value), new Date()) <= days;
+  }
+
+  private applyStoredLocale() {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('billflow-lang');
+    const next: InvoiceLocale = stored === 'en' ? 'en' : 'es';
+    this.locale.set(next);
+    document.documentElement.lang = next;
+  }
+
+  private applyStoredUser() {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) return;
+
+      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; user?: { name?: string; firstName?: string; fullName?: string } };
+      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
+      this.displayName = candidate;
+      this.userInitials = candidate
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join('') || 'US';
+    } catch {
+      this.displayName = 'Usuario';
+      this.userInitials = 'US';
+    }
+  }
+
+  private daysBetween(start: Date, end: Date) {
+    const a = new Date(start);
+    const b = new Date(end);
+    a.setHours(0, 0, 0, 0);
+    b.setHours(0, 0, 0, 0);
+    return Math.max(0, Math.floor((b.getTime() - a.getTime()) / 86400000));
+  }
+
+  private applyStoredTheme() {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('billflow-theme');
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    const next = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
+    this.theme.set(next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }
+
+  private persistTheme(next: 'light' | 'dark') {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('billflow-theme', next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }
+}

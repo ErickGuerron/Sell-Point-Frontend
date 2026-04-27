@@ -1,0 +1,70 @@
+import { CommonModule } from '@angular/common';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
+
+@Component({
+  selector: 'billflow-user-menu',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div #host class="relative">
+      <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center gap-2 font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer overflow-hidden" style="width:auto; min-width:7.5rem; height:3rem; padding:0 0.875rem; border-radius:9999px;" (click)="toggle.emit($event)" [attr.aria-expanded]="open" aria-haspopup="menu">
+        <span class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs shrink-0 overflow-hidden">{{ initials }}</span>
+        <span class="hidden sm:block max-w-28 truncate">{{ displayName }}</span>
+      </button>
+
+      <div *ngIf="open" #panel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="closing" role="menu">
+        <button type="button" class="app-dashboard-user-menu__backdrop" aria-label="Cerrar menú" (click)="close.emit()"></button>
+        <div class="app-dashboard-user-menu__panel">
+          <div class="app-dashboard-user-menu__header">
+            <div class="app-dashboard-user-menu__avatar">{{ initials }}</div>
+            <div class="min-w-0">
+              <p class="app-dashboard-user-menu__title">{{ displayName }}</p>
+              <p class="app-dashboard-user-menu__subtitle">{{ sessionLabel }}</p>
+            </div>
+          </div>
+
+          <button *ngIf="showLanguageToggle" type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="languageToggle.emit()">
+            <span class="material-symbols-outlined">language</span>
+            <span>{{ languageLabel }}</span>
+          </button>
+
+          <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="settings.emit()">
+            <span class="material-symbols-outlined">settings</span>
+            <span>{{ settingsLabel }}</span>
+          </button>
+          <button type="button" class="app-dashboard-user-menu__item app-dashboard-user-menu__item--danger" role="menuitem" (click)="logout.emit()">
+            <span class="material-symbols-outlined">logout</span>
+            <span>{{ logoutLabel }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `,
+})
+export class BillflowUserMenuComponent {
+  @Input() displayName = 'Usuario';
+  @Input() initials = 'US';
+  @Input() open = false;
+  @Input() closing = false;
+  @Input() showLanguageToggle = false;
+  @Input() languageLabel = 'ES';
+  @Input() settingsLabel = 'Settings';
+  @Input() logoutLabel = 'Sign out';
+  @Input() sessionLabel = 'Session';
+  @Output() toggle = new EventEmitter<MouseEvent>();
+  @Output() close = new EventEmitter<void>();
+  @Output() languageToggle = new EventEmitter<void>();
+  @Output() settings = new EventEmitter<void>();
+  @Output() logout = new EventEmitter<void>();
+
+  @ViewChild('host') private host?: ElementRef<HTMLElement>;
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.open) return;
+
+    const target = event.target as Node | null;
+    if (target && this.host?.nativeElement.contains(target)) return;
+    this.close.emit();
+  }
+}

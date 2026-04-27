@@ -5,6 +5,9 @@ import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2
 import type { ChartData, ChartOptions, ChartType } from 'chart.js';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { BillflowSidebarComponent, type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
+import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
+import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 
 type Period = 'week' | 'month';
 
@@ -249,7 +252,7 @@ function detectDashboardLocale(): DashboardLocale {
 @Component({
   selector: 'billflow-dashboard-page',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, BaseChartDirective, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
   providers: [provideCharts(withDefaultRegisterables())],
   host: { class: 'block w-full' },
   template: `
@@ -286,29 +289,7 @@ function detectDashboardLocale(): DashboardLocale {
         </aside>
       </div>
 
-      <nav class="hidden lg:flex app-dashboard-sidebar">
-        <div class="mb-10 flex items-center gap-3 px-2">
-          <span class="material-symbols-outlined text-primary text-[32px] filter drop-shadow-sm" style="font-variation-settings: 'FILL' 1;">point_of_sale</span>
-          <div>
-            <h1 class="text-2xl font-black text-primary tracking-tight">BillFlow</h1>
-            <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
-          </div>
-        </div>
-
-        <div class="flex-1 space-y-1.5">
-          <a *ngFor="let item of sidebarItems()" [href]="item.href" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'">
-            <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
-            {{ item.label }}
-          </a>
-        </div>
-
-        <div class="mt-auto pt-6">
-          <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
-            <span class="material-symbols-outlined text-[20px]">add</span>
-            {{ copy().newSale }}
-          </button>
-        </div>
-      </nav>
+      <billflow-sidebar [items]="sidebarItems()" [actionLabel]="copy().newSale" actionIcon="add" (actionClick)="startNewSale()"></billflow-sidebar>
 
       <main class="app-dashboard-main">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-30 isolate overflow-visible min-w-0">
@@ -331,43 +312,25 @@ function detectDashboardLocale(): DashboardLocale {
               <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" type="text" [value]="searchQuery()" (input)="searchQuery.set(($any($event.target).value))" />
             </div>
 
-            <div class="flex items-center justify-end gap-2 shrink-0 self-auto relative z-40">
-              <button type="button" class="app-dashboard-notification-button relative bg-surface-container-lowest border border-outline-variant/60 hover:bg-surface-container-low transition-colors text-on-surface shadow-sm hover:shadow" (click)="showNotifications()">
-                <span class="material-symbols-outlined text-[22px]">notifications</span>
-                <span class="absolute top-2 right-2 w-2.5 h-2.5 bg-error rounded-full border-2 border-white"></span>
-              </button>
-
-              <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer" (click)="toggleUserMenu($event)" [attr.aria-expanded]="userMenuOpen()" aria-haspopup="menu">
-                {{ userInitials }}
-              </button>
-
-              <div *ngIf="userMenuVisible()" #userMenuPanel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="userMenuClosing()" role="menu">
-                <button type="button" class="app-dashboard-user-menu__backdrop" aria-label="Cerrar menú" (click)="closeUserMenu()"></button>
-                <div class="app-dashboard-user-menu__panel">
-                  <div class="app-dashboard-user-menu__header">
-                    <div class="app-dashboard-user-menu__avatar">{{ userInitials }}</div>
-                    <div class="min-w-0">
-                      <p class="app-dashboard-user-menu__title">{{ displayName }}</p>
-                      <p class="app-dashboard-user-menu__subtitle">{{ copy().settingsLabel }}</p>
-                    </div>
-                  </div>
-
-                  <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="toggleDashboardLocale()">
-                    <span class="material-symbols-outlined">language</span>
-                    <span>{{ locale() === 'es' ? 'English' : 'Español' }}</span>
-                  </button>
-
-                  <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="openUserSettings()">
-                    <span class="material-symbols-outlined">settings</span>
-                    <span>{{ copy().settingsLabel }}</span>
-                  </button>
-                  <button type="button" class="app-dashboard-user-menu__item app-dashboard-user-menu__item--danger" role="menuitem" (click)="logout()">
-                    <span class="material-symbols-outlined">logout</span>
-                    <span>{{ copy().logoutConfirm }}</span>
-                  </button>
-                </div>
+              <div class="flex items-center justify-end gap-2 shrink-0 self-auto relative z-40">
+                <billflow-notification-button (clicked)="showNotifications()"></billflow-notification-button>
+                <billflow-user-menu
+                  [displayName]="displayName"
+                  [initials]="userInitials"
+                  [open]="userMenuVisible()"
+                  [closing]="userMenuClosing()"
+                  [showLanguageToggle]="true"
+                  [languageLabel]="locale() === 'es' ? 'English' : 'Español'"
+                  [settingsLabel]="copy().settingsLabel"
+                  [logoutLabel]="copy().logoutConfirm"
+                  [sessionLabel]="copy().settingsLabel"
+                  (toggle)="toggleUserMenu($event)"
+                  (close)="closeUserMenu()"
+                  (languageToggle)="toggleDashboardLocale()"
+                  (settings)="openUserSettings()"
+                  (logout)="logout()"
+                ></billflow-user-menu>
               </div>
-            </div>
           </div>
         </header>
 
@@ -556,7 +519,7 @@ export class DashboardPageComponent implements OnInit {
     const copy = this.copy();
     return [
       { label: copy.sidebarDashboard, icon: 'dashboard', href: '#', active: true },
-      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '#' },
+      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
       { label: copy.sidebarProducts, icon: 'inventory_2', href: '#' },
       { label: copy.sidebarCustomers, icon: 'groups', href: '#' },
       { label: copy.sidebarEmployees, icon: 'badge', href: '#' },
@@ -567,7 +530,7 @@ export class DashboardPageComponent implements OnInit {
     const copy = this.copy();
     return [
       { label: copy.mobileHome, icon: 'dashboard', href: '#', active: true },
-      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '#' },
+      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
       { label: copy.sidebarCustomers, icon: 'groups', href: '#' },
       { label: copy.mobileMore, icon: 'menu', href: '#' },
     ];
