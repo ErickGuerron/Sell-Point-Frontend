@@ -24,6 +24,7 @@ export interface ProductRowDto {
   code: string;
   name: string;
   unitPrice: number;
+  price?: number;
   availableQuantity: number;
 }
 

@@ -429,7 +429,7 @@ function detectDashboardLocale(): DashboardLocale {
                     </tr>
                   </thead>
                   <tbody class="font-body-sm text-body-sm">
-                    <tr *ngFor="let invoice of filteredInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
+                    <tr *ngFor="let invoice of visibleInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
                       <td class="p-4 pl-7 font-semibold text-on-surface">{{ invoice.number }}</td>
                       <td class="p-4 text-on-surface-variant font-medium">{{ invoice.customer }}</td>
                       <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.date) }}</td>
@@ -468,7 +468,7 @@ function detectDashboardLocale(): DashboardLocale {
               <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
               <ng-container *ngIf="topProducts().length > 0; else emptyProducts">
                 <ul class="space-y-5">
-                  <li *ngFor="let product of topProducts()" class="app-dashboard-list-item group cursor-pointer p-2 -mx-2 rounded-xl transition-colors" (click)="inspectProduct(product)">
+                  <li *ngFor="let product of topProducts()" class="app-dashboard-list-item app-dashboard-list-item--product group cursor-pointer p-2 -mx-2 rounded-xl transition-all duration-200" (click)="inspectProduct(product)">
                     <div class="flex items-center gap-4">
                       <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
                       <div>
@@ -606,12 +606,17 @@ export class DashboardPageComponent implements OnInit {
     return invoices.filter((invoice) => [invoice.number, invoice.customer, invoice.date, String(invoice.total)].some((field) => field.toLowerCase().includes(query)));
   });
 
+  readonly visibleInvoices = computed(() => this.filteredInvoices()
+    .slice()
+    .sort((left, right) => new Date(right.date).getTime() - new Date(left.date).getTime())
+    .slice(0, 5));
+
   readonly topProducts = computed(() => this.products().slice(0, 3).map((product, index) => ({
     rank: String(index + 1).padStart(2, '0'),
     code: product.code,
     name: product.name,
     units: product.availableQuantity,
-    price: product.unitPrice,
+    price: product.price,
   })));
 
   readonly recentCustomers = computed(() => this.customers().slice(0, 4));
@@ -999,12 +1004,13 @@ export class DashboardPageComponent implements OnInit {
   }
 
   private mapProduct(product: ProductRowDto): DashboardProduct {
+    const rawPrice = product.unitPrice ?? product.price ?? 0;
     return {
       rank: '00',
       code: product.code,
       name: product.name,
       units: Number(product.availableQuantity ?? 0),
-      price: Number(product.unitPrice ?? 0),
+      price: Number(rawPrice),
     };
   }
 
