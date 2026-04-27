@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
+import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
+import type { ChartData, ChartOptions, ChartType } from 'chart.js';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 
@@ -16,6 +18,7 @@ interface DashboardInvoice {
 
 interface DashboardProduct {
   rank: string;
+  code: string;
   name: string;
   units: number;
   price: number;
@@ -55,15 +58,36 @@ interface QuickAction {
 type DashboardLocale = 'es' | 'en';
 
 interface DashboardCopy {
+  greeting: string;
+  activitySummary: string;
   activeClients: string;
   searchPlaceholder: string;
+  weekLabel: string;
+  monthLabel: string;
+  sidebarDashboard: string;
+  sidebarInvoices: string;
+  sidebarProducts: string;
+  sidebarCustomers: string;
+  sidebarEmployees: string;
+  mobileHome: string;
+  mobileMore: string;
+  newSale: string;
+  invoiceHeaderNumber: string;
+  invoiceHeaderCustomer: string;
+  invoiceHeaderDate: string;
+  invoiceHeaderTotal: string;
   revenueTitle: string;
   invoicesTitle: string;
   invoicesViewAll: string;
   quickActionsTitle: string;
+  quickActionNewInvoice: string;
+  quickActionAddCustomer: string;
+  quickActionAddProduct: string;
   productsTitle: string;
   productsSubtitle: string;
   customersTitle: string;
+  settingsLabel: string;
+  noEmailText: string;
   notificationsTitle: string;
   notificationsText: string;
   settingsTitle: string;
@@ -74,6 +98,15 @@ interface DashboardCopy {
   logoutCancel: string;
   languageShort: string;
   languageToggleAria: string;
+  kpiDailySalesLabel: string;
+  kpiMonthlySalesLabel: string;
+  kpiTotalInvoicesLabel: string;
+  kpiLowStockLabel: string;
+  kpiSyncedTrend: string;
+  kpiOperationalTrend: string;
+  kpiInventoryTrend: string;
+  invoiceOverviewTitle: string;
+  invoiceOverviewText: string;
   invoiceEmptyTitle: string;
   invoiceEmptyText: string;
   invoiceEmptySearchTitle: string;
@@ -86,15 +119,36 @@ interface DashboardCopy {
 
 const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
   es: {
+    greeting: 'Hola de nuevo',
+    activitySummary: 'Resumen de actividad de hoy',
     activeClients: 'clientes activos',
     searchPlaceholder: 'Buscar facturas...',
+    weekLabel: 'Esta Semana',
+    monthLabel: 'Este Mes',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Facturas',
+    sidebarProducts: 'Productos',
+    sidebarCustomers: 'Clientes',
+    sidebarEmployees: 'Empleados',
+    mobileHome: 'Inicio',
+    mobileMore: 'Más',
+    newSale: 'Nueva Venta',
+    invoiceHeaderNumber: 'Factura',
+    invoiceHeaderCustomer: 'Cliente',
+    invoiceHeaderDate: 'Fecha',
+    invoiceHeaderTotal: 'Total',
     revenueTitle: 'Tendencia de Ingresos',
     invoicesTitle: 'Facturas Recientes',
     invoicesViewAll: 'Ver todas',
     quickActionsTitle: 'Acciones Rápidas',
+    quickActionNewInvoice: 'Nueva Factura',
+    quickActionAddCustomer: 'Añadir Cliente',
+    quickActionAddProduct: 'Añadir Producto',
     productsTitle: 'Productos',
     productsSubtitle: '(inventario actual)',
     customersTitle: 'Clientes recientes',
+    settingsLabel: 'Configuración',
+    noEmailText: 'Sin email',
     notificationsTitle: 'Notificaciones',
     notificationsText: 'Tienes 3 movimientos críticos pendientes de revisión.',
     settingsTitle: 'Configuración de usuario',
@@ -105,6 +159,15 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancelar',
     languageShort: 'ES',
     languageToggleAria: 'Cambiar idioma',
+    kpiDailySalesLabel: 'Ventas del Día',
+    kpiMonthlySalesLabel: 'Ventas del Mes',
+    kpiTotalInvoicesLabel: 'Facturas Totales',
+    kpiLowStockLabel: 'Stock Bajo',
+    kpiSyncedTrend: 'Datos sincronizados',
+    kpiOperationalTrend: 'Vista operativa',
+    kpiInventoryTrend: 'Alertas de inventario',
+    invoiceOverviewTitle: 'Facturas recientes',
+    invoiceOverviewText: 'Mostrando el resumen operativo del día.',
     invoiceEmptyTitle: 'Sin facturas registradas',
     invoiceEmptyText: 'Aún no hay facturas para mostrar.',
     invoiceEmptySearchTitle: 'Sin resultados para esa búsqueda',
@@ -115,15 +178,36 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     customersEmptyText: 'No hay clientes disponibles para mostrar en este momento.',
   },
   en: {
+    greeting: 'Welcome back',
+    activitySummary: 'Today activity summary',
     activeClients: 'active clients',
     searchPlaceholder: 'Search invoices...',
+    weekLabel: 'This Week',
+    monthLabel: 'This Month',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Invoices',
+    sidebarProducts: 'Products',
+    sidebarCustomers: 'Customers',
+    sidebarEmployees: 'Employees',
+    mobileHome: 'Home',
+    mobileMore: 'More',
+    newSale: 'New Sale',
+    invoiceHeaderNumber: 'Invoice',
+    invoiceHeaderCustomer: 'Customer',
+    invoiceHeaderDate: 'Date',
+    invoiceHeaderTotal: 'Total',
     revenueTitle: 'Revenue Trend',
     invoicesTitle: 'Recent Invoices',
     invoicesViewAll: 'View all',
     quickActionsTitle: 'Quick Actions',
+    quickActionNewInvoice: 'New Invoice',
+    quickActionAddCustomer: 'Add Customer',
+    quickActionAddProduct: 'Add Product',
     productsTitle: 'Products',
     productsSubtitle: '(current inventory)',
     customersTitle: 'Recent Customers',
+    settingsLabel: 'Settings',
+    noEmailText: 'No email',
     notificationsTitle: 'Notifications',
     notificationsText: 'You have 3 critical movements waiting for review.',
     settingsTitle: 'User settings',
@@ -134,6 +218,15 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancel',
     languageShort: 'EN',
     languageToggleAria: 'Change language',
+    kpiDailySalesLabel: 'Daily Sales',
+    kpiMonthlySalesLabel: 'Monthly Sales',
+    kpiTotalInvoicesLabel: 'Total Invoices',
+    kpiLowStockLabel: 'Low Stock',
+    kpiSyncedTrend: 'Synced data',
+    kpiOperationalTrend: 'Operational view',
+    kpiInventoryTrend: 'Inventory alerts',
+    invoiceOverviewTitle: 'Recent invoices',
+    invoiceOverviewText: 'Showing today’s operational summary.',
     invoiceEmptyTitle: 'No invoices registered',
     invoiceEmptyText: 'There are no invoices to show yet.',
     invoiceEmptySearchTitle: 'No results for that search',
@@ -156,7 +249,8 @@ function detectDashboardLocale(): DashboardLocale {
 @Component({
   selector: 'billflow-dashboard-page',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, BaseChartDirective],
+  providers: [provideCharts(withDefaultRegisterables())],
   host: { class: 'block w-full' },
   template: `
     <div class="app-dashboard-shell">
@@ -177,7 +271,7 @@ function detectDashboardLocale(): DashboardLocale {
           </div>
 
           <div class="app-dashboard-tablet-drawer__nav space-y-1.5">
-            <a *ngFor="let item of sidebarItems" [href]="item.href" class="app-dashboard-tablet-drawer__link flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'" (click)="closeTabletSidebar()">
+            <a *ngFor="let item of sidebarItems()" [href]="item.href" class="app-dashboard-tablet-drawer__link flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'" (click)="closeTabletSidebar()">
               <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
               {{ item.label }}
             </a>
@@ -186,7 +280,7 @@ function detectDashboardLocale(): DashboardLocale {
           <div class="app-dashboard-tablet-drawer__actions">
             <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
               <span class="material-symbols-outlined text-[20px]">add</span>
-              Nueva Venta
+              {{ copy().newSale }}
             </button>
           </div>
         </aside>
@@ -202,7 +296,7 @@ function detectDashboardLocale(): DashboardLocale {
         </div>
 
         <div class="flex-1 space-y-1.5">
-          <a *ngFor="let item of sidebarItems" [href]="item.href" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'">
+          <a *ngFor="let item of sidebarItems()" [href]="item.href" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'">
             <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
             {{ item.label }}
           </a>
@@ -211,7 +305,7 @@ function detectDashboardLocale(): DashboardLocale {
         <div class="mt-auto pt-6">
           <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="startNewSale()">
             <span class="material-symbols-outlined text-[20px]">add</span>
-            Nueva Venta
+            {{ copy().newSale }}
           </button>
         </div>
       </nav>
@@ -224,9 +318,9 @@ function detectDashboardLocale(): DashboardLocale {
             </button>
 
             <div class="min-w-0">
-              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ locale() === 'es' ? 'Hola de nuevo' : 'Welcome back' }}, {{ displayName }}</h2>
+              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ copy().greeting }}, {{ displayName }}</h2>
               <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
-                {{ locale() === 'es' ? 'Resumen de actividad de hoy' : 'Today activity summary' }} · {{ stats()?.totalClientes ?? 0 }} {{ copy().activeClients }}
+                {{ copy().activitySummary }} · {{ stats()?.totalClientes ?? 0 }} {{ copy().activeClients }}
               </p>
             </div>
           </div>
@@ -254,7 +348,7 @@ function detectDashboardLocale(): DashboardLocale {
                     <div class="app-dashboard-user-menu__avatar">{{ userInitials }}</div>
                     <div class="min-w-0">
                       <p class="app-dashboard-user-menu__title">{{ displayName }}</p>
-                      <p class="app-dashboard-user-menu__subtitle">{{ locale() === 'es' ? 'Opciones de cuenta' : 'Account options' }}</p>
+                      <p class="app-dashboard-user-menu__subtitle">{{ copy().settingsLabel }}</p>
                     </div>
                   </div>
 
@@ -265,11 +359,11 @@ function detectDashboardLocale(): DashboardLocale {
 
                   <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="openUserSettings()">
                     <span class="material-symbols-outlined">settings</span>
-                    <span>{{ locale() === 'es' ? 'Configuración' : 'Settings' }}</span>
+                    <span>{{ copy().settingsLabel }}</span>
                   </button>
                   <button type="button" class="app-dashboard-user-menu__item app-dashboard-user-menu__item--danger" role="menuitem" (click)="logout()">
                     <span class="material-symbols-outlined">logout</span>
-                    <span>{{ locale() === 'es' ? 'Cerrar sesión' : 'Sign out' }}</span>
+                    <span>{{ copy().logoutConfirm }}</span>
                   </button>
                 </div>
               </div>
@@ -303,27 +397,18 @@ function detectDashboardLocale(): DashboardLocale {
               <div class="flex justify-between items-center mb-8 gap-4">
                 <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
                 <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="period()" (change)="setPeriod(($any($event.target).value))">
-                  <option value="week">{{ locale() === 'es' ? 'Esta Semana' : 'This Week' }}</option>
-                  <option value="month">{{ locale() === 'es' ? 'Este Mes' : 'This Month' }}</option>
+                  <option value="week">{{ copy().weekLabel }}</option>
+                  <option value="month">{{ copy().monthLabel }}</option>
                 </select>
               </div>
 
-              <div class="h-64 flex items-end justify-between gap-3 pb-6 relative">
-                <div class="absolute inset-0 flex flex-col justify-between z-0 pb-6 pointer-events-none">
-                  <div class="w-full border-b border-outline-variant/10 h-0 border-dashed"></div>
-                  <div class="w-full border-b border-outline-variant/10 h-0 border-dashed"></div>
-                  <div class="w-full border-b border-outline-variant/10 h-0 border-dashed"></div>
-                  <div class="w-full border-b border-outline-variant/10 h-0 border-dashed"></div>
-                  <div class="w-full border-b border-outline-variant/30 h-0"></div>
-                </div>
-
-                <div *ngFor="let bar of chartBars()" class="dashboard-chart-bar rounded-t-lg relative z-10 group cursor-pointer min-h-[4px] flex-1" [style.height.%]="bar.height" [attr.aria-label]="bar.label" (click)="showPeriodDetail(bar.label, bar.value)">
-                  <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-on-surface text-surface text-xs font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">{{ bar.value }}</div>
-                </div>
-              </div>
-
-              <div class="flex justify-between text-[13px] font-medium text-outline mt-1 px-3">
-                <span *ngFor="let bar of chartBars()">{{ bar.label }}</span>
+              <div class="app-dashboard-chart-wrap relative h-72 md:h-80" *ngIf="chartReady()">
+                <canvas
+                  baseChart
+                  [type]="revenueChartType"
+                  [data]="revenueChartData()"
+                  [options]="revenueChartOptions()"
+                ></canvas>
               </div>
             </div>
 
@@ -337,10 +422,10 @@ function detectDashboardLocale(): DashboardLocale {
                 <table class="w-full text-left border-collapse">
                   <thead>
                     <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ locale() === 'es' ? 'Factura' : 'Invoice' }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Cliente' : 'Customer' }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Fecha' : 'Date' }}</th>
-                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ locale() === 'es' ? 'Total' : 'Total' }}</th>
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().invoiceHeaderNumber }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().invoiceHeaderCustomer }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().invoiceHeaderDate }}</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ copy().invoiceHeaderTotal }}</th>
                     </tr>
                   </thead>
                   <tbody class="font-body-sm text-body-sm">
@@ -369,7 +454,7 @@ function detectDashboardLocale(): DashboardLocale {
             <div class="dashboard-glass-card rounded-2xl p-7">
               <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
               <div class="flex flex-col gap-3.5">
-                <button *ngFor="let action of quickActions" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
+                <button *ngFor="let action of quickActions()" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
                   <div class="flex items-center gap-3">
                     <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
                     {{ action.label }}
@@ -387,8 +472,8 @@ function detectDashboardLocale(): DashboardLocale {
                     <div class="flex items-center gap-4">
                       <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
                       <div>
-                        <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.name }}</p>
-                        <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.units }} uds</p>
+                        <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.code }}</p>
+                        <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.name }} · {{ product.units }} uds</p>
                       </div>
                     </div>
                     <span class="font-body-sm font-bold text-on-surface group-hover:text-primary transition-colors">{{ formatMoney(product.price) }}</span>
@@ -413,7 +498,7 @@ function detectDashboardLocale(): DashboardLocale {
                       <p class="font-semibold text-on-surface truncate">{{ customer.name }}</p>
                       <p class="text-xs text-outline mt-0.5">{{ customer.cedula }}</p>
                     </div>
-                    <span class="text-xs font-medium text-on-surface-variant truncate max-w-28">{{ customer.email || 'Sin email' }}</span>
+                    <span class="text-xs font-medium text-on-surface-variant truncate max-w-28">{{ customer.email || copy().noEmailText }}</span>
                   </li>
                 </ul>
               </ng-container>
@@ -430,7 +515,7 @@ function detectDashboardLocale(): DashboardLocale {
       </main>
 
       <nav class="md:hidden app-dashboard-mobile-nav">
-        <a *ngFor="let item of mobileNavItems" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
+        <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
           <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
           <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
         </a>
@@ -458,6 +543,7 @@ export class DashboardPageComponent implements OnInit {
   userMenuOpen = signal(false);
   userMenuVisible = signal(false);
   userMenuClosing = signal(false);
+  chartReady = signal(false);
   loading = signal(true);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
@@ -466,38 +552,52 @@ export class DashboardPageComponent implements OnInit {
   period = signal<Period>('week');
   searchQuery = signal('');
 
-  readonly sidebarItems: DashboardNavItem[] = [
-    { label: 'Dashboard', icon: 'dashboard', href: '#', active: true },
-    { label: 'Facturas', icon: 'receipt_long', href: '#' },
-    { label: 'Productos', icon: 'inventory_2', href: '#' },
-    { label: 'Clientes', icon: 'groups', href: '#' },
-    { label: 'Empleados', icon: 'badge', href: '#' },
-  ];
-
-  readonly mobileNavItems: DashboardNavItem[] = [
-    { label: 'Inicio', icon: 'dashboard', href: '#', active: true },
-    { label: 'Facturas', icon: 'receipt_long', href: '#' },
-    { label: 'Clientes', icon: 'groups', href: '#' },
-    { label: 'Más', icon: 'menu', href: '#' },
-  ];
-
-  readonly kpis = computed<DashboardKpi[]>(() => {
-    const stats = this.stats();
+  readonly sidebarItems = computed<DashboardNavItem[]>(() => {
+    const copy = this.copy();
     return [
-      { label: 'Ventas del Día', value: this.formatMoney(stats?.ventasDelDia ?? 0), icon: 'payments', tone: 'primary', trendIcon: 'trending_up', trend: 'Datos sincronizados', trendTone: 'success', note: '' },
-      { label: 'Ventas del Mes', value: this.formatMoney(stats?.ventasDelMes ?? 0), icon: 'receipt_long', tone: 'secondary', trendIcon: 'trending_up', trend: 'Datos sincronizados', trendTone: 'success', note: '' },
-      { label: 'Facturas Totales', value: String(stats?.totalFacturas ?? 0), icon: 'receipt_long', tone: 'tertiary', trendIcon: 'dataset', trend: 'Vista operativa', trendTone: 'neutral', note: '' },
-      { label: 'Stock Bajo', value: String(stats?.productosConStockBajo ?? 0), icon: 'inventory_2', tone: 'neutral', trendIcon: 'warning', trend: 'Alertas de inventario', trendTone: 'error', note: '' },
+      { label: copy.sidebarDashboard, icon: 'dashboard', href: '#', active: true },
+      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '#' },
+      { label: copy.sidebarProducts, icon: 'inventory_2', href: '#' },
+      { label: copy.sidebarCustomers, icon: 'groups', href: '#' },
+      { label: copy.sidebarEmployees, icon: 'badge', href: '#' },
     ];
   });
 
-  readonly quickActions: QuickAction[] = [
-    { label: 'Nueva Factura', icon: 'post_add', tone: 'primary' },
-    { label: 'Añadir Cliente', icon: 'person_add', tone: 'secondary' },
-    { label: 'Añadir Producto', icon: 'add_box', tone: 'tertiary' },
-  ];
+  readonly mobileNavItems = computed<DashboardNavItem[]>(() => {
+    const copy = this.copy();
+    return [
+      { label: copy.mobileHome, icon: 'dashboard', href: '#', active: true },
+      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '#' },
+      { label: copy.sidebarCustomers, icon: 'groups', href: '#' },
+      { label: copy.mobileMore, icon: 'menu', href: '#' },
+    ];
+  });
 
-  readonly chartBars = computed(() => this.buildChartBars());
+  readonly kpis = computed<DashboardKpi[]>(() => {
+    const stats = this.stats();
+    const copy = this.copy();
+    return [
+      { label: copy.kpiDailySalesLabel, value: this.formatMoney(stats?.ventasDelDia ?? 0), icon: 'payments', tone: 'primary', trendIcon: 'trending_up', trend: copy.kpiSyncedTrend, trendTone: 'success', note: '' },
+      { label: copy.kpiMonthlySalesLabel, value: this.formatMoney(stats?.ventasDelMes ?? 0), icon: 'receipt_long', tone: 'secondary', trendIcon: 'trending_up', trend: copy.kpiSyncedTrend, trendTone: 'success', note: '' },
+      { label: copy.kpiTotalInvoicesLabel, value: String(stats?.totalFacturas ?? 0), icon: 'receipt_long', tone: 'tertiary', trendIcon: 'dataset', trend: copy.kpiOperationalTrend, trendTone: 'neutral', note: '' },
+      { label: copy.kpiLowStockLabel, value: String(stats?.productosConStockBajo ?? 0), icon: 'inventory_2', tone: 'neutral', trendIcon: 'warning', trend: copy.kpiInventoryTrend, trendTone: 'error', note: '' },
+    ];
+  });
+
+  readonly quickActions = computed<QuickAction[]>(() => {
+    const copy = this.copy();
+    return [
+      { label: copy.quickActionNewInvoice, icon: 'post_add', tone: 'primary' },
+      { label: copy.quickActionAddCustomer, icon: 'person_add', tone: 'secondary' },
+      { label: copy.quickActionAddProduct, icon: 'add_box', tone: 'tertiary' },
+    ];
+  });
+
+  readonly revenueChartType: ChartType = 'bar';
+
+  readonly revenueChartData = computed<ChartData<'bar'>>(() => this.buildRevenueChartData());
+
+  readonly revenueChartOptions = computed<ChartOptions<'bar'>>(() => this.buildRevenueChartOptions());
 
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
@@ -508,6 +608,7 @@ export class DashboardPageComponent implements OnInit {
 
   readonly topProducts = computed(() => this.products().slice(0, 3).map((product, index) => ({
     rank: String(index + 1).padStart(2, '0'),
+    code: product.code,
     name: product.name,
     units: product.availableQuantity,
     price: product.unitPrice,
@@ -520,6 +621,7 @@ export class DashboardPageComponent implements OnInit {
 
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
+    this.chartReady.set(true);
 
     try {
       const raw = window.localStorage.getItem('billflow-session');
@@ -550,7 +652,7 @@ export class DashboardPageComponent implements OnInit {
     try {
       const [statsResult, invoicesResult, productsResult, customersResult] = await Promise.allSettled([
         this.api.getStats(),
-        this.api.listInvoices(8),
+        this.api.listInvoices(150),
         this.api.listProducts(8),
         this.api.listCustomers(8),
       ]);
@@ -663,7 +765,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   async showInvoiceOverview() {
-    await this.feedback.toast('info', 'Facturas recientes', 'Mostrando el resumen operativo del día.');
+    await this.feedback.toast('info', this.copy().invoiceOverviewTitle, this.copy().invoiceOverviewText);
   }
 
   async inspectInvoice(invoice: DashboardInvoice) {
@@ -747,7 +849,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   formatMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
   }
 
   formatDate(value: string) {
@@ -755,45 +857,135 @@ export class DashboardPageComponent implements OnInit {
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(date);
   }
 
-  private buildChartBars() {
+  private buildRevenueChartData(): ChartData<'bar'> {
+    const today = new Date();
     const invoices = this.invoices();
-    const days = this.period() === 'month'
-      ? this.monthLabels()
-      : ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+    const labels = this.period() === 'month' ? this.monthLabels() : this.weekLabels();
+    const data = this.period() === 'month'
+      ? Array.from({ length: 12 }, (_, month) => this.sumForMonth(invoices, today.getFullYear(), month))
+      : Array.from({ length: 7 }, (_, index) => this.sumForWeekday(invoices, today, index));
 
-    const values = days.map((label, index) => {
-      const bucket = invoices.filter((invoice) => this.matchesBucket(invoice.date, label, index));
-      const total = bucket.reduce((sum, invoice) => sum + invoice.total, 0);
-      return { label, value: this.formatCompactMoney(total), height: this.scaleChartValue(total) };
-    });
+    return {
+      labels,
+      datasets: [
+        {
+          data,
+          label: this.copy().revenueTitle,
+          borderWidth: 2,
+          borderRadius: 12,
+          borderSkipped: false,
+          barPercentage: 0.72,
+          categoryPercentage: 0.72,
+          backgroundColor: 'rgba(79, 70, 229, 0.78)',
+          hoverBackgroundColor: 'rgba(53, 37, 205, 0.92)',
+          borderColor: 'rgba(53, 37, 205, 1)',
+        },
+      ],
+    };
+  }
 
-    return values;
+  private buildRevenueChartOptions(): ChartOptions<'bar'> {
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          displayColors: false,
+          backgroundColor: 'rgba(17, 24, 39, 0.95)',
+          titleColor: '#eef0ff',
+          bodyColor: '#eef0ff',
+          padding: 12,
+          cornerRadius: 12,
+          callbacks: {
+            label: (context) => ` ${this.formatMoney(Number(context.parsed.y ?? 0))}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11, weight: '600' },
+            maxRotation: 0,
+            autoSkip: true,
+            maxTicksLimit: 12,
+          },
+        },
+        y: {
+          beginAtZero: true,
+          grace: '10%',
+          grid: { color: 'rgba(148, 163, 184, 0.22)' },
+          ticks: {
+            color: '#64748b',
+            font: { size: 11 },
+            callback: (value) => this.formatCompactMoney(Number(value)),
+          },
+        },
+      },
+    };
+  }
+
+  private weekLabels() {
+    return this.locale() === 'es'
+      ? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   }
 
   private monthLabels() {
-    return ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return this.locale() === 'es'
+      ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   }
 
-  private matchesBucket(dateValue: string, _label: string, index: number) {
-    const date = new Date(dateValue);
+  private sumForWeekday(invoices: DashboardInvoice[], today: Date, index: number) {
+    const weekStart = this.startOfWeek(today);
+    const current = new Date(weekStart);
+    current.setDate(weekStart.getDate() + index);
+    return this.sumForDate(invoices, current);
+  }
+
+  private sumForMonth(invoices: DashboardInvoice[], year: number, month: number) {
+    return invoices
+      .filter((invoice) => this.sameMonthYear(invoice.date, year, month))
+      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
+  }
+
+  private sumForDate(invoices: DashboardInvoice[], current: Date) {
+    return invoices
+      .filter((invoice) => this.sameLocalDate(invoice.date, current))
+      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
+  }
+
+  private startOfWeek(date: Date) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    start.setDate(start.getDate() + diff);
+    return start;
+  }
+
+  private sameLocalDate(value: string, current: Date) {
+    const date = new Date(value);
     if (Number.isNaN(date.getTime())) return false;
 
-    if (this.period() === 'month') {
-      return date.getMonth() === index;
-    }
-
-    const weekday = date.getDay();
-    const normalized = [1, 2, 3, 4, 5, 6, 0];
-    return normalized[index] === weekday;
+    return date.getFullYear() === current.getFullYear()
+      && date.getMonth() === current.getMonth()
+      && date.getDate() === current.getDate();
   }
 
-  private scaleChartValue(value: number) {
-    const max = Math.max(...this.invoices().map((invoice) => invoice.total), 1);
-    return Math.max(18, Math.round((value / max) * 95));
+  private sameMonthYear(value: string, year: number, month: number) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return false;
+
+    return date.getFullYear() === year && date.getMonth() === month;
   }
 
   private formatCompactMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(value);
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
   }
 
   private mapInvoice(invoice: InvoiceRowDto): DashboardInvoice {
@@ -809,9 +1001,10 @@ export class DashboardPageComponent implements OnInit {
   private mapProduct(product: ProductRowDto): DashboardProduct {
     return {
       rank: '00',
-      name: `${product.code} · ${product.name}`,
-      units: product.availableQuantity,
-      price: product.unitPrice,
+      code: product.code,
+      name: product.name,
+      units: Number(product.availableQuantity ?? 0),
+      price: Number(product.unitPrice ?? 0),
     };
   }
 
