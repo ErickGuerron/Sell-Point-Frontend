@@ -5,7 +5,8 @@ import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2
 import type { ChartData, ChartOptions, ChartType } from 'chart.js';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { BillflowSidebarComponent, type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
+import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
+import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 
@@ -515,16 +516,13 @@ export class DashboardPageComponent implements OnInit {
   period = signal<Period>('week');
   searchQuery = signal('');
 
-  readonly sidebarItems = computed<DashboardNavItem[]>(() => {
-    const copy = this.copy();
-    return [
-      { label: copy.sidebarDashboard, icon: 'dashboard', href: '#', active: true },
-      { label: copy.sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-      { label: copy.sidebarProducts, icon: 'inventory_2', href: '#' },
-      { label: copy.sidebarCustomers, icon: 'groups', href: '#' },
-      { label: copy.sidebarEmployees, icon: 'badge', href: '#' },
-    ];
-  });
+  readonly sidebarItems = computed(() => buildBillflowSidebarItems({
+    dashboard: this.copy().sidebarDashboard,
+    invoices: this.copy().sidebarInvoices,
+    products: this.copy().sidebarProducts,
+    customers: this.copy().sidebarCustomers,
+    employees: this.copy().sidebarEmployees,
+  }, 'dashboard'));
 
   readonly mobileNavItems = computed<DashboardNavItem[]>(() => {
     const copy = this.copy();

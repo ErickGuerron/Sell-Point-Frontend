@@ -4,7 +4,9 @@ import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
+import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
+import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-particles-background.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
@@ -53,6 +55,8 @@ interface InvoiceCopy {
   sidebarDashboard: string;
   sidebarInvoices: string;
   sidebarCustomers: string;
+  sidebarProducts: string;
+  sidebarEmployees: string;
   sidebarInventory: string;
   sidebarReports: string;
   noInvoicesTitle: string;
@@ -99,6 +103,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Facturas',
     sidebarCustomers: 'Clientes',
+    sidebarProducts: 'Productos',
+    sidebarEmployees: 'Empleados',
     sidebarInventory: 'Inventario',
     sidebarReports: 'Reportes',
     noInvoicesTitle: 'No hay facturas',
@@ -143,6 +149,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
     sidebarCustomers: 'Customers',
+    sidebarProducts: 'Products',
+    sidebarEmployees: 'Employees',
     sidebarInventory: 'Inventory',
     sidebarReports: 'Reports',
     noInvoicesTitle: 'No invoices found',
@@ -168,10 +176,12 @@ function detectInvoiceLocale(): InvoiceLocale {
 @Component({
   selector: 'billflow-invoice-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
+  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
-      <div class="flex-1 min-w-0 app-dashboard-main">
+      <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
+
+      <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
           <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
             <div class="h-16 px-5 md:px-6 flex items-center justify-between gap-4">
               <div class="flex items-center gap-3 shrink-0">
@@ -217,7 +227,7 @@ function detectInvoiceLocale(): InvoiceLocale {
             </section>
 
             <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-10">
-              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
                 <div class="mb-4 flex items-start justify-between">
                   <div>
                     <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().totalOutstandingLabel }}</p>
@@ -230,7 +240,7 @@ function detectInvoiceLocale(): InvoiceLocale {
                 <p class="text-sm text-on-surface-variant">{{ outstandingCount() }} {{ copy().openInvoicesText }}</p>
               </article>
 
-              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
                 <div class="mb-4 flex items-start justify-between">
                   <div>
                     <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().overdueAmountsLabel }}</p>
@@ -243,7 +253,7 @@ function detectInvoiceLocale(): InvoiceLocale {
                 <p class="text-sm font-medium text-error">{{ overdueCount() }} {{ copy().overdueText }}</p>
               </article>
 
-              <article class="dashboard-glass-card group rounded-2xl border border-outline-variant/60 p-6 shadow-sm transition hover:shadow-md">
+              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
                 <div class="mb-4 flex items-start justify-between">
                   <div>
                     <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().paid30Label }}</p>
@@ -257,24 +267,24 @@ function detectInvoiceLocale(): InvoiceLocale {
               </article>
             </section>
 
-            <section class="dashboard-glass-card dashboard-table-card overflow-hidden rounded-2xl border border-outline-variant/60 shadow-sm">
-              <div class="dashboard-table-card__head border-b border-outline-variant/40 p-5 md:p-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-surface/60 dark:bg-slate-900/60">
+            <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex flex-wrap items-center gap-3">
-                  <select class="rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 px-4 py-2.5 text-sm text-on-surface outline-none" [value]="statusFilter()" (change)="setStatusFilter(($any($event.target).value))">
+                  <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="statusFilter()" (change)="setStatusFilter(($any($event.target).value))">
                     <option value="all">{{ copy().allStatuses }}</option>
                     <option value="paid">{{ copy().paid }}</option>
                     <option value="pending">{{ copy().pending }}</option>
                     <option value="overdue">{{ copy().overdue }}</option>
                   </select>
 
-                  <select class="rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 px-4 py-2.5 text-sm text-on-surface outline-none" [value]="rangeFilter()" (change)="setRangeFilter(($any($event.target).value))">
+                  <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="rangeFilter()" (change)="setRangeFilter(($any($event.target).value))">
                     <option value="30d">{{ copy().last30Days }}</option>
                     <option value="90d">{{ copy().last90Days }}</option>
                     <option value="year">{{ copy().thisYear }}</option>
                     <option value="all">{{ copy().allTime }}</option>
                   </select>
 
-                  <button type="button" class="inline-flex items-center gap-2 rounded-xl border border-outline-variant/60 bg-surface-container-lowest px-4 py-2.5 text-sm font-semibold text-on-surface transition hover:border-primary hover:text-primary dark:bg-slate-950" (click)="reloadInvoices()">
+                  <button type="button" class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="reloadInvoices()">
                     <span class="material-symbols-outlined text-[18px]">refresh</span>
                     {{ copy().refresh }}
                   </button>
@@ -283,7 +293,7 @@ function detectInvoiceLocale(): InvoiceLocale {
                 <div class="relative w-full lg:w-96">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
                   <input
-                    class="w-full rounded-xl border border-outline-variant/60 bg-surface-container-lowest dark:bg-slate-950 py-2.5 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
+                    class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
                     [placeholder]="copy().searchPlaceholder"
                     [value]="searchQuery()"
                     (input)="setSearchQuery(($any($event.target).value))"
@@ -294,32 +304,32 @@ function detectInvoiceLocale(): InvoiceLocale {
               <div class="overflow-x-auto">
                 <table class="w-full border-collapse text-left">
                   <thead>
-                    <tr class="dashboard-table-card__head-row border-b border-outline-variant/40 bg-surface-container-low/80 dark:bg-slate-900/70">
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().invoiceNumber }}</th>
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().customer }}</th>
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().dateIssued }}</th>
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().amount }}</th>
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant">{{ copy().status }}</th>
-                      <th class="whitespace-nowrap px-6 py-4 text-[11px] font-bold uppercase tracking-[0.1em] text-on-surface-variant text-right">{{ copy().actions }}</th>
+                    <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().invoiceNumber }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().customer }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().dateIssued }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().amount }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
                     </tr>
                   </thead>
 
-                  <tbody class="divide-y divide-outline-variant/20 text-sm text-on-surface">
-                    <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer transition-colors hover:bg-surface-container-low/60 dark:hover:bg-slate-900/80" (click)="inspectInvoice(invoice)">
-                      <td class="px-6 py-5 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
-                      <td class="px-6 py-5">
+                  <tbody class="font-body-sm text-body-sm">
+                    <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
+                      <td class="p-4 pl-7 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
+                      <td class="p-4 text-on-surface-variant font-medium">
                         <div class="font-semibold text-on-background">{{ invoice.customerName || (locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer') }}</div>
                         <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
                       </td>
-                      <td class="px-6 py-5 font-medium text-on-surface-variant">{{ formatDate(invoice.invoiceDate) }}</td>
-                      <td class="px-6 py-5 font-semibold text-on-background">{{ formatMoney(invoice.total) }}</td>
-                      <td class="px-6 py-5">
+                      <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.invoiceDate) }}</td>
+                      <td class="p-4 font-semibold text-on-surface">{{ formatMoney(invoice.total) }}</td>
+                      <td class="p-4">
                         <span [ngClass]="statusClass(invoice.status)" class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide">
                           <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoice.status)"></span>
                            {{ locale() === 'es' ? (invoice.status === 'paid' ? 'PAGADO' : invoice.status === 'pending' ? 'PENDIENTE' : 'VENCIDO') : invoice.statusLabel }}
                         </span>
                       </td>
-                      <td class="px-6 py-5 text-right">
+                      <td class="p-4 pr-7 text-right">
                         <a
                           class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
                           [href]="invoicePdfUrl(invoice.id)"
@@ -334,11 +344,11 @@ function detectInvoiceLocale(): InvoiceLocale {
                     </tr>
 
                     <tr *ngIf="paginatedInvoices().length === 0">
-                      <td colspan="6" class="p-10">
-                        <div class="rounded-2xl border border-dashed border-outline-variant/60 bg-surface/50 p-8 text-center">
-                          <span class="material-symbols-outlined text-4xl text-outline-variant">receipt_long</span>
-                          <p class="mt-4 text-lg font-bold text-on-background">{{ copy().noInvoicesTitle }}</p>
-                          <p class="mt-1 text-sm text-on-surface-variant">{{ copy().noInvoicesText }}</p>
+                      <td colspan="6" class="p-8">
+                        <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
+                          <span class="material-symbols-outlined dashboard-table-card__empty-icon">receipt_long</span>
+                          <p class="dashboard-table-card__empty-title">{{ copy().noInvoicesTitle }}</p>
+                          <p class="dashboard-table-card__empty-text">{{ copy().noInvoicesText }}</p>
                         </div>
                       </td>
                     </tr>
@@ -392,13 +402,13 @@ export class InvoicePageComponent implements OnInit {
   locale = signal<InvoiceLocale>(detectInvoiceLocale());
   copy = computed(() => INVOICE_TEXT[this.locale()]);
 
-  readonly sidebarItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices', active: true },
-    { label: this.copy().sidebarCustomers, icon: 'group', href: '/dashboard' },
-    { label: this.copy().sidebarInventory, icon: 'inventory_2', href: '/dashboard' },
-    { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
-  ]);
+  readonly sidebarItems = computed(() => buildBillflowSidebarItems({
+    dashboard: this.copy().sidebarDashboard,
+    invoices: this.copy().sidebarInvoices,
+    products: this.copy().sidebarProducts,
+    customers: this.copy().sidebarCustomers,
+    employees: this.copy().sidebarEmployees,
+  }, 'invoices'));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
     { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
