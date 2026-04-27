@@ -7,9 +7,8 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
   imports: [CommonModule],
   template: `
     <div #host class="relative">
-      <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center gap-2 font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer overflow-hidden" style="width:auto; min-width:7.5rem; height:3rem; padding:0 0.875rem; border-radius:9999px;" (click)="toggle.emit($event)" [attr.aria-expanded]="open" aria-haspopup="menu">
-        <span class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center text-xs shrink-0 overflow-hidden">{{ initials }}</span>
-        <span class="hidden sm:block max-w-28 truncate">{{ displayName }}</span>
+      <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer overflow-hidden" style="width:2.875rem; height:2.875rem; border-radius:9999px;" (click)="toggle.emit($event)" [attr.aria-expanded]="open" aria-haspopup="menu">
+        <span class="w-full h-full rounded-full bg-primary text-on-primary flex items-center justify-center text-xs shrink-0 overflow-hidden">{{ initials }}</span>
       </button>
 
       <div *ngIf="open" #panel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="closing" role="menu">

@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
+import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 
@@ -167,18 +168,21 @@ function detectInvoiceLocale(): InvoiceLocale {
 @Component({
   selector: 'billflow-invoice-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
+  imports: [CommonModule, BillflowPageShellComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
       <div class="flex-1 min-w-0 app-dashboard-main">
           <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
             <div class="h-16 px-5 md:px-6 flex items-center justify-between gap-4">
-              <div class="flex items-center gap-3 md:hidden">
+              <div class="flex items-center gap-3 shrink-0">
+                <span class="hidden md:inline-flex lg:hidden">
+                  <billflow-mobile-sidebar [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()"></billflow-mobile-sidebar>
+                </span>
                 <span class="material-symbols-outlined text-outline">receipt_long</span>
                 <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
               </div>
 
-              <div class="flex items-center gap-2 ml-auto">
+              <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
                 <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
                 <billflow-user-menu
                   [displayName]="displayName"
@@ -363,6 +367,19 @@ function detectInvoiceLocale(): InvoiceLocale {
               </div>
             </section>
           </main>
+
+          <nav class="md:hidden app-dashboard-mobile-nav">
+            <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
+              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+              <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
+            </a>
+
+            <div class="app-dashboard-mobile-fab-wrap">
+              <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="startNewInvoice()">
+                <span class="material-symbols-outlined text-[24px]">add</span>
+              </button>
+            </div>
+          </nav>
       </div>
     </billflow-page-shell>
   `,
@@ -370,6 +387,7 @@ function detectInvoiceLocale(): InvoiceLocale {
 export class InvoicePageComponent implements OnInit {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
+  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
 
   locale = signal<InvoiceLocale>(detectInvoiceLocale());
   copy = computed(() => INVOICE_TEXT[this.locale()]);
@@ -379,6 +397,13 @@ export class InvoicePageComponent implements OnInit {
     { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices', active: true },
     { label: this.copy().sidebarCustomers, icon: 'group', href: '/dashboard' },
     { label: this.copy().sidebarInventory, icon: 'inventory_2', href: '/dashboard' },
+    { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
+  ]);
+
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
+    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices', active: true },
+    { label: this.copy().sidebarCustomers, icon: 'group', href: '/dashboard' },
     { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
   ]);
 
@@ -494,6 +519,10 @@ export class InvoicePageComponent implements OnInit {
     await this.feedback.toast('info', this.locale() === 'es' ? 'Nueva factura' : 'New invoice', this.locale() === 'es' ? 'El flujo de creación se puede conectar luego.' : 'Invoice creation flow can be wired next.');
   }
 
+  iconVariationSettings(active = false) {
+    return active ? "'FILL' 1" : "'FILL' 0";
+  }
+
   openNotifications() {
     void this.feedback.toast('info', this.copy().notifications, this.locale() === 'es' ? 'Tenés 3 movimientos críticos esperando revisión.' : 'You have 3 critical movements waiting for review.');
   }
@@ -527,6 +556,16 @@ export class InvoicePageComponent implements OnInit {
       this.userMenuClosing.set(false);
       this.userMenuCloseTimeout = undefined;
     }, 180);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.userMenuOpen()) return;
+
+    const target = event.target as Node | null;
+    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
+
+    this.closeUserMenu();
   }
 
   async openUserSettings() {
@@ -651,15 +690,19 @@ export class InvoicePageComponent implements OnInit {
       const raw = window.localStorage.getItem('billflow-session');
       if (!raw) return;
 
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; user?: { name?: string; firstName?: string; fullName?: string } };
+      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
       const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
-      this.displayName = candidate;
-      this.userInitials = candidate
-        .split(/\s+/)
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('') || 'US';
+      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
+      if (candidate !== 'Usuario') {
+        this.userInitials = candidate
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase() ?? '')
+          .join('');
+      } else {
+        this.userInitials = 'US';
+      }
     } catch {
       this.displayName = 'Usuario';
       this.userInitials = 'US';
