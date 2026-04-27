@@ -284,9 +284,16 @@ function detectInvoiceLocale(): InvoiceLocale {
                     <option value="all">{{ copy().allTime }}</option>
                   </select>
 
-                  <button type="button" class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="reloadInvoices()">
-                    <span class="material-symbols-outlined text-[18px]">refresh</span>
-                    {{ copy().refresh }}
+                  <button
+                    type="button"
+                    [title]="copy().refresh"
+                    class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
+                    (click)="void reloadInvoices()"
+                  >
+                    <span
+                      class="material-symbols-outlined text-[20px] transition-transform"
+                      [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                    >refresh</span>
                   </button>
                 </div>
 
