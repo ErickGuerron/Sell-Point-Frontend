@@ -8,6 +8,7 @@ import {
   type ProductRowDto,
 } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { LocaleService } from '../../shared/services/locale.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -524,6 +525,10 @@ interface LineItem {
 export class CreateInvoicePageComponent implements OnInit {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
+  private readonly localeService = inject(LocaleService);
+
+  /** Alias directo al signal del servicio — sin copia local */
+  readonly locale = this.localeService.locale;
 
   // ── Dictionary ────────────────────────────────────────────────────────────
   readonly copy = computed(() => {
@@ -665,9 +670,6 @@ export class CreateInvoicePageComponent implements OnInit {
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
   });
-  locale = signal<'es' | 'en'>(
-    typeof window !== 'undefined' && window.localStorage.getItem('billflow-lang') === 'en' ? 'en' : 'es'
-  );
   readonly skeletonRows = [1, 2, 3, 4, 5];
   minOf(a: number, b: number) { return Math.min(a, b); }
   private customerSearchTimeout: number | undefined;
@@ -700,7 +702,6 @@ export class CreateInvoicePageComponent implements OnInit {
   ngOnInit() {
     this.applyStoredUser();
     this.applyStoredTheme();
-    // Sync html[lang] with stored preference
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
     }
@@ -893,12 +894,7 @@ export class CreateInvoicePageComponent implements OnInit {
   // ── User menu ─────────────────────────────────────────────────────────────
 
   toggleLocale() {
-    const next: 'es' | 'en' = this.locale() === 'es' ? 'en' : 'es';
-    this.locale.set(next);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('billflow-lang', next);
-      document.documentElement.lang = next;
-    }
+    this.localeService.toggle();
   }
 
   toggleUserMenu(event?: MouseEvent) {

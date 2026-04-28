@@ -3,6 +3,7 @@ import { Component, computed, inject, signal, HostListener, ElementRef, ViewChil
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { LocaleService } from '../../shared/services/locale.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -21,7 +22,6 @@ interface InvoiceViewModel extends InvoiceRowDto {
   daysOld: number;
 }
 
-type InvoiceLocale = 'es' | 'en';
 
 interface InvoiceCopy {
   moduleLabel: string;
@@ -165,13 +165,6 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
   },
 };
 
-function detectInvoiceLocale(): InvoiceLocale {
-  if (typeof window === 'undefined') return 'es';
-  const stored = window.localStorage.getItem('billflow-lang');
-  if (stored === 'es' || stored === 'en') return stored;
-  const browser = (window.navigator.language || window.navigator.languages?.[0] || 'es').toLowerCase();
-  return browser.startsWith('en') ? 'en' : 'es';
-}
 
 @Component({
   selector: 'billflow-invoice-page',
@@ -404,9 +397,10 @@ function detectInvoiceLocale(): InvoiceLocale {
 export class InvoicePageComponent implements OnInit {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
+  private readonly localeService = inject(LocaleService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
 
-  locale = signal<InvoiceLocale>(detectInvoiceLocale());
+  locale = this.localeService.locale;
   copy = computed(() => INVOICE_TEXT[this.locale()]);
 
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
@@ -479,8 +473,8 @@ export class InvoicePageComponent implements OnInit {
 
   async ngOnInit() {
     this.applyStoredTheme();
-    this.applyStoredLocale();
     this.applyStoredUser();
+    if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
     await this.reloadInvoices();
   }
 
@@ -509,12 +503,7 @@ export class InvoicePageComponent implements OnInit {
   }
 
   toggleLocale() {
-    const next: InvoiceLocale = this.locale() === 'es' ? 'en' : 'es';
-    this.locale.set(next);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('billflow-lang', next);
-      document.documentElement.lang = next;
-    }
+    this.localeService.toggle();
   }
 
   setSearchQuery(value: string) {
@@ -532,8 +521,10 @@ export class InvoicePageComponent implements OnInit {
     this.page.set(1);
   }
 
-  async startNewInvoice() {
-    await this.feedback.toast('info', this.locale() === 'es' ? 'Nueva factura' : 'New invoice', this.locale() === 'es' ? 'El flujo de creación se puede conectar luego.' : 'Invoice creation flow can be wired next.');
+  startNewInvoice() {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+    }
   }
 
   iconVariationSettings(active = false) {
@@ -692,13 +683,6 @@ export class InvoicePageComponent implements OnInit {
     return this.daysBetween(new Date(value), new Date()) <= days;
   }
 
-  private applyStoredLocale() {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('billflow-lang');
-    const next: InvoiceLocale = stored === 'en' ? 'en' : 'es';
-    this.locale.set(next);
-    document.documentElement.lang = next;
-  }
 
   private applyStoredUser() {
     if (typeof window === 'undefined') return;
@@ -747,10 +731,5 @@ export class InvoicePageComponent implements OnInit {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('billflow-theme', next);
     document.documentElement.classList.toggle('dark', next === 'dark');
-  }
-  startNewInvoice() {
-    if (typeof window !== 'undefined') {
-      window.location.assign('/create-invoice');
-    }
   }
 }
