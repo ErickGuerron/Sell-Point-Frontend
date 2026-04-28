@@ -86,6 +86,14 @@ export class InvoiceApiService {
     return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
   }
 
+  async fetchProductsPage(q: string, page: number, limit = 10): Promise<PaginatedResponse<ProductRowDto>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (q.trim()) params.set('q', q.trim());
+    const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
+  }
+
   async createInvoice(payload: CreateInvoicePayload): Promise<InvoiceRowDto> {
     const response = await fetch(`${API_BASE_URL}/invoices`, {
       method: 'POST',
@@ -103,4 +111,3 @@ export class InvoiceApiService {
     return `${API_BASE_URL}/invoices/${id}/pdf`;
   }
 }
-

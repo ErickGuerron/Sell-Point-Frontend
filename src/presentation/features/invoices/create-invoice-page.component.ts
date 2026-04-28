@@ -379,7 +379,7 @@ interface LineItem {
                   <tr class="bg-surface-container border-b-2 border-primary/30">
                     <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary w-20">#</th>
                     <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary">Nombre completo</th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary hidden sm:table-cell">Cédula / Email</th>
+                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary hidden sm:table-cell">Email</th>
                     <th class="px-4 py-3 w-10"></th>
                   </tr>
                 </thead>
@@ -411,7 +411,7 @@ interface LineItem {
                   >
                     <td class="px-5 py-3.5">
                       <span class="font-mono text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">
-                        {{ c.id | slice:0:6 }}
+                        {{ c.cedula ?? '—' }}
                       </span>
                     </td>
                     <td class="px-4 py-3.5">
@@ -425,7 +425,7 @@ interface LineItem {
                       </div>
                     </td>
                     <td class="px-4 py-3.5 text-on-surface-variant text-xs hidden sm:table-cell">
-                      {{ c.cedula ?? c.email ?? '—' }}
+                      {{ c.email ?? '—' }}
                     </td>
                     <td class="px-4 py-3.5 text-right">
                       <span class="material-symbols-outlined text-outline/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all text-[18px]">
@@ -544,14 +544,13 @@ interface LineItem {
             <table class="w-full text-left border-collapse">
               <thead class="sticky top-0 z-10">
                 <tr class="bg-surface-container border-b-2 border-primary/20">
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant w-16">{{ copy().productModalColId }}</th>
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant w-24">{{ copy().productModalColCode }}</th>
                   <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{{ copy().productModalColName }}</th>
                   <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().productModalColPrice }}</th>
                   <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">{{ copy().productModalColStock }}</th>
                   <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-center w-32">{{ copy().productModalColQty }}</th>
-                  <th class="py-3 px-4 w-12"></th>
-                </tr>
-              </thead>
+                  </tr>
+                </thead>
               <tbody>
                 <ng-container *ngIf="productModalLoading()">
                   <tr *ngFor="let s of skeletonRows" class="border-b border-outline-variant/20 animate-pulse">
@@ -560,14 +559,13 @@ interface LineItem {
                     <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-16 ml-auto"></div></td>
                     <td class="py-3 px-4 hidden sm:table-cell"><div class="h-3 bg-outline-variant/30 rounded w-10 ml-auto"></div></td>
                     <td class="py-3 px-4"></td>
-                    <td class="py-3 px-4"></td>
                   </tr>
                 </ng-container>
                 <tr
-                  *ngFor="let p of productModalResults()"
+                  *ngFor="let p of visibleProductModalResults()"
                   class="border-b border-outline-variant/20 hover:bg-primary/5 transition-colors"
                 >
-                  <td class="py-3 px-4 text-xs text-outline font-mono">{{ p.id }}</td>
+                  <td class="py-3 px-4 text-xs text-outline font-mono">{{ p.code }}</td>
                   <td class="py-3 px-4">
                     <p class="text-sm font-semibold text-on-surface leading-tight">{{ p.name }}</p>
                     <p class="text-xs text-outline mt-0.5">{{ p.code }}</p>
@@ -587,18 +585,10 @@ interface LineItem {
                       </button>
                     </div>
                   </td>
-                  <td class="py-3 px-4 text-center">
-                    <button type="button"
-                      class="w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center mx-auto"
-                      [title]="copy().productModalAddBtn"
-                      (click)="addProductFromModal(p)"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-                    </button>
-                  </td>
-                </tr>
-                <tr *ngIf="!productModalLoading() && productModalResults().length === 0">
-                  <td colspan="6" class="py-16 text-center">
+                    
+                  </tr>
+                  <tr *ngIf="!productModalLoading() && visibleProductModalResults().length === 0">
+                    <td colspan="5" class="py-16 text-center">
                     <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">inventory_2</span>
                     <p class="text-sm font-medium text-on-surface-variant">{{ copy().productModalNoResults }}</p>
                     <p class="text-xs text-outline mt-1">{{ copy().productModalNoResultsHint }}</p>
@@ -606,6 +596,51 @@ interface LineItem {
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Pagination -->
+          <div class="flex flex-col gap-3 border-t border-outline-variant/40 bg-surface/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
+            <div class="text-sm text-on-surface-variant">
+              <ng-container *ngIf="productModalTotal() > 0">
+                {{ locale() === 'es' ? 'Página' : 'Page' }}
+                <span class="font-semibold text-on-surface">{{ productModalPage() }}</span>
+                {{ locale() === 'es' ? 'de' : 'of' }}
+                <span class="font-semibold text-on-surface">{{ totalProductModalPages() }}</span>
+              </ng-container>
+              <ng-container *ngIf="visibleProductModalResults().length === 0 && !productModalLoading()">
+                {{ copy().productModalNoResults }}
+              </ng-container>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                [disabled]="productModalPage() <= 1"
+                (click)="prevProductModalPage()"
+              >
+                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+              </button>
+
+              <button
+                *ngFor="let p of productModalPageNumbers()"
+                type="button"
+                class="h-9 w-9 rounded-lg text-sm font-semibold transition"
+                [ngClass]="p === productModalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'"
+                (click)="goToProductModalPage(p)"
+              >
+                {{ p }}
+              </button>
+
+              <button
+                type="button"
+                class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                [disabled]="productModalPage() >= totalProductModalPages()"
+                (click)="nextProductModalPage()"
+              >
+                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+              </button>
+            </div>
           </div>
 
           <!-- Footer -->
@@ -687,14 +722,14 @@ export class CreateInvoicePageComponent implements OnInit {
       // Product modal
       productModalTitle: 'Seleccionar Producto',
       productModalSearchPlaceholder: 'Buscar por nombre o código...',
-      productModalColId: 'ID',
-      productModalColName: 'Nombre',
-      productModalColPrice: 'Precio',
-      productModalColStock: 'Stock',
-      productModalColQty: 'Cantidad',
-      productModalAddBtn: 'Agregar al carrito',
+       productModalColCode: 'COD_PRO',
+       productModalColName: 'Nombre',
+       productModalColPrice: 'Precio',
+       productModalColStock: 'Stock',
+       productModalColQty: 'Cantidad',
+        productModalAddBtn: 'Agregar al carrito',
       productModalNoResults: 'No se encontraron productos',
-      productModalNoResultsHint: 'Intentá con otro nombre o código',
+       productModalNoResultsHint: 'Intentá con otro nombre o código, o revisá el stock',
       productModalOpenBtn: 'Buscar Producto',
     };
     const en = {
@@ -742,14 +777,14 @@ export class CreateInvoicePageComponent implements OnInit {
       // Product modal
       productModalTitle: 'Select Product',
       productModalSearchPlaceholder: 'Search by name or code...',
-      productModalColId: 'ID',
-      productModalColName: 'Name',
-      productModalColPrice: 'Price',
-      productModalColStock: 'Stock',
-      productModalColQty: 'Quantity',
-      productModalAddBtn: 'Add to cart',
+       productModalColCode: 'COD_PRO',
+       productModalColName: 'Name',
+       productModalColPrice: 'Price',
+       productModalColStock: 'Stock',
+       productModalColQty: 'Quantity',
+        productModalAddBtn: 'Add to cart',
       productModalNoResults: 'No products found',
-      productModalNoResultsHint: 'Try another name or code',
+       productModalNoResultsHint: 'Try another name or code, or check stock',
       productModalOpenBtn: 'Browse Products',
     };
     return this.locale() === 'es' ? es : en;
@@ -814,13 +849,36 @@ export class CreateInvoicePageComponent implements OnInit {
   productModalResults = signal<ProductRowDto[]>([]);
   productModalTotal   = signal(0);
   productQuery        = signal('');
+  productModalPage    = signal(1);
+  readonly productModalPageSize = 10;
   /** Map of productId → desired quantity in the modal */
   private productModalQtyMap = signal<Record<string, number>>({});
+  private productModalCatalog = signal<Record<string, ProductRowDto>>({});
   private productModalSearchTimeout: number | undefined;
+
+  readonly visibleProductModalResults = computed(() =>
+    this.productModalResults().filter((product) => product.availableQuantity > 0)
+  );
 
   readonly productModalSelectedCount = computed(() =>
     Object.values(this.productModalQtyMap()).reduce((s, q) => s + (q > 0 ? 1 : 0), 0)
   );
+
+  readonly totalProductModalPages = computed(() => {
+    const total = this.productModalTotal() || this.visibleProductModalResults().length;
+    return Math.max(1, Math.ceil(total / this.productModalPageSize));
+  });
+
+  readonly productModalPageNumbers = computed(() => {
+    const total = this.totalProductModalPages();
+    const cur = this.productModalPage();
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: number[] = [];
+    const start = Math.max(1, Math.min(cur - 2, total - 4));
+    const end = Math.min(total, start + 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  });
 
   // legacy kept for backward compat (not used in UI anymore)
   productResults = signal<ProductRowDto[]>([]);
@@ -991,9 +1049,11 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productQuery.set('');
     this.productModalResults.set([]);
     this.productModalTotal.set(0);
+    this.productModalPage.set(1);
     this.productModalQtyMap.set({});
+    this.productModalCatalog.set({});
     this.productModalOpen.set(true);
-    void this.fetchProductsForModal('');
+    void this.loadProductModalPage(1);
   }
 
   closeProductModal() {
@@ -1001,22 +1061,31 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productQuery.set('');
     this.productModalResults.set([]);
     this.productModalQtyMap.set({});
+    this.productModalCatalog.set({});
+    this.productModalPage.set(1);
   }
 
   onProductModalSearch(value: string) {
     this.productQuery.set(value);
     if (typeof window !== 'undefined') window.clearTimeout(this.productModalSearchTimeout);
+    this.productModalPage.set(1);
     this.productModalSearchTimeout = typeof window !== 'undefined'
-      ? window.setTimeout(() => { void this.fetchProductsForModal(value); }, 300)
+      ? window.setTimeout(() => { void this.loadProductModalPage(1); }, 300)
       : undefined;
   }
 
-  private async fetchProductsForModal(q: string) {
+  private async loadProductModalPage(page: number) {
     this.productModalLoading.set(true);
     try {
-      const res = await this.api.searchProducts(q);
+      const res = await this.api.fetchProductsPage(this.productQuery(), page, this.productModalPageSize);
       this.productModalResults.set(res.data);
-      this.productModalTotal.set(res.data.length);
+      this.productModalTotal.set(res.pagination?.total ?? res.data.length);
+      this.productModalPage.set(page);
+      this.productModalCatalog.update((current) => {
+        const next = { ...current };
+        for (const product of res.data) next[product.id] = product;
+        return next;
+      });
     } catch {
       this.productModalResults.set([]);
       this.productModalTotal.set(0);
@@ -1025,34 +1094,49 @@ export class CreateInvoicePageComponent implements OnInit {
     }
   }
 
+  prevProductModalPage() {
+    const p = this.productModalPage() - 1;
+    if (p < 1) return;
+    void this.loadProductModalPage(p);
+  }
+
+  nextProductModalPage() {
+    const p = this.productModalPage() + 1;
+    if (p > this.totalProductModalPages()) return;
+    void this.loadProductModalPage(p);
+  }
+
+  goToProductModalPage(p: number) {
+    void this.loadProductModalPage(p);
+  }
+
   getModalQty(productId: string): number {
-    return this.productModalQtyMap()[productId] ?? 1;
+    return this.productModalQtyMap()[productId] ?? 0;
   }
 
   incModalQty(productId: string) {
-    this.productModalQtyMap.update(m => ({ ...m, [productId]: (m[productId] ?? 1) + 1 }));
+    const product = this.productModalCatalog()[productId];
+    const current = this.productModalQtyMap()[productId] ?? 0;
+    const max = product?.availableQuantity ?? Number.MAX_SAFE_INTEGER;
+    if (current >= max) return;
+    this.productModalQtyMap.update((m) => ({ ...m, [productId]: current + 1 }));
   }
 
   decModalQty(productId: string) {
-    const cur = this.productModalQtyMap()[productId] ?? 1;
-    if (cur <= 1) return;
-    this.productModalQtyMap.update(m => ({ ...m, [productId]: cur - 1 }));
-  }
-
-  /** Add a single product row immediately (cart icon button) */
-  addProductFromModal(p: ProductRowDto) {
-    const qty = this.getModalQty(p.id);
-    this.mergeIntoCart(p, qty);
-    // Reset that row's qty to 1
-    this.productModalQtyMap.update(m => ({ ...m, [p.id]: 1 }));
+    const cur = this.productModalQtyMap()[productId] ?? 0;
+    if (cur <= 0) return;
+    this.productModalQtyMap.update((m) => ({ ...m, [productId]: cur - 1 }));
   }
 
   /** Add all products that have qty > 0 in the map */
   addAllFromModal() {
     const map = this.productModalQtyMap();
-    for (const p of this.productModalResults()) {
-      const qty = map[p.id] ?? 1;
-      if (qty > 0) this.mergeIntoCart(p, qty);
+    const catalog = this.productModalCatalog();
+    for (const [productId, qty] of Object.entries(map)) {
+      if (qty <= 0) continue;
+      const product = catalog[productId];
+      if (!product || product.availableQuantity <= 0) continue;
+      this.mergeIntoCart(product, Math.min(qty, product.availableQuantity));
     }
     this.closeProductModal();
   }
