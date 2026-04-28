@@ -983,7 +983,7 @@ body {
     height: 2.875rem;
     min-width: 2.875rem;
     min-height: 2.875rem;
-    border-radius: 9999px;
+    border-radius: 0.625rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1998,4 +1998,13 @@ body {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ── Invoice form background (reuses dashboard-bg orbs/particles) ── */
+.app-invoice-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
 }

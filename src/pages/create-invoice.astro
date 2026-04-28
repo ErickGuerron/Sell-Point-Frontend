@@ -1,0 +1,12 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { CreateInvoicePageComponent } from '../presentation/features/invoices/create-invoice-page.component';
+---
+
+<MainLayout title="BillFlow - Crear Factura" lang="es">
+  <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
+    <div class="relative z-10">
+      <CreateInvoicePageComponent client:load />
+    </div>
+  </div>
+</MainLayout>
