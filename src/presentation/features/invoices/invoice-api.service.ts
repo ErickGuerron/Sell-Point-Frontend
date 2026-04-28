@@ -45,9 +45,12 @@ export interface CreateInvoicePayload {
 
 interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -60,6 +63,14 @@ export class InvoiceApiService {
 
   async searchCustomers(q: string, limit = 20): Promise<PaginatedResponse<CustomerRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
+    if (q.trim()) params.set('q', q.trim());
+    const response = await fetch(`${API_BASE_URL}/customers?${params.toString()}`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<PaginatedResponse<CustomerRowDto>>;
+  }
+
+  async fetchCustomersPage(q: string, page: number, limit = 10): Promise<PaginatedResponse<CustomerRowDto>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
     const response = await fetch(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);

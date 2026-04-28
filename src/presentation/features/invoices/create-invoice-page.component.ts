@@ -327,93 +327,193 @@ interface LineItem {
 
         </main>
 
-        <!-- ── Customer Modal ── -->
+        <!-- ── Customer Selection Modal ── -->
         <div
           *ngIf="customerModalOpen()"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4"
+          class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
           (click)="closeCustomerModal()"
         >
           <!-- Backdrop -->
-          <div class="absolute inset-0 bg-[#0b1020]/50 backdrop-blur-sm"></div>
+          <div class="absolute inset-0 bg-[#060d1f]/60 backdrop-blur-md"></div>
 
-          <!-- Modal panel -->
+          <!-- Modal panel: wider, taller -->
           <div
-            class="relative z-10 w-full max-w-lg bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/60 flex flex-col overflow-hidden"
+            class="relative z-10 w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/50 flex flex-col overflow-hidden"
+            style="max-height: min(90vh, 680px)"
             (click)="$event.stopPropagation()"
           >
-            <!-- Modal header -->
-            <div class="flex items-center justify-between px-5 pt-5 pb-3 border-b border-outline-variant/40">
-              <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary">manage_accounts</span>
-                <h3 class="text-base font-bold text-on-surface">{{ copy.modalTitle }}</h3>
+
+            <!-- ── Modal header ── -->
+            <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-outline-variant/40 bg-surface/60 flex-shrink-0">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <span class="material-symbols-outlined text-primary text-[20px]">manage_accounts</span>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy.modalTitle }}</h3>
+                  <p class="text-xs text-on-surface-variant mt-0.5">
+                    {{ modalTotal() > 0 ? modalTotal() + ' ' + copy.customersFound : copy.searchHint }}
+                  </p>
+                </div>
               </div>
-              <button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container transition-colors" (click)="closeCustomerModal()">
+              <button
+                type="button"
+                class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface transition-all"
+                (click)="closeCustomerModal()"
+              >
                 <span class="material-symbols-outlined text-[20px]">close</span>
               </button>
             </div>
 
-            <!-- Search -->
-            <div class="px-5 py-3 border-b border-outline-variant/30">
+            <!-- ── Search bar ── -->
+            <div class="px-6 py-3 border-b border-outline-variant/30 flex-shrink-0 bg-surface-container/30">
               <div class="relative">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+                <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
                 <input
                   id="modal-customer-search"
                   type="text"
-                  class="w-full pl-10 pr-4 py-2.5 bg-surface-container-low border border-outline-variant rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  class="w-full pl-10 pr-10 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
                   [placeholder]="copy.customerSearchPlaceholder"
                   [ngModel]="customerQuery()"
                   (ngModelChange)="onModalCustomerSearch($event)"
                 />
-              </div>
-            </div>
-
-            <!-- Results list -->
-            <div class="flex-1 overflow-y-auto" style="max-height:320px">
-              <!-- Loading -->
-              <div *ngIf="customerLoading()" class="flex items-center justify-center py-10 gap-2 text-on-surface-variant">
-                <span class="material-symbols-outlined animate-spin text-primary">progress_activity</span>
-                <span class="text-sm">{{ copy.searching }}</span>
-              </div>
-
-              <!-- Empty -->
-              <div *ngIf="!customerLoading() && modalCustomers().length === 0" class="flex flex-col items-center justify-center py-10 gap-2 text-center">
-                <span class="material-symbols-outlined text-[36px] text-outline-variant">person_off</span>
-                <p class="text-sm text-on-surface-variant">{{ copy.noResultsLabel }}</p>
-              </div>
-
-              <!-- List -->
-              <ul *ngIf="!customerLoading() && modalCustomers().length > 0" class="divide-y divide-outline-variant/20">
-                <li
-                  *ngFor="let c of pagedModalCustomers()"
-                  class="px-5 py-3.5 cursor-pointer hover:bg-surface-container transition-colors flex items-center gap-3"
-                  (click)="selectCustomer(c); closeCustomerModal()"
+                <button
+                  *ngIf="customerQuery()"
+                  type="button"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors"
+                  (click)="onModalCustomerSearch('')"
                 >
-                  <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-                    {{ initials(c.name, c.lastName) }}
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-on-surface">{{ c.name }} {{ c.lastName }}</p>
-                    <p class="text-xs text-on-surface-variant mt-0.5">{{ c.cedula ?? c.email ?? c.id }}</p>
-                  </div>
-                  <span class="material-symbols-outlined text-outline/60 text-[18px]">chevron_right</span>
-                </li>
-              </ul>
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
             </div>
 
-            <!-- Pagination -->
-            <div *ngIf="totalModalPages() > 1" class="flex items-center justify-between px-5 py-3 border-t border-outline-variant/30 bg-surface/60">
-              <span class="text-xs text-on-surface-variant">
-                {{ copy.pageLabel }} {{ modalPage() + 1 }} / {{ totalModalPages() }}
-              </span>
-              <div class="flex items-center gap-1">
-                <button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container disabled:opacity-30 transition-colors" [disabled]="modalPage() === 0" (click)="prevModalPage()">
+            <!-- ── Table area ── -->
+            <div class="flex-1 overflow-auto">
+              <table class="w-full border-collapse text-sm">
+
+                <!-- Sticky column headers -->
+                <thead class="sticky top-0 z-20">
+                  <tr class="bg-surface-container border-b-2 border-primary/30">
+                    <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary w-20">#</th>
+                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary">Nombre completo</th>
+                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary hidden sm:table-cell">Cédula / Email</th>
+                    <th class="px-4 py-3 w-10"></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <!-- Loading skeleton rows -->
+                  <ng-container *ngIf="customerLoading()">
+                    <tr *ngFor="let s of skeletonRows">
+                      <td class="px-5 py-3.5 border-b border-outline-variant/20">
+                        <div class="h-3.5 w-8 rounded bg-outline-variant/30 animate-pulse"></div>
+                      </td>
+                      <td class="px-4 py-3.5 border-b border-outline-variant/20">
+                        <div class="h-3.5 w-36 rounded bg-outline-variant/30 animate-pulse"></div>
+                      </td>
+                      <td class="px-4 py-3.5 border-b border-outline-variant/20 hidden sm:table-cell">
+                        <div class="h-3.5 w-28 rounded bg-outline-variant/20 animate-pulse"></div>
+                      </td>
+                      <td class="px-4 py-3.5 border-b border-outline-variant/20"></td>
+                    </tr>
+                  </ng-container>
+
+                  <!-- Data rows -->
+                  <tr
+                    *ngFor="let c of pagedModalCustomers(); let i = index; let even = even"
+                    class="group cursor-pointer transition-colors border-b border-outline-variant/15 hover:bg-primary/5"
+                    [class.bg-surface-container-lowest]="even"
+                    [class.bg-surface-container]="!even"
+                    (click)="selectCustomer(c); closeCustomerModal()"
+                  >
+                    <td class="px-5 py-3.5">
+                      <span class="font-mono text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">
+                        {{ c.id | slice:0:6 }}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 group-hover:bg-primary/20 transition-colors">
+                          {{ initials(c.name, c.lastName) }}
+                        </div>
+                        <span class="font-semibold text-on-surface group-hover:text-primary transition-colors">
+                          {{ c.name }} {{ c.lastName }}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="px-4 py-3.5 text-on-surface-variant text-xs hidden sm:table-cell">
+                      {{ c.cedula ?? c.email ?? '—' }}
+                    </td>
+                    <td class="px-4 py-3.5 text-right">
+                      <span class="material-symbols-outlined text-outline/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all text-[18px]">
+                        arrow_forward
+                      </span>
+                    </td>
+                  </tr>
+
+                  <!-- Empty state inside table -->
+                  <tr *ngIf="!customerLoading() && modalCustomers().length === 0">
+                    <td colspan="4" class="px-5 py-14 text-center">
+                      <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">person_search</span>
+                      <p class="text-sm font-medium text-on-surface-variant">{{ copy.noResultsLabel }}</p>
+                      <p class="text-xs text-outline mt-1">{{ copy.noResultsHint }}</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- ── Pagination footer (mismo estilo que tabla de facturas) ── -->
+            <div class="flex flex-col gap-3 border-t border-outline-variant/40 bg-surface/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <!-- Count label -->
+              <div class="text-sm text-on-surface-variant">
+                <ng-container *ngIf="modalCustomers().length > 0">
+                  Mostrando
+                  <span class="font-semibold text-on-surface">{{ (modalPage() - 1) * modalPageSize + 1 }}</span>
+                  a
+                  <span class="font-semibold text-on-surface">{{ minOf(modalPage() * modalPageSize, modalTotal() || modalCustomers().length) }}</span>
+                  de
+                  <span class="font-semibold text-on-surface">{{ modalTotal() || modalCustomers().length }}</span>
+                  clientes
+                </ng-container>
+                <ng-container *ngIf="modalCustomers().length === 0 && !customerLoading()">
+                  Sin resultados
+                </ng-container>
+              </div>
+
+              <!-- Page buttons -->
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                  [disabled]="modalPage() <= 1"
+                  (click)="prevModalPage()"
+                >
                   <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                 </button>
-                <button type="button" class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container disabled:opacity-30 transition-colors" [disabled]="modalPage() >= totalModalPages() - 1" (click)="nextModalPage()">
+
+                <button
+                  *ngFor="let p of modalPageNumbers()"
+                  type="button"
+                  class="h-9 w-9 rounded-lg text-sm font-semibold transition"
+                  [ngClass]="p === modalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'"
+                  (click)="goToPage(p)"
+                >
+                  {{ p }}
+                </button>
+
+                <button
+                  type="button"
+                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                  [disabled]="modalPage() >= totalModalPages()"
+                  (click)="nextModalPage()"
+                >
                   <span class="material-symbols-outlined text-[18px]">chevron_right</span>
                 </button>
               </div>
             </div>
+
           </div>
         </div>
 
@@ -443,8 +543,12 @@ export class CreateInvoicePageComponent implements OnInit {
     noCustomerHint: 'Buscá un cliente o emití como venta de mostrador.',
     searching: 'Buscando...',
     modalTitle: 'Seleccionar cliente',
+    customersFound: 'clientes encontrados',
+    searchHint: 'Buscá por nombre o cédula',
     noResultsLabel: 'No se encontraron clientes',
+    noResultsHint: 'Intentá con otro nombre o cédula',
     pageLabel: 'Página',
+    ofLabel: 'de',
     languageToggle: 'English',
   };
 
@@ -471,14 +575,28 @@ export class CreateInvoicePageComponent implements OnInit {
   changingCustomer = signal(false);
   customerModalOpen = signal(false);
   modalCustomers = signal<CustomerRowDto[]>([]);
-  modalPage = signal(0);
-  readonly modalPageSize = 8;
-  readonly totalModalPages = computed(() => Math.max(1, Math.ceil(this.modalCustomers().length / this.modalPageSize)));
-  readonly pagedModalCustomers = computed(() => {
-    const start = this.modalPage() * this.modalPageSize;
-    return this.modalCustomers().slice(start, start + this.modalPageSize);
+  modalPage = signal(1);               // 1-based, matches backend
+  modalTotal = signal(0);
+  readonly modalPageSize = 10;
+  readonly totalModalPages = computed(() => {
+    const total = this.modalTotal() || this.modalCustomers().length;
+    return Math.max(1, Math.ceil(total / this.modalPageSize));
+  });
+  // pagedModalCustomers ya viene paginado del backend — es directamente modalCustomers()
+  readonly pagedModalCustomers = computed(() => this.modalCustomers());
+  readonly modalPageNumbers = computed(() => {
+    const total = this.totalModalPages();
+    const cur = this.modalPage();
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: number[] = [];
+    const start = Math.max(1, Math.min(cur - 2, total - 4));
+    const end = Math.min(total, start + 4);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
   });
   locale = signal<'es' | 'en'>('es');
+  readonly skeletonRows = [1, 2, 3, 4, 5];
+  minOf(a: number, b: number) { return Math.min(a, b); }
   private customerSearchTimeout: number | undefined;
 
   // ── Product search ────────────────────────────────────────────────────────
@@ -513,13 +631,14 @@ export class CreateInvoicePageComponent implements OnInit {
 
   // ── Customer ──────────────────────────────────────────────────────────────
 
-  /** Opens the modal and pre-loads all customers so pagination works */
+  /** Opens the modal: resetea a pág 1 y carga del backend */
   openCustomerModal() {
     this.customerQuery.set('');
     this.modalCustomers.set([]);
-    this.modalPage.set(0);
+    this.modalTotal.set(0);
+    this.modalPage.set(1);
     this.customerModalOpen.set(true);
-    void this.fetchAllCustomers();
+    void this.loadModalPage(1);
   }
 
   closeCustomerModal() {
@@ -530,40 +649,42 @@ export class CreateInvoicePageComponent implements OnInit {
 
   onModalCustomerSearch(value: string) {
     this.customerQuery.set(value);
-    this.modalPage.set(0);
+    this.modalPage.set(1);
     if (typeof window !== 'undefined') window.clearTimeout(this.customerSearchTimeout);
-    if (!value.trim()) { void this.fetchAllCustomers(); return; }
     this.customerSearchTimeout = typeof window !== 'undefined'
-      ? window.setTimeout(() => { void this.fetchModalCustomers(value); }, 300)
+      ? window.setTimeout(() => { void this.loadModalPage(1); }, 300)
       : undefined;
   }
 
-  private async fetchAllCustomers() {
+  private async loadModalPage(page: number) {
     this.customerLoading.set(true);
     try {
-      const res = await this.api.searchCustomers('');
+      const res = await this.api.fetchCustomersPage(this.customerQuery(), page, this.modalPageSize);
       this.modalCustomers.set(res.data);
-    } catch {
+      this.modalTotal.set(res.pagination?.total ?? res.data.length);
+      this.modalPage.set(page);
+    } catch (err) {
+      console.error('[modal] fetch error:', err);
       this.modalCustomers.set([]);
+      this.modalTotal.set(0);
     } finally {
       this.customerLoading.set(false);
     }
   }
 
-  private async fetchModalCustomers(q: string) {
-    this.customerLoading.set(true);
-    try {
-      const res = await this.api.searchCustomers(q);
-      this.modalCustomers.set(res.data);
-    } catch {
-      this.modalCustomers.set([]);
-    } finally {
-      this.customerLoading.set(false);
-    }
+  prevModalPage() {
+    const p = this.modalPage() - 1;
+    if (p < 1) return;
+    void this.loadModalPage(p);
   }
 
-  prevModalPage() { this.modalPage.update(p => Math.max(0, p - 1)); }
-  nextModalPage() { this.modalPage.update(p => Math.min(this.totalModalPages() - 1, p + 1)); }
+  nextModalPage() {
+    const p = this.modalPage() + 1;
+    if (p > this.totalModalPages()) return;
+    void this.loadModalPage(p);
+  }
+
+  goToPage(p: number) { void this.loadModalPage(p); }
 
   onCustomerSearch(value: string) {
     this.customerQuery.set(value);
