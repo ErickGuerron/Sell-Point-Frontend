@@ -20,7 +20,7 @@ import { BillflowSidebarComponent, type BillflowSidebarItem } from './billflow-s
               <span class="material-symbols-outlined text-primary text-[30px] filter drop-shadow-sm" style="font-variation-settings: 'FILL' 1;">point_of_sale</span>
               <div class="min-w-0">
                 <h1 class="text-2xl font-black text-primary tracking-tight">BillFlow</h1>
-                <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
+                <p class="app-dashboard-tablet-drawer__subtitle text-[10px] uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
               </div>
             </div>
             <button type="button" class="app-dashboard-tablet-drawer__close" aria-label="Cerrar menú" (click)="close()">
