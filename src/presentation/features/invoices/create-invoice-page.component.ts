@@ -842,6 +842,8 @@ export class CreateInvoicePageComponent implements OnInit {
   readonly skeletonRows = [1, 2, 3, 4, 5];
   minOf(a: number, b: number) { return Math.min(a, b); }
   private customerSearchTimeout: number | undefined;
+  private customerModalRequestId = 0;
+  private customerSearchRequestId = 0;
 
   // ── Product modal ─────────────────────────────────────────────────────────
   productModalOpen    = signal(false);
@@ -855,6 +857,8 @@ export class CreateInvoicePageComponent implements OnInit {
   private productModalQtyMap = signal<Record<string, number>>({});
   private productModalCatalog = signal<Record<string, ProductRowDto>>({});
   private productModalSearchTimeout: number | undefined;
+  private productSearchRequestId = 0;
+  private productModalRequestId = 0;
 
   readonly visibleProductModalResults = computed(() =>
     this.productModalResults().filter((product) => product.availableQuantity > 0)
@@ -928,6 +932,7 @@ export class CreateInvoicePageComponent implements OnInit {
     this.customerModalOpen.set(false);
     this.customerQuery.set('');
     this.modalCustomers.set([]);
+    this.customerModalRequestId++;
   }
 
   onModalCustomerSearch(value: string) {
@@ -940,18 +945,22 @@ export class CreateInvoicePageComponent implements OnInit {
   }
 
   private async loadModalPage(page: number) {
+    const requestId = ++this.customerModalRequestId;
+    const query = this.customerQuery().trim();
     this.customerLoading.set(true);
     try {
-      const res = await this.api.fetchCustomersPage(this.customerQuery(), page, this.modalPageSize);
+      const res = await this.api.fetchCustomersPage(query, page, this.modalPageSize);
+      if (requestId !== this.customerModalRequestId) return;
       this.modalCustomers.set(res.data);
       this.modalTotal.set(res.pagination?.total ?? res.data.length);
       this.modalPage.set(page);
     } catch (err) {
+      if (requestId !== this.customerModalRequestId) return;
       console.error('[modal] fetch error:', err);
       this.modalCustomers.set([]);
       this.modalTotal.set(0);
     } finally {
-      this.customerLoading.set(false);
+      if (requestId === this.customerModalRequestId) this.customerLoading.set(false);
     }
   }
 
@@ -972,21 +981,28 @@ export class CreateInvoicePageComponent implements OnInit {
   onCustomerSearch(value: string) {
     this.customerQuery.set(value);
     if (typeof window !== 'undefined') window.clearTimeout(this.customerSearchTimeout);
-    if (!value.trim()) { this.customerResults.set([]); return; }
+    if (!value.trim()) {
+      this.customerSearchRequestId++;
+      this.customerResults.set([]);
+      return;
+    }
     this.customerSearchTimeout = typeof window !== 'undefined'
       ? window.setTimeout(() => { void this.fetchCustomers(value); }, 350)
       : undefined;
   }
 
   private async fetchCustomers(q: string) {
+    const requestId = ++this.customerSearchRequestId;
     this.customerLoading.set(true);
     try {
       const res = await this.api.searchCustomers(q);
+      if (requestId !== this.customerSearchRequestId) return;
       this.customerResults.set(res.data);
     } catch {
+      if (requestId !== this.customerSearchRequestId) return;
       this.customerResults.set([]);
     } finally {
-      this.customerLoading.set(false);
+      if (requestId === this.customerSearchRequestId) this.customerLoading.set(false);
     }
   }
 
@@ -994,6 +1010,7 @@ export class CreateInvoicePageComponent implements OnInit {
     this.selectedCustomer.set(c);
     this.customerResults.set([]);
     this.customerQuery.set(`${c.name} ${c.lastName}`);
+    this.customerSearchRequestId++;
     this.changingCustomer.set(false);
   }
 
@@ -1001,6 +1018,7 @@ export class CreateInvoicePageComponent implements OnInit {
     this.selectedCustomer.set(null);
     this.customerQuery.set('');
     this.customerResults.set([]);
+    this.customerSearchRequestId++;
     this.changingCustomer.set(false);
   }
 
@@ -1009,7 +1027,11 @@ export class CreateInvoicePageComponent implements OnInit {
   onProductSearch(value: string) {
     this.productQuery.set(value);
     if (typeof window !== 'undefined') window.clearTimeout(this.productSearchTimeout);
-    if (!value.trim()) { this.productResults.set([]); return; }
+    if (!value.trim()) {
+      this.productSearchRequestId++;
+      this.productResults.set([]);
+      return;
+    }
 
     this.productSearchTimeout = typeof window !== 'undefined'
       ? window.setTimeout(() => { void this.fetchProducts(value); }, 350)
@@ -1017,10 +1039,13 @@ export class CreateInvoicePageComponent implements OnInit {
   }
 
   private async fetchProducts(q: string) {
+    const requestId = ++this.productSearchRequestId;
     try {
       const res = await this.api.searchProducts(q);
+      if (requestId !== this.productSearchRequestId) return;
       this.productResults.set(res.data);
     } catch {
+      if (requestId !== this.productSearchRequestId) return;
       this.productResults.set([]);
     }
   }
@@ -1041,6 +1066,7 @@ export class CreateInvoicePageComponent implements OnInit {
     }
     this.productQuery.set('');
     this.productResults.set([]);
+    this.productSearchRequestId++;
   }
 
   // ── Product modal methods ──────────────────────────────────────────────────
@@ -1052,6 +1078,7 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productModalPage.set(1);
     this.productModalQtyMap.set({});
     this.productModalCatalog.set({});
+    this.productModalRequestId++;
     this.productModalOpen.set(true);
     void this.loadProductModalPage(1);
   }
@@ -1063,21 +1090,26 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productModalQtyMap.set({});
     this.productModalCatalog.set({});
     this.productModalPage.set(1);
+    this.productModalRequestId++;
   }
 
   onProductModalSearch(value: string) {
     this.productQuery.set(value);
     if (typeof window !== 'undefined') window.clearTimeout(this.productModalSearchTimeout);
     this.productModalPage.set(1);
+    if (!value.trim()) this.productModalRequestId++;
     this.productModalSearchTimeout = typeof window !== 'undefined'
       ? window.setTimeout(() => { void this.loadProductModalPage(1); }, 300)
       : undefined;
   }
 
   private async loadProductModalPage(page: number) {
+    const requestId = ++this.productModalRequestId;
+    const query = this.productQuery().trim();
     this.productModalLoading.set(true);
     try {
-      const res = await this.api.fetchProductsPage(this.productQuery(), page, this.productModalPageSize);
+      const res = await this.api.fetchProductsPage(query, page, this.productModalPageSize);
+      if (requestId !== this.productModalRequestId) return;
       this.productModalResults.set(res.data);
       this.productModalTotal.set(res.pagination?.total ?? res.data.length);
       this.productModalPage.set(page);
@@ -1087,10 +1119,11 @@ export class CreateInvoicePageComponent implements OnInit {
         return next;
       });
     } catch {
+      if (requestId !== this.productModalRequestId) return;
       this.productModalResults.set([]);
       this.productModalTotal.set(0);
     } finally {
-      this.productModalLoading.set(false);
+      if (requestId === this.productModalRequestId) this.productModalLoading.set(false);
     }
   }
 
@@ -1208,6 +1241,7 @@ export class CreateInvoicePageComponent implements OnInit {
     this.lineItems.set([]);
     this.productQuery.set('');
     this.productResults.set([]);
+    this.productSearchRequestId++;
   }
 
   // ── User menu ─────────────────────────────────────────────────────────────
