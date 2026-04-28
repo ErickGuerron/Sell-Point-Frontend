@@ -34,8 +34,9 @@ export interface ProductRowDto {
   id: string;
   code: string;
   name: string;
-  price: number;
-  stock: number;
+  description?: string;
+  unitPrice: number;
+  availableQuantity: number;
 }
 
 export interface CreateInvoicePayload {

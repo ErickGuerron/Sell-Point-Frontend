@@ -219,44 +219,25 @@ interface LineItem {
 
           <!-- ── Line Items ── -->
           <section class="bg-surface-container-lowest rounded-xl border border-outline-variant shadow-sm overflow-hidden">
-            <!-- Header: title row -->
-            <div class="px-5 pt-5 pb-3 bg-surface/50 flex items-center gap-2">
-              <span class="material-symbols-outlined text-on-surface-variant">shopping_cart</span>
-              <h2 class="text-base font-semibold text-on-surface">{{ copy().lineItemsTitle }}</h2>
-              <span class="ml-1 text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{{ lineItems().length }}</span>
-            </div>
-            <!-- Search row (full width) -->
-            <div class="px-5 pb-4 bg-surface/50 border-b border-outline-variant/50 relative">
-              <span class="material-symbols-outlined absolute left-8 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-              <input
-                id="product-search"
-                type="text"
-                class="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                [placeholder]="copy().productSearchPlaceholder"
-                [ngModel]="productQuery()"
-                (ngModelChange)="onProductSearch($event)"
-              />
-              <!-- Product dropdown -->
-              <div
-                *ngIf="productResults().length > 0"
-                class="absolute z-30 left-5 right-5 top-full bg-surface-container-lowest border border-outline-variant rounded-xl shadow-xl overflow-hidden divide-y divide-outline-variant/30 max-h-56 overflow-y-auto"
+            <!-- Header row: title + cart badge + open-modal button -->
+            <div class="px-5 pt-5 pb-4 bg-surface/50 border-b border-outline-variant/50 flex items-center gap-3 flex-wrap">
+              <span class="material-symbols-outlined text-primary">shopping_cart</span>
+              <h2 class="text-base font-semibold text-on-surface flex-1">{{ copy().lineItemsTitle }}</h2>
+              <span class="text-xs font-bold bg-primary/10 text-primary px-2.5 py-0.5 rounded-full">{{ lineItems().length }}</span>
+              <!-- Open product modal button -->
+              <button
+                type="button"
+                id="open-product-modal-btn"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold shadow hover:bg-primary/90 active:scale-95 transition-all"
+                (click)="openProductModal()"
               >
-                <div
-                  *ngFor="let p of productResults()"
-                  class="px-4 py-3 cursor-pointer hover:bg-surface-container transition-colors flex items-center justify-between gap-3"
-                  (click)="addProduct(p)"
-                >
-                  <div class="min-w-0">
-                    <p class="text-sm font-semibold text-on-surface truncate">{{ p.name }}</p>
-                    <p class="text-xs text-on-surface-variant">{{ p.code }} · Stock: {{ p.stock }}</p>
-                  </div>
-                  <span class="text-sm font-bold text-primary flex-shrink-0">{{ formatMoney(p.price) }}</span>
-                </div>
-              </div>
+                <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                {{ copy().productModalOpenBtn }}
+              </button>
             </div>
 
             <!-- Table -->
-            <div class="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <div class="overflow-x-auto">
               <table class="w-full min-w-[480px] text-left border-collapse">
                 <thead>
                   <tr class="bg-surface-container-low border-b border-outline-variant/50">
@@ -514,11 +495,140 @@ interface LineItem {
                 </button>
               </div>
             </div>
-
           </div>
         </div>
 
+      <!-- ══ Product Modal ══ -->
+
+      <div
+        *ngIf="productModalOpen()"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        (click)="closeProductModal()"
+      >
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+        <div
+          class="relative w-full max-w-3xl bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/60 flex flex-col max-h-[88vh] overflow-hidden"
+          (click)="$event.stopPropagation()"
+        >
+          <!-- Header -->
+          <div class="flex items-center gap-3 px-6 py-4 border-b border-outline-variant/50 bg-surface/60 flex-shrink-0">
+            <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+              <span class="material-symbols-outlined text-primary text-[20px]">inventory_2</span>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy().productModalTitle }}</h3>
+              <p class="text-xs text-on-surface-variant mt-0.5">
+                {{ productModalTotal() > 0 ? productModalTotal() + (locale() === 'es' ? ' productos' : ' products') : copy().productModalSearchPlaceholder }}
+              </p>
+            </div>
+            <button type="button" class="ml-auto text-outline hover:text-on-surface transition-colors" (click)="closeProductModal()">
+              <span class="material-symbols-outlined text-[22px]">close</span>
+            </button>
+          </div>
+
+          <!-- Search -->
+          <div class="px-6 py-3 border-b border-outline-variant/30 bg-surface/40 flex-shrink-0 relative">
+            <span class="material-symbols-outlined absolute left-9 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+            <input
+              id="product-modal-search"
+              type="text"
+              class="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              [placeholder]="copy().productModalSearchPlaceholder"
+              [ngModel]="productQuery()"
+              (ngModelChange)="onProductModalSearch($event)"
+            />
+          </div>
+
+          <!-- Table -->
+          <div class="overflow-y-auto flex-1">
+            <table class="w-full text-left border-collapse">
+              <thead class="sticky top-0 z-10">
+                <tr class="bg-surface-container border-b-2 border-primary/20">
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant w-16">{{ copy().productModalColId }}</th>
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{{ copy().productModalColName }}</th>
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().productModalColPrice }}</th>
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">{{ copy().productModalColStock }}</th>
+                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-center w-32">{{ copy().productModalColQty }}</th>
+                  <th class="py-3 px-4 w-12"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngIf="productModalLoading()">
+                  <tr *ngFor="let s of skeletonRows" class="border-b border-outline-variant/20 animate-pulse">
+                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-8"></div></td>
+                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-40"></div></td>
+                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-16 ml-auto"></div></td>
+                    <td class="py-3 px-4 hidden sm:table-cell"><div class="h-3 bg-outline-variant/30 rounded w-10 ml-auto"></div></td>
+                    <td class="py-3 px-4"></td>
+                    <td class="py-3 px-4"></td>
+                  </tr>
+                </ng-container>
+                <tr
+                  *ngFor="let p of productModalResults()"
+                  class="border-b border-outline-variant/20 hover:bg-primary/5 transition-colors"
+                >
+                  <td class="py-3 px-4 text-xs text-outline font-mono">{{ p.id }}</td>
+                  <td class="py-3 px-4">
+                    <p class="text-sm font-semibold text-on-surface leading-tight">{{ p.name }}</p>
+                    <p class="text-xs text-outline mt-0.5">{{ p.code }}</p>
+                  </td>
+                  <td class="py-3 px-4 text-right text-sm font-bold text-primary">{{ formatMoney(p.unitPrice) }}</td>
+                  <td class="py-3 px-4 text-right hidden sm:table-cell">
+                    <span [class]="p.availableQuantity > 0 ? 'text-xs font-semibold text-tertiary' : 'text-xs font-semibold text-error'">{{ p.availableQuantity }}</span>
+                  </td>
+                  <td class="py-3 px-4">
+                    <div class="flex items-center justify-center gap-1">
+                      <button type="button" class="w-6 h-6 rounded-md bg-surface-container hover:bg-primary/10 flex items-center justify-center transition-colors" (click)="decModalQty(p.id)">
+                        <span class="material-symbols-outlined text-[14px]">remove</span>
+                      </button>
+                      <span class="w-8 text-center text-sm font-bold text-on-surface">{{ getModalQty(p.id) }}</span>
+                      <button type="button" class="w-6 h-6 rounded-md bg-surface-container hover:bg-primary/10 flex items-center justify-center transition-colors" (click)="incModalQty(p.id)">
+                        <span class="material-symbols-outlined text-[14px]">add</span>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="py-3 px-4 text-center">
+                    <button type="button"
+                      class="w-8 h-8 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-on-primary transition-all flex items-center justify-center mx-auto"
+                      [title]="copy().productModalAddBtn"
+                      (click)="addProductFromModal(p)"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+                    </button>
+                  </td>
+                </tr>
+                <tr *ngIf="!productModalLoading() && productModalResults().length === 0">
+                  <td colspan="6" class="py-16 text-center">
+                    <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">inventory_2</span>
+                    <p class="text-sm font-medium text-on-surface-variant">{{ copy().productModalNoResults }}</p>
+                    <p class="text-xs text-outline mt-1">{{ copy().productModalNoResultsHint }}</p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Footer -->
+          <div class="px-6 py-4 border-t border-outline-variant/40 bg-surface/60 flex items-center justify-between flex-shrink-0">
+            <span class="text-xs text-on-surface-variant">
+              {{ productModalSelectedCount() }} {{ locale() === 'es' ? 'seleccionados' : 'selected' }}
+            </span>
+            <button
+              type="button"
+              id="product-modal-add-all-btn"
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
+              [disabled]="productModalSelectedCount() === 0"
+              (click)="addAllFromModal()"
+            >
+              <span class="material-symbols-outlined text-[18px]">shopping_cart_checkout</span>
+              {{ copy().productModalAddBtn }}
+            </button>
+          </div>
+        </div>
       </div>
+      <!-- ══ /Product Modal ══ -->
+
+      </div><!-- /flex-1 wrapper -->
     </billflow-page-shell>
   `,
 })
@@ -574,6 +684,18 @@ export class CreateInvoicePageComponent implements OnInit {
       subtotalLabel: 'Subtotal',
       ivaLineLabel: 'IVA (15%)',
       totalLabel: 'Total',
+      // Product modal
+      productModalTitle: 'Seleccionar Producto',
+      productModalSearchPlaceholder: 'Buscar por nombre o código...',
+      productModalColId: 'ID',
+      productModalColName: 'Nombre',
+      productModalColPrice: 'Precio',
+      productModalColStock: 'Stock',
+      productModalColQty: 'Cantidad',
+      productModalAddBtn: 'Agregar al carrito',
+      productModalNoResults: 'No se encontraron productos',
+      productModalNoResultsHint: 'Intentá con otro nombre o código',
+      productModalOpenBtn: 'Buscar Producto',
     };
     const en = {
       moduleLabel: 'Create Invoice',
@@ -617,6 +739,18 @@ export class CreateInvoicePageComponent implements OnInit {
       subtotalLabel: 'Subtotal',
       ivaLineLabel: 'VAT (15%)',
       totalLabel: 'Total',
+      // Product modal
+      productModalTitle: 'Select Product',
+      productModalSearchPlaceholder: 'Search by name or code...',
+      productModalColId: 'ID',
+      productModalColName: 'Name',
+      productModalColPrice: 'Price',
+      productModalColStock: 'Stock',
+      productModalColQty: 'Quantity',
+      productModalAddBtn: 'Add to cart',
+      productModalNoResults: 'No products found',
+      productModalNoResultsHint: 'Try another name or code',
+      productModalOpenBtn: 'Browse Products',
     };
     return this.locale() === 'es' ? es : en;
   });
@@ -674,8 +808,21 @@ export class CreateInvoicePageComponent implements OnInit {
   minOf(a: number, b: number) { return Math.min(a, b); }
   private customerSearchTimeout: number | undefined;
 
-  // ── Product search ────────────────────────────────────────────────────────
-  productQuery = signal('');
+  // ── Product modal ─────────────────────────────────────────────────────────
+  productModalOpen    = signal(false);
+  productModalLoading = signal(false);
+  productModalResults = signal<ProductRowDto[]>([]);
+  productModalTotal   = signal(0);
+  productQuery        = signal('');
+  /** Map of productId → desired quantity in the modal */
+  private productModalQtyMap = signal<Record<string, number>>({});
+  private productModalSearchTimeout: number | undefined;
+
+  readonly productModalSelectedCount = computed(() =>
+    Object.values(this.productModalQtyMap()).reduce((s, q) => s + (q > 0 ? 1 : 0), 0)
+  );
+
+  // legacy kept for backward compat (not used in UI anymore)
   productResults = signal<ProductRowDto[]>([]);
   private productSearchTimeout: number | undefined;
 
@@ -831,11 +978,99 @@ export class CreateInvoicePageComponent implements OnInit {
     } else {
       this.lineItems.update((items) => [
         ...items,
-        { productId: p.id, productName: p.name, productCode: p.code, quantity: 1, unitPrice: p.price },
+        { productId: p.id, productName: p.name, productCode: p.code, quantity: 1, unitPrice: p.unitPrice },
       ]);
     }
     this.productQuery.set('');
     this.productResults.set([]);
+  }
+
+  // ── Product modal methods ──────────────────────────────────────────────────
+
+  openProductModal() {
+    this.productQuery.set('');
+    this.productModalResults.set([]);
+    this.productModalTotal.set(0);
+    this.productModalQtyMap.set({});
+    this.productModalOpen.set(true);
+    void this.fetchProductsForModal('');
+  }
+
+  closeProductModal() {
+    this.productModalOpen.set(false);
+    this.productQuery.set('');
+    this.productModalResults.set([]);
+    this.productModalQtyMap.set({});
+  }
+
+  onProductModalSearch(value: string) {
+    this.productQuery.set(value);
+    if (typeof window !== 'undefined') window.clearTimeout(this.productModalSearchTimeout);
+    this.productModalSearchTimeout = typeof window !== 'undefined'
+      ? window.setTimeout(() => { void this.fetchProductsForModal(value); }, 300)
+      : undefined;
+  }
+
+  private async fetchProductsForModal(q: string) {
+    this.productModalLoading.set(true);
+    try {
+      const res = await this.api.searchProducts(q);
+      this.productModalResults.set(res.data);
+      this.productModalTotal.set(res.data.length);
+    } catch {
+      this.productModalResults.set([]);
+      this.productModalTotal.set(0);
+    } finally {
+      this.productModalLoading.set(false);
+    }
+  }
+
+  getModalQty(productId: string): number {
+    return this.productModalQtyMap()[productId] ?? 1;
+  }
+
+  incModalQty(productId: string) {
+    this.productModalQtyMap.update(m => ({ ...m, [productId]: (m[productId] ?? 1) + 1 }));
+  }
+
+  decModalQty(productId: string) {
+    const cur = this.productModalQtyMap()[productId] ?? 1;
+    if (cur <= 1) return;
+    this.productModalQtyMap.update(m => ({ ...m, [productId]: cur - 1 }));
+  }
+
+  /** Add a single product row immediately (cart icon button) */
+  addProductFromModal(p: ProductRowDto) {
+    const qty = this.getModalQty(p.id);
+    this.mergeIntoCart(p, qty);
+    // Reset that row's qty to 1
+    this.productModalQtyMap.update(m => ({ ...m, [p.id]: 1 }));
+  }
+
+  /** Add all products that have qty > 0 in the map */
+  addAllFromModal() {
+    const map = this.productModalQtyMap();
+    for (const p of this.productModalResults()) {
+      const qty = map[p.id] ?? 1;
+      if (qty > 0) this.mergeIntoCart(p, qty);
+    }
+    this.closeProductModal();
+  }
+
+  private mergeIntoCart(p: ProductRowDto, qty: number) {
+    const existing = this.lineItems().findIndex(i => i.productId === p.id);
+    if (existing >= 0) {
+      this.lineItems.update(items =>
+        items.map((item, idx) =>
+          idx === existing ? { ...item, quantity: item.quantity + qty } : item
+        )
+      );
+    } else {
+      this.lineItems.update(items => [
+        ...items,
+        { productId: p.id, productName: p.name, productCode: p.code, quantity: qty, unitPrice: p.unitPrice },
+      ]);
+    }
   }
 
   incQty(index: number) {
