@@ -145,7 +145,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     amount: 'Amount',
     status: 'Status',
     actions: 'Actions',
-    createInvoice: 'Create New Invoice',
+    createInvoice: 'New Invoice',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
     sidebarCustomers: 'Customers',

@@ -624,12 +624,19 @@ export class CreateInvoicePageComponent implements OnInit {
   private userMenuCloseTimeout: number | undefined;
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
-  readonly sidebarItems = computed(() =>
-    buildBillflowSidebarItems(
-      { dashboard: 'Dashboard', invoices: 'Facturas', products: 'Productos', customers: 'Clientes', employees: 'Empleados' },
+  readonly sidebarItems = computed(() => {
+    const isEs = this.locale() === 'es';
+    return buildBillflowSidebarItems(
+      {
+        dashboard:  isEs ? 'Dashboard'  : 'Dashboard',
+        invoices:   isEs ? 'Facturas'   : 'Invoices',
+        products:   isEs ? 'Productos'  : 'Products',
+        customers:  isEs ? 'Clientes'   : 'Customers',
+        employees:  isEs ? 'Empleados'  : 'Employees',
+      },
       'invoices',
-    )
-  );
+    );
+  });
 
   // ── Customer search & modal ───────────────────────────────────────────────
   customerQuery = signal('');
@@ -658,7 +665,9 @@ export class CreateInvoicePageComponent implements OnInit {
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
   });
-  locale = signal<'es' | 'en'>('es');
+  locale = signal<'es' | 'en'>(
+    typeof window !== 'undefined' && window.localStorage.getItem('billflow-lang') === 'en' ? 'en' : 'es'
+  );
   readonly skeletonRows = [1, 2, 3, 4, 5];
   minOf(a: number, b: number) { return Math.min(a, b); }
   private customerSearchTimeout: number | undefined;
@@ -691,6 +700,10 @@ export class CreateInvoicePageComponent implements OnInit {
   ngOnInit() {
     this.applyStoredUser();
     this.applyStoredTheme();
+    // Sync html[lang] with stored preference
+    if (typeof window !== 'undefined') {
+      document.documentElement.lang = this.locale();
+    }
   }
 
   // ── Customer ──────────────────────────────────────────────────────────────
@@ -880,7 +893,12 @@ export class CreateInvoicePageComponent implements OnInit {
   // ── User menu ─────────────────────────────────────────────────────────────
 
   toggleLocale() {
-    this.locale.update(l => l === 'es' ? 'en' : 'es');
+    const next: 'es' | 'en' = this.locale() === 'es' ? 'en' : 'es';
+    this.locale.set(next);
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('billflow-lang', next);
+      document.documentElement.lang = next;
+    }
   }
 
   toggleUserMenu(event?: MouseEvent) {
