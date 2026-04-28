@@ -42,7 +42,7 @@ interface LineItem {
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
-      [actionLabel]="copy.newInvoiceBtn"
+      [actionLabel]="copy().newInvoiceBtn"
       actionIcon="add"
       (actionClick)="resetForm()"
     >
@@ -58,14 +58,14 @@ interface LineItem {
                 <span class="inline-flex lg:hidden">
                   <billflow-mobile-sidebar
                     [items]="sidebarItems()"
-                    [actionLabel]="copy.newInvoiceBtn"
+                    [actionLabel]="copy().newInvoiceBtn"
                     actionIcon="add"
                     (actionClick)="resetForm()"
                   ></billflow-mobile-sidebar>
                 </span>
                 <div class="flex items-center gap-2.5">
                   <span class="material-symbols-outlined text-primary">receipt_long</span>
-                  <span class="font-semibold text-sm text-on-background">{{ copy.moduleLabel }}</span>
+                  <span class="font-semibold text-sm text-on-background">{{ copy().moduleLabel }}</span>
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0 relative z-40" #userMenuPanel>
@@ -95,15 +95,15 @@ interface LineItem {
           <!-- Page heading -->
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">Crear Factura</h1>
-              <p class="text-xs sm:text-sm text-on-surface-variant mt-1">Completá los datos y agregá productos para emitir la factura.</p>
+              <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-on-surface">{{ copy().pageTitle }}</h1>
+              <p class="text-xs sm:text-sm text-on-surface-variant mt-1">{{ copy().pageSubtitle }}</p>
             </div>
             <div class="flex flex-col xs:flex-row sm:flex-row items-stretch sm:items-center gap-2 sm:flex-shrink-0">
               <a
                 href="/invoices"
                 class="text-center px-4 py-2.5 sm:py-2 rounded-lg border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container transition-colors"
               >
-                Cancelar
+                {{ copy().cancelBtn }}
               </a>
               <button
                 id="btn-issue-invoice"
@@ -113,7 +113,7 @@ interface LineItem {
                 (click)="submitInvoice()"
               >
                 <span class="material-symbols-outlined text-[18px]">send</span>
-                {{ submitting() ? 'Emitiendo...' : 'Emitir Factura' }}
+                {{ submitting() ? copy().submittingBtn : copy().submitBtn }}
               </button>
             </div>
           </div>
@@ -129,7 +129,7 @@ interface LineItem {
               <div class="flex items-center justify-between relative z-10">
                 <div class="flex items-center gap-2">
                   <span class="material-symbols-outlined text-primary">person</span>
-                  <h2 class="text-base font-semibold text-on-surface">{{ copy.customerTitle }}</h2>
+                  <h2 class="text-base font-semibold text-on-surface">{{ copy().customerTitle }}</h2>
                 </div>
                 <!-- Change button (only when customer selected) -->
                 <button
@@ -139,7 +139,7 @@ interface LineItem {
                   (click)="openCustomerModal()"
                 >
                   <span class="material-symbols-outlined text-[14px]">sync_alt</span>
-                  {{ copy.changeBtn }}
+                  {{ copy().changeBtn }}
                 </button>
               </div>
 
@@ -147,8 +147,8 @@ interface LineItem {
               <div *ngIf="!selectedCustomer()" class="flex flex-col items-center justify-center py-5 gap-3 text-center relative z-10">
                 <span class="material-symbols-outlined text-[40px] text-outline-variant">person_search</span>
                 <div>
-                  <p class="text-sm font-medium text-on-surface-variant">{{ copy.noCustomerTitle }}</p>
-                  <p class="text-xs text-outline mt-0.5">{{ copy.noCustomerHint }}</p>
+                  <p class="text-sm font-medium text-on-surface-variant">{{ copy().noCustomerTitle }}</p>
+                  <p class="text-xs text-outline mt-0.5">{{ copy().noCustomerHint }}</p>
                 </div>
                 <button
                   type="button"
@@ -156,7 +156,7 @@ interface LineItem {
                   (click)="openCustomerModal()"
                 >
                   <span class="material-symbols-outlined text-[18px]">person_add</span>
-                  {{ copy.addCustomerBtn }}
+                  {{ copy().addCustomerBtn }}
                 </button>
               </div>
 
@@ -173,7 +173,7 @@ interface LineItem {
                   type="button"
                   class="ml-auto w-7 h-7 flex items-center justify-center rounded-lg text-outline hover:text-error hover:bg-error/10 transition-all"
                   (click)="clearCustomer()"
-                  title="{{ copy.removeCustomerBtn }}"
+                  title="{{ copy().removeCustomerBtn }}"
                 >
                   <span class="material-symbols-outlined text-[18px]">close</span>
                 </button>
@@ -186,15 +186,15 @@ interface LineItem {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <span class="material-symbols-outlined text-primary">receipt_long</span>
-                  <h2 class="text-base font-semibold text-on-surface">Detalles de Factura</h2>
+                  <h2 class="text-base font-semibold text-on-surface">{{ copy().invoiceDetailsTitle }}</h2>
                 </div>
                 <span class="text-sm font-semibold text-on-surface-variant bg-surface-container px-3 py-1 rounded-full">
-                  # Autogenerado
+                  {{ copy().autoGenerated }}
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-4">
                 <div>
-                  <label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">Fecha de Emisión</label>
+                  <label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">{{ copy().issueDateLabel }}</label>
                   <input
                     type="date"
                     class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
@@ -203,16 +203,16 @@ interface LineItem {
                   />
                 </div>
                 <div>
-                  <label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">IVA Aplicado</label>
+                  <label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">{{ copy().ivaLabel }}</label>
                   <input
                     type="text"
                     class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface outline-none"
-                    value="12%"
+                    value="15%"
                     disabled
                   />
                 </div>
               </div>
-              <p class="text-xs text-on-surface-variant">El número de factura y la fecha de emisión definitiva son asignados por el sistema al emitir.</p>
+              <p class="text-xs text-on-surface-variant">{{ copy().invoiceNote }}</p>
             </div>
           </section>
 
@@ -221,7 +221,7 @@ interface LineItem {
             <!-- Header: title row -->
             <div class="px-5 pt-5 pb-3 bg-surface/50 flex items-center gap-2">
               <span class="material-symbols-outlined text-on-surface-variant">shopping_cart</span>
-              <h2 class="text-base font-semibold text-on-surface">Líneas de Producto</h2>
+              <h2 class="text-base font-semibold text-on-surface">{{ copy().lineItemsTitle }}</h2>
               <span class="ml-1 text-xs font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">{{ lineItems().length }}</span>
             </div>
             <!-- Search row (full width) -->
@@ -231,7 +231,7 @@ interface LineItem {
                 id="product-search"
                 type="text"
                 class="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-lg text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                placeholder="Escanear código o buscar producto..."
+                [placeholder]="copy().productSearchPlaceholder"
                 [ngModel]="productQuery()"
                 (ngModelChange)="onProductSearch($event)"
               />
@@ -259,10 +259,10 @@ interface LineItem {
               <table class="w-full min-w-[480px] text-left border-collapse">
                 <thead>
                   <tr class="bg-surface-container-low border-b border-outline-variant/50">
-                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">Producto</th>
-                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Cant.</th>
-                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">Precio Unit.</th>
-                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">Total</th>
+                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{{ copy().colProduct }}</th>
+                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().colQty }}</th>
+                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">{{ copy().colUnitPrice }}</th>
+                    <th class="py-3 px-3 md:px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().colTotal }}</th>
                     <th class="py-3 px-3 md:px-4 w-10"></th>
                   </tr>
                 </thead>
@@ -299,7 +299,7 @@ interface LineItem {
                   <tr *ngIf="lineItems().length === 0">
                     <td colspan="5" class="py-12 text-center">
                       <span class="material-symbols-outlined text-[40px] text-outline-variant block mb-2">add_shopping_cart</span>
-                      <p class="text-sm text-on-surface-variant">Buscá un producto para agregar.</p>
+                      <p class="text-sm text-on-surface-variant">{{ copy().emptyCartHint }}</p>
                     </td>
                   </tr>
                 </tbody>
@@ -310,15 +310,15 @@ interface LineItem {
             <div class="px-4 py-5 md:px-6 bg-surface-container-lowest border-t border-outline-variant/50 flex justify-end">
               <div class="w-full sm:w-72 md:w-80 space-y-3">
                 <div class="flex justify-between text-sm text-on-surface-variant">
-                  <span>Subtotal</span>
+                  <span>{{ copy().subtotalLabel }}</span>
                   <span class="font-medium">{{ formatMoney(subtotal()) }}</span>
                 </div>
                 <div class="flex justify-between text-sm text-on-surface-variant pb-3 border-b border-outline-variant/50">
-                  <span>IVA (12%)</span>
+                  <span>{{ copy().ivaLineLabel }}</span>
                   <span class="font-medium">{{ formatMoney(ivaAmount()) }}</span>
                 </div>
                 <div class="flex justify-between items-center pt-1">
-                  <span class="text-lg md:text-xl font-bold text-on-surface">Total</span>
+                  <span class="text-lg md:text-xl font-bold text-on-surface">{{ copy().totalLabel }}</span>
                   <span class="text-lg md:text-xl font-bold text-primary">{{ formatMoney(total()) }}</span>
                 </div>
               </div>
@@ -350,9 +350,9 @@ interface LineItem {
                   <span class="material-symbols-outlined text-primary text-[20px]">manage_accounts</span>
                 </div>
                 <div>
-                  <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy.modalTitle }}</h3>
+                  <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy().modalTitle }}</h3>
                   <p class="text-xs text-on-surface-variant mt-0.5">
-                    {{ modalTotal() > 0 ? modalTotal() + ' ' + copy.customersFound : copy.searchHint }}
+                    {{ modalTotal() > 0 ? modalTotal() + ' ' + copy().customersFound : copy().searchHint }}
                   </p>
                 </div>
               </div>
@@ -373,7 +373,7 @@ interface LineItem {
                   id="modal-customer-search"
                   type="text"
                   class="w-full pl-10 pr-10 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                  [placeholder]="copy.customerSearchPlaceholder"
+                  [placeholder]="copy().customerSearchPlaceholder"
                   [ngModel]="customerQuery()"
                   (ngModelChange)="onModalCustomerSearch($event)"
                 />
@@ -456,8 +456,8 @@ interface LineItem {
                   <tr *ngIf="!customerLoading() && modalCustomers().length === 0">
                     <td colspan="4" class="px-5 py-14 text-center">
                       <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">person_search</span>
-                      <p class="text-sm font-medium text-on-surface-variant">{{ copy.noResultsLabel }}</p>
-                      <p class="text-xs text-outline mt-1">{{ copy.noResultsHint }}</p>
+                      <p class="text-sm font-medium text-on-surface-variant">{{ copy().noResultsLabel }}</p>
+                      <p class="text-xs text-outline mt-1">{{ copy().noResultsHint }}</p>
                     </td>
                   </tr>
                 </tbody>
@@ -526,31 +526,95 @@ export class CreateInvoicePageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
 
   // ── Dictionary ────────────────────────────────────────────────────────────
-  readonly copy = {
-    moduleLabel: 'Crear Factura',
-    pageTitle: 'Crear Factura',
-    pageSubtitle: 'Nueva transacción para cliente de paso o perfil seleccionado.',
-    newInvoiceBtn: 'Nueva Factura',
-    cancelBtn: 'Cancelar',
-    submitBtn: 'Emitir Factura',
-    submittingBtn: 'Emitiendo...',
-    customerTitle: 'Perfil de Cliente',
-    changeBtn: 'Cambiar',
-    addCustomerBtn: 'Añadir cliente',
-    removeCustomerBtn: 'Quitar cliente',
-    customerSearchPlaceholder: 'Buscar por nombre o cédula...',
-    noCustomerTitle: 'Sin cliente asignado',
-    noCustomerHint: 'Buscá un cliente o emití como venta de mostrador.',
-    searching: 'Buscando...',
-    modalTitle: 'Seleccionar cliente',
-    customersFound: 'clientes encontrados',
-    searchHint: 'Buscá por nombre o cédula',
-    noResultsLabel: 'No se encontraron clientes',
-    noResultsHint: 'Intentá con otro nombre o cédula',
-    pageLabel: 'Página',
-    ofLabel: 'de',
-    languageToggle: 'English',
-  };
+  readonly copy = computed(() => {
+    const es = {
+      moduleLabel: 'Crear Factura',
+      pageTitle: 'Crear Factura',
+      pageSubtitle: 'Nueva transacción para cliente de paso o perfil seleccionado.',
+      newInvoiceBtn: 'Nueva Factura',
+      cancelBtn: 'Cancelar',
+      submitBtn: 'Emitir Factura',
+      submittingBtn: 'Emitiendo...',
+      customerTitle: 'Perfil de Cliente',
+      changeBtn: 'Cambiar',
+      addCustomerBtn: 'Añadir cliente',
+      removeCustomerBtn: 'Quitar cliente',
+      customerSearchPlaceholder: 'Buscar por nombre o cédula...',
+      noCustomerTitle: 'Sin cliente asignado',
+      noCustomerHint: 'Buscá un cliente o emití como venta de mostrador.',
+      searching: 'Buscando...',
+      modalTitle: 'Seleccionar cliente',
+      customersFound: 'clientes encontrados',
+      searchHint: 'Buscá por nombre o cédula',
+      noResultsLabel: 'No se encontraron clientes',
+      noResultsHint: 'Intentá con otro nombre o cédula',
+      pageLabel: 'Página',
+      ofLabel: 'de',
+      languageToggle: 'English',
+      // Invoice details card
+      invoiceDetailsTitle: 'Detalles de Factura',
+      autoGenerated: '# Autogenerado',
+      issueDateLabel: 'Fecha de Emisión',
+      ivaLabel: 'IVA Aplicado',
+      invoiceNote: 'El número de factura y la fecha de emisión definitiva son asignados por el sistema al emitir.',
+      // Line items
+      lineItemsTitle: 'Líneas de Producto',
+      productSearchPlaceholder: 'Escanear código o buscar producto...',
+      colProduct: 'Producto',
+      colQty: 'Cant.',
+      colUnitPrice: 'Precio Unit.',
+      colTotal: 'Total',
+      emptyCartHint: 'Buscá un producto para agregar.',
+      // Totals
+      subtotalLabel: 'Subtotal',
+      ivaLineLabel: 'IVA (15%)',
+      totalLabel: 'Total',
+    };
+    const en = {
+      moduleLabel: 'Create Invoice',
+      pageTitle: 'Create Invoice',
+      pageSubtitle: 'New transaction for a walk-in or selected customer profile.',
+      newInvoiceBtn: 'New Invoice',
+      cancelBtn: 'Cancel',
+      submitBtn: 'Issue Invoice',
+      submittingBtn: 'Issuing...',
+      customerTitle: 'Customer Profile',
+      changeBtn: 'Change',
+      addCustomerBtn: 'Add customer',
+      removeCustomerBtn: 'Remove customer',
+      customerSearchPlaceholder: 'Search by name or ID...',
+      noCustomerTitle: 'No customer assigned',
+      noCustomerHint: 'Search for a customer or issue as a walk-in sale.',
+      searching: 'Searching...',
+      modalTitle: 'Select customer',
+      customersFound: 'customers found',
+      searchHint: 'Search by name or ID',
+      noResultsLabel: 'No customers found',
+      noResultsHint: 'Try another name or ID',
+      pageLabel: 'Page',
+      ofLabel: 'of',
+      languageToggle: 'Español',
+      // Invoice details card
+      invoiceDetailsTitle: 'Invoice Details',
+      autoGenerated: '# Auto-generated',
+      issueDateLabel: 'Issue Date',
+      ivaLabel: 'VAT Applied',
+      invoiceNote: 'The invoice number and final issue date are assigned by the system upon issuance.',
+      // Line items
+      lineItemsTitle: 'Product Lines',
+      productSearchPlaceholder: 'Scan barcode or search product...',
+      colProduct: 'Product',
+      colQty: 'Qty.',
+      colUnitPrice: 'Unit Price',
+      colTotal: 'Total',
+      emptyCartHint: 'Search for a product to add.',
+      // Totals
+      subtotalLabel: 'Subtotal',
+      ivaLineLabel: 'VAT (15%)',
+      totalLabel: 'Total',
+    };
+    return this.locale() === 'es' ? es : en;
+  });
 
   // ── Auth / user ──────────────────────────────────────────────────────────
   displayName = 'Usuario';
@@ -611,7 +675,7 @@ export class CreateInvoicePageComponent implements OnInit {
   readonly subtotal = computed(() =>
     this.lineItems().reduce((sum, i) => sum + i.unitPrice * i.quantity, 0)
   );
-  readonly ivaAmount = computed(() => this.subtotal() * 0.12);
+  readonly ivaAmount = computed(() => this.subtotal() * 0.15);
   readonly total = computed(() => this.subtotal() + this.ivaAmount());
 
   // ── Submit state ─────────────────────────────────────────────────────────
