@@ -183,7 +183,7 @@ function detectInvoiceLocale(): InvoiceLocale {
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
           <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
-            <div class="h-16 px-5 md:px-6 flex items-center justify-between gap-4">
+            <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
               <div class="flex items-center gap-3 shrink-0">
                 <span class="hidden md:inline-flex lg:hidden">
                   <billflow-mobile-sidebar [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()"></billflow-mobile-sidebar>
@@ -214,8 +214,8 @@ function detectInvoiceLocale(): InvoiceLocale {
             </div>
           </header>
 
-          <main class="mx-auto w-full max-w-7xl p-5 md:p-8">
-            <section class="mb-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().historyTitle }}</h1>
                 <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().historyDescription }}</p>
@@ -226,7 +226,7 @@ function detectInvoiceLocale(): InvoiceLocale {
               </div>
             </section>
 
-            <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-10">
+            <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
               <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
                 <div class="mb-4 flex items-start justify-between">
                   <div>
@@ -747,5 +747,10 @@ export class InvoicePageComponent implements OnInit {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('billflow-theme', next);
     document.documentElement.classList.toggle('dark', next === 'dark');
+  }
+  startNewInvoice() {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+    }
   }
 }

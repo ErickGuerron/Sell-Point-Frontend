@@ -747,6 +747,10 @@ export class DashboardPageComponent implements OnInit {
   }
 
   async triggerQuickAction(action: QuickAction) {
+    if (action.icon === 'post_add' && typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+      return;
+    }
     await this.feedback.toast('success', action.label, 'Acción registrada en la interfaz del dashboard.');
   }
 
@@ -982,5 +986,10 @@ export class DashboardPageComponent implements OnInit {
       cedula: customer.cedula,
       email: customer.email,
     };
+  }
+  startNewSale() {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+    }
   }
 }
