@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type CustomerRowDto, type CreateCustomerPayload } from '../invoices/invoice-api.service';
@@ -73,8 +74,7 @@ interface CustomersCopy {
   phoneLabel: string;
   emailLabel: string;
   nameError: string;
-  docPlaceholderCedula: string;
-  docPlaceholderRuc: string;
+  cedulaPlaceholder: string;
   phonePlaceholder: string;
   emailPlaceholder: string;
   cancel: string;
@@ -134,12 +134,11 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     saveEdit: 'Actualizar Cliente',
     firstNameLabel: 'Nombre',
     lastNameLabel: 'Apellido',
-    docLabel: 'Documento',
+    docLabel: 'Cédula',
     phoneLabel: 'Teléfono',
     emailLabel: 'Email',
     nameError: 'Los nombres no deben contener números',
-    docPlaceholderCedula: '10 dígitos',
-    docPlaceholderRuc: '13 dígitos',
+    cedulaPlaceholder: '10 dígitos',
     phonePlaceholder: 'Ej: +595 981 123456',
     emailPlaceholder: 'Ej: cliente@ejemplo.com',
     cancel: 'Cancelar',
@@ -197,12 +196,11 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     saveEdit: 'Update Customer',
     firstNameLabel: 'First Name',
     lastNameLabel: 'Last Name',
-    docLabel: 'Document ID',
+    docLabel: 'ID Number',
     phoneLabel: 'Phone',
     emailLabel: 'Email',
     nameError: 'Names must not contain numbers',
-    docPlaceholderCedula: '10 digits',
-    docPlaceholderRuc: '13 digits',
+    cedulaPlaceholder: '10 digits',
     phonePlaceholder: 'e.g. +1 555 123 4567',
     emailPlaceholder: 'e.g. john@example.com',
     cancel: 'Cancel',
@@ -212,7 +210,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
 @Component({
   selector: 'billflow-customers-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent],
+  imports: [CommonModule, FormsModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().newCustomer" actionIcon="add" (actionClick)="openCreateModal()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
@@ -262,6 +260,57 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
             </div>
           </section>
 
+          <!-- KPIs Section -->
+          <section class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <!-- Card 1: Total Clientes -->
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
+              <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                <span class="material-symbols-outlined text-[96px] font-light">groups</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">groups</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total de Clientes' : 'Total Customers' }}</p>
+                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalCustomersCount() }}</h3>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 2: Clientes Activos -->
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
+              <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">check_circle</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activos' : 'Active' }}</p>
+                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeCustomersCount() }}</h3>
+                </div>
+              </div>
+            </div>
+
+            <!-- Card 3: Clientes Inactivos -->
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
+              <div class="absolute -right-4 -bottom-4 text-error/5 dark:text-error/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                <span class="material-symbols-outlined text-[96px] font-light">block</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-error/10 text-error flex items-center justify-center border border-error/20 shrink-0 shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">block</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Inactivos' : 'Inactive' }}</p>
+                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ inactiveCustomersCount() }}</h3>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
             <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div class="flex flex-wrap items-center gap-3">
@@ -293,8 +342,21 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                 </button>
               </div>
 
-              <div class="flex items-center gap-3 w-full lg:w-auto">
-                <div class="relative flex-1 lg:w-72">
+              <div class="flex items-center gap-2 w-full lg:w-auto">
+                <select 
+                  class="bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm py-2.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm cursor-pointer"
+                  [value]="searchField()"
+                  (change)="setSearchField(($any($event.target).value))"
+                >
+                  <option value="all">{{ locale() === 'es' ? 'Cualquier campo' : 'Any field' }}</option>
+                  <option value="name">{{ locale() === 'es' ? 'Nombre' : 'First Name' }}</option>
+                  <option value="lastName">{{ locale() === 'es' ? 'Apellido' : 'Last Name' }}</option>
+                  <option value="cedula">{{ locale() === 'es' ? 'Documento' : 'Document ID' }}</option>
+                  <option value="email">{{ locale() === 'es' ? 'Email' : 'Email' }}</option>
+                  <option value="phone">{{ locale() === 'es' ? 'Teléfono' : 'Phone' }}</option>
+                </select>
+
+                <div class="relative flex-1 lg:w-64">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
                   <input
                     class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
@@ -310,8 +372,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
               <table class="w-full border-collapse text-left">
                 <thead>
                   <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                    <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().name }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().lastName }}</th>
+                    <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ locale() === 'es' ? 'Cliente' : 'Customer' }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().document }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().email }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().phone }}</th>
@@ -321,49 +382,70 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                 </thead>
 
                 <tbody class="font-body-sm text-body-sm">
-                  <tr *ngFor="let customer of paginatedCustomers()" class="dashboard-table-card__row group" [ngClass]="!customer.active ? 'opacity-60' : ''">
-                    <td class="p-4 pl-7 font-semibold text-on-background">{{ customer.name }}</td>
-                    <td class="p-4 text-on-surface-variant font-medium">{{ customer.lastName }}</td>
+                  <tr *ngFor="let customer of paginatedCustomers()" class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200" [ngClass]="!customer.active ? 'opacity-70 bg-surface-container-lowest/20' : ''">
+                    <td class="p-4 pl-7 font-semibold text-on-background">
+                      <div class="flex items-center gap-3">
+                        <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm" [ngClass]="getCustomerGradient(customer)">
+                          {{ getCustomerInitials(customer) }}
+                        </div>
+                        <div>
+                          <div class="font-semibold text-on-background">{{ customer.name }} {{ customer.lastName }}</div>
+                          <div class="text-[10px] text-outline mt-0.5 md:hidden font-mono">CI: {{ customer.cedula }}</div>
+                        </div>
+                      </div>
+                    </td>
                     <td class="p-4">
-                      <span class="text-[10px] font-bold uppercase tracking-wider text-outline mr-1">{{ customer.documentType === 'ruc' ? 'RUC' : 'CI' }}</span>
                       <span class="font-mono text-sm text-on-surface">{{ customer.cedula ?? '—' }}</span>
                     </td>
                     <td class="p-4 text-on-surface font-medium">{{ customer.email || '—' }}</td>
                     <td class="p-4 text-on-surface font-medium">{{ customer.phone || '—' }}</td>
                     <td class="p-4">
                       <span
-                        class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
-                        [ngClass]="customer.active ? 'border-primary/20 bg-primary/10 text-primary' : 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant'"
+                        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide"
+                        [ngClass]="customer.active ? 'border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/5' : 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant'"
                       >
-                        <span class="h-1.5 w-1.5 rounded-full" [ngClass]="customer.active ? 'bg-primary' : 'bg-outline'"></span>
+                        <span class="h-1.5 w-1.5 rounded-full" [ngClass]="customer.active ? 'bg-primary animate-pulse' : 'bg-outline'"></span>
                         {{ customer.active ? (locale() === 'es' ? 'ACTIVO' : 'ACTIVE') : (locale() === 'es' ? 'INACTIVO' : 'INACTIVE') }}
                       </span>
                     </td>
                     <td class="p-4 pr-7 text-right">
-                      <div class="flex items-center justify-end gap-2">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <!-- Info Button -->
                         <button
                           type="button"
-                          class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
+                          [title]="locale() === 'es' ? 'Ver Detalles' : 'View Details'"
+                          class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
+                          (click)="$event.stopPropagation(); showCustomerInfo(customer)"
+                        >
+                          <span class="material-symbols-outlined text-[18px]">info</span>
+                        </button>
+
+                        <!-- Edit Button -->
+                        <button
+                          type="button"
+                          [title]="copy().edit"
+                          class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
                           (click)="$event.stopPropagation(); openEditModal(customer)"
                         >
-                          <span class="material-symbols-outlined text-[16px]">edit</span>
-                          {{ copy().edit }}
+                          <span class="material-symbols-outlined text-[18px]">edit</span>
                         </button>
+
+                        <!-- Deactivate / Activate Button -->
                         <button
                           type="button"
-                          class="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                          [ngClass]="customer.active ? 'border-error/30 text-error hover:border-error hover:bg-error/5' : 'border-success/30 text-success hover:border-success hover:bg-success/5'"
+                          [title]="customer.active ? copy().deactivate : copy().activate"
+                          class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
+                          [ngClass]="customer.active ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'"
                           (click)="$event.stopPropagation(); void toggleActive(customer)"
                         >
-                          <span class="material-symbols-outlined text-[16px]">{{ customer.active ? 'block' : 'check_circle' }}</span>
-                          {{ customer.active ? copy().deactivate : copy().activate }}
+                          <span class="material-symbols-outlined text-[18px]">{{ customer.active ? 'close' : 'check' }}</span>
                         </button>
                       </div>
                     </td>
                   </tr>
 
                   <tr *ngIf="paginatedCustomers().length === 0">
-                    <td colspan="7" class="p-8">
+                    <td colspan="6" class="p-8">
                       <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
                         <span class="material-symbols-outlined dashboard-table-card__empty-icon">groups</span>
                         <p class="dashboard-table-card__empty-title">{{ copy().noCustomersTitle }}</p>
@@ -459,29 +541,19 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
               }
             </div>
 
-            <!-- Document -->
+            <!-- Document (Cédula) -->
             <div class="md:col-span-1">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-              <div class="flex items-stretch gap-2">
-                <select
-                  class="w-[6.5rem] shrink-0 px-3 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                  [ngModel]="formDocType()"
-                  (ngModelChange)="onDocTypeChange($event)"
-                >
-                  <option value="cedula">Cédula</option>
-                  <option value="ruc">RUC</option>
-                </select>
-                <div class="relative flex-1">
-                  <input
-                    type="text"
-                    class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                    [maxLength]="maxDocDigits()"
-                    [placeholder]="formDocType() === 'cedula' ? copy().docPlaceholderCedula : copy().docPlaceholderRuc"
-                    [ngModel]="formCedula()"
-                    (ngModelChange)="onNumericInput($event, 'cedula')"
-                  />
-                  <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formCedula().length }}/{{ maxDocDigits() }}</span>
-                </div>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="10"
+                  [placeholder]="copy().cedulaPlaceholder"
+                  [ngModel]="formCedula()"
+                  (ngModelChange)="onNumericInput($event, 'cedula')"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formCedula().length }}/10</span>
               </div>
             </div>
 
@@ -583,7 +655,7 @@ export class CustomersPageComponent implements OnInit {
   searchQuery = signal('');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   page = signal(1);
-  pageSize = signal(10);
+  pageSize = signal(5);
   displayName = 'Usuario';
   userInitials = 'US';
   userMenuVisible = signal(false);
@@ -598,28 +670,48 @@ export class CustomersPageComponent implements OnInit {
   // Form signals
   formFirstName = signal('');
   formLastName = signal('');
-  formDocType = signal<'cedula' | 'ruc'>('cedula');
   formCedula = signal('');
   formPhone = signal('');
   formEmail = signal('');
-  maxDocDigits = computed(() => this.formDocType() === 'cedula' ? 10 : 13);
   nameFieldError = signal<'firstName' | 'lastName' | null>(null);
 
   readonly formValid = computed(() =>
     this.formFirstName().trim().length > 0
     && this.formLastName().trim().length > 0
-    && this.formCedula().trim().length === this.maxDocDigits()
+    && this.formCedula().trim().length === 10
   );
+
+  searchField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email' | 'phone'>('all');
+
+  readonly totalCustomersCount = computed(() => this.customers().length);
+  readonly activeCustomersCount = computed(() => this.customers().filter((c) => c.active).length);
+  readonly inactiveCustomersCount = computed(() => this.customers().filter((c) => !c.active).length);
 
   // ── Filters & pagination ──────────────────────────────────────────────────
   readonly filteredCustomers = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const status = this.statusFilter();
+    const field = this.searchField();
 
     return this.customers().filter((customer) => {
-      const matchesQuery = !query
-        || [customer.name, customer.lastName, customer.cedula ?? '', customer.email ?? '']
-          .some((field) => field.toLowerCase().includes(query));
+      let matchesQuery = true;
+      if (query) {
+        if (field === 'all') {
+          matchesQuery = [customer.name, customer.lastName, customer.cedula ?? '', customer.email ?? '', customer.phone ?? '']
+            .some((f) => f.toLowerCase().includes(query));
+        } else if (field === 'name') {
+          matchesQuery = customer.name.toLowerCase().includes(query);
+        } else if (field === 'lastName') {
+          matchesQuery = customer.lastName.toLowerCase().includes(query);
+        } else if (field === 'cedula') {
+          matchesQuery = (customer.cedula ?? '').toLowerCase().includes(query);
+        } else if (field === 'email') {
+          matchesQuery = (customer.email ?? '').toLowerCase().includes(query);
+        } else if (field === 'phone') {
+          matchesQuery = (customer.phone ?? '').toLowerCase().includes(query);
+        }
+      }
+
       const matchesStatus = status === 'all'
         || (status === 'active' && customer.active)
         || (status === 'inactive' && !customer.active);
@@ -685,6 +777,11 @@ export class CustomersPageComponent implements OnInit {
   // ── Search & filter ───────────────────────────────────────────────────────
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
+    this.page.set(1);
+  }
+
+  setSearchField(value: string) {
+    this.searchField.set(value as any);
     this.page.set(1);
   }
 
@@ -778,7 +875,6 @@ export class CustomersPageComponent implements OnInit {
     this.editingCustomer.set(customer);
     this.formFirstName.set(customer.name);
     this.formLastName.set(customer.lastName);
-    this.formDocType.set(customer.documentType);
     this.formCedula.set(customer.cedula ?? '');
     this.formPhone.set(customer.phone ?? '');
     this.formEmail.set(customer.email ?? '');
@@ -793,7 +889,6 @@ export class CustomersPageComponent implements OnInit {
   private resetForm() {
     this.formFirstName.set('');
     this.formLastName.set('');
-    this.formDocType.set('cedula');
     this.formCedula.set('');
     this.formPhone.set('');
     this.formEmail.set('');
@@ -804,7 +899,6 @@ export class CustomersPageComponent implements OnInit {
     const payload: CreateCustomerPayload = {
       firstName: this.formFirstName().trim(),
       lastName: this.formLastName().trim(),
-      documentType: this.formDocType(),
       cedula: this.formCedula().trim(),
       email: this.formEmail().trim() || undefined,
       phone: this.formPhone().trim() || undefined,
@@ -862,18 +956,10 @@ export class CustomersPageComponent implements OnInit {
 
   onNumericInput(value: string, target: 'cedula' | 'phone') {
     if (target === 'cedula') {
-      const cleaned = value.replace(/\D/g, '').slice(0, this.maxDocDigits());
-      this.formCedula.set(cleaned);
+      this.formCedula.set(value.replace(/\D/g, '').slice(0, 10));
     } else {
       this.formPhone.set(value.replace(/\D/g, ''));
     }
-  }
-
-  onDocTypeChange(newType: 'cedula' | 'ruc') {
-    this.formDocType.set(newType);
-    const current = this.formCedula();
-    const max = newType === 'cedula' ? 10 : 13;
-    if (current.length > max) this.formCedula.set(current.slice(0, max));
   }
 
   iconVariationSettings(active = false) {
@@ -897,6 +983,44 @@ export class CustomersPageComponent implements OnInit {
 
   formatMoney(value: number) {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
+  }
+
+  getCustomerInitials(customer: CustomerRowDto): string {
+    const first = customer.name ? customer.name.charAt(0) : '';
+    const last = customer.lastName ? customer.lastName.charAt(0) : '';
+    return (first + last).toUpperCase();
+  }
+
+  getCustomerGradient(customer: CustomerRowDto): string {
+    const hash = customer.name.charCodeAt(0) + (customer.lastName?.charCodeAt(0) || 0);
+    const gradients = [
+      'from-[#4f46e5]/20 to-[#06b6d4]/20 text-[#4f46e5] dark:text-[#c3c0ff] border-[#4f46e5]/20',
+      'from-[#ec4899]/20 to-[#f43f5e]/20 text-[#ec4899] dark:text-[#ffb2b7] border-[#ec4899]/20',
+      'from-[#10b981]/20 to-[#3b82f6]/20 text-[#10b981] dark:text-[#89ceff] border-[#10b981]/20',
+      'from-[#f59e0b]/20 to-[#ef4444]/20 text-[#f59e0b] dark:text-[#ffb2b7] border-[#f59e0b]/20',
+      'from-[#8b5cf6]/20 to-[#d946ef]/20 text-[#8b5cf6] dark:text-[#c3c0ff] border-[#8b5cf6]/20',
+    ];
+    return gradients[hash % gradients.length];
+  }
+
+  showCustomerInfo(customer: CustomerRowDto) {
+    const statusText = customer.active
+      ? (this.locale() === 'es' ? 'Activo' : 'Active')
+      : (this.locale() === 'es' ? 'Inactivo' : 'Inactive');
+
+    const fields = [
+      `${this.locale() === 'es' ? 'Nombre completo' : 'Full name'}: ${customer.name} ${customer.lastName}`,
+      `${this.locale() === 'es' ? 'Cédula' : 'ID'}: ${customer.cedula ?? '—'}`,
+      `Email: ${customer.email || '—'}`,
+      `${this.locale() === 'es' ? 'Teléfono' : 'Phone'}: ${customer.phone || '—'}`,
+      `${this.locale() === 'es' ? 'Estado' : 'Status'}: ${statusText}`
+    ];
+    
+    void this.feedback.alert(
+      'info',
+      this.locale() === 'es' ? 'Detalles del Cliente' : 'Customer Details',
+      fields.join('\n')
+    );
   }
 
   // ── Private ───────────────────────────────────────────────────────────────

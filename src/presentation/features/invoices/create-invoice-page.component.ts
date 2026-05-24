@@ -531,31 +531,19 @@ interface LineItem {
               }
             </div>
 
-            <!-- Cedula / RUC -->
+            <!-- Cédula -->
             <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Documento' : 'Document ID' }} <span class="text-error">*</span></label>
-              <div class="flex items-stretch gap-2">
-                <!-- Doc type combo -->
-                <select
-                  class="w-[6.5rem] shrink-0 px-3 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
-                  [ngModel]="newCustomerDocType()"
-                  (ngModelChange)="onDocTypeChange($event)"
-                >
-                  <option value="cedula">Cédula</option>
-                  <option value="ruc">RUC</option>
-                </select>
-                <!-- Number input -->
-                <div class="relative flex-1">
-                  <input
-                    type="text"
-                    class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                    [maxLength]="maxDocDigits()"
-                    [placeholder]="newCustomerDocType() === 'cedula' ? (locale() === 'es' ? '10 dígitos' : '10 digits') : (locale() === 'es' ? '13 dígitos' : '13 digits')"
-                    [ngModel]="newCustomerCedula()"
-                    (ngModelChange)="onNumericInput($event, 'cedula')"
-                  />
-                  <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerCedula().length }}/{{ maxDocDigits() }}</span>
-                </div>
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Cédula' : 'ID Number' }} <span class="text-error">*</span></label>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="10"
+                  [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
+                  [ngModel]="newCustomerCedula()"
+                  (ngModelChange)="onNumericInput($event, 'cedula')"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerCedula().length }}/10</span>
               </div>
             </div>
 
@@ -895,19 +883,17 @@ export class CreateInvoicePageComponent implements OnInit {
   newCustomerFirstName = signal('');
   newCustomerLastName = signal('');
   newCustomerCedula = signal('');
-  newCustomerDocType = signal<'cedula' | 'ruc'>('cedula');
-  maxDocDigits = computed(() => this.newCustomerDocType() === 'cedula' ? 10 : 13);
   newCustomerEmail = signal('');
   newCustomerPhone = signal('');
 
   /** Rastrea qué campo de nombre tiene un error por caracter inválido */
   nameFieldError = signal<'firstName' | 'lastName' | null>(null);
 
-  /** Validación: nombre, apellido requeridos y cédula/RUC con largo exacto */
+  /** Validación: nombre, apellido requeridos y cédula de 10 dígitos */
   readonly newCustomerFormValid = computed(() =>
     this.newCustomerFirstName().trim().length > 0
     && this.newCustomerLastName().trim().length > 0
-    && this.newCustomerCedula().trim().length === this.maxDocDigits()
+    && this.newCustomerCedula().trim().length === 10
   );
 
   /** Solo letras (incluyendo acentos y ñ) para nombre/apellido */
@@ -926,20 +912,9 @@ export class CreateInvoicePageComponent implements OnInit {
   /** Solo dígitos para cédula/teléfono */
   onNumericInput(value: string, target: 'cedula' | 'phone') {
     if (target === 'cedula') {
-      const cleaned = value.replace(/\D/g, '').slice(0, this.maxDocDigits());
-      this.newCustomerCedula.set(cleaned);
+      this.newCustomerCedula.set(value.replace(/\D/g, '').slice(0, 10));
     } else {
-      const cleaned = value.replace(/\D/g, '');
-      this.newCustomerPhone.set(cleaned);
-    }
-  }
-
-  onDocTypeChange(newType: 'cedula' | 'ruc') {
-    this.newCustomerDocType.set(newType);
-    const current = this.newCustomerCedula();
-    const max = newType === 'cedula' ? 10 : 13;
-    if (current.length > max) {
-      this.newCustomerCedula.set(current.slice(0, max));
+      this.newCustomerPhone.set(value.replace(/\D/g, ''));
     }
   }
 
@@ -1087,7 +1062,6 @@ export class CreateInvoicePageComponent implements OnInit {
     this.newCustomerFirstName.set('');
     this.newCustomerLastName.set('');
     this.newCustomerCedula.set('');
-    this.newCustomerDocType.set('cedula');
     this.newCustomerEmail.set('');
     this.newCustomerPhone.set('');
     this.newCustomerModalOpen.set(true);
@@ -1102,7 +1076,6 @@ export class CreateInvoicePageComponent implements OnInit {
     const payload: CreateCustomerPayload = {
       firstName: this.newCustomerFirstName().trim(),
       lastName: this.newCustomerLastName().trim(),
-      documentType: this.newCustomerDocType(),
       cedula: this.newCustomerCedula().trim(),
       email: this.newCustomerEmail().trim() || undefined,
       phone: this.newCustomerPhone().trim() || undefined,

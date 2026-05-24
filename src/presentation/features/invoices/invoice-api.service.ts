@@ -32,7 +32,6 @@ export interface CustomerRowDto {
   email?: string;
   phone?: string;
   cedula?: string;
-  documentType: 'cedula' | 'ruc';
   active: boolean;
 }
 
@@ -53,7 +52,6 @@ export interface CreateInvoicePayload {
 export interface CreateCustomerPayload {
   firstName: string;
   lastName: string;
-  documentType: 'cedula' | 'ruc';
   cedula: string;
   email?: string;
   phone?: string;
@@ -72,16 +70,16 @@ interface PaginatedResponse<T> {
 // ─── Mock data ────────────────────────────────────────────────────────────────
 
 const MOCK_CUSTOMERS: CustomerRowDto[] = [
-  { id: 'c001', name: 'Juan', lastName: 'Pérez', email: 'juan@example.com', cedula: '1712345678', documentType: 'cedula', active: true },
-  { id: 'c002', name: 'María', lastName: 'González', email: 'maria@example.com', cedula: '1723456789', documentType: 'cedula', active: true },
-  { id: 'c003', name: 'Carlos', lastName: 'López', email: 'carlos@example.com', cedula: '1734567890', documentType: 'cedula', active: true },
-  { id: 'c004', name: 'Ana', lastName: 'Martínez', email: 'ana@example.com', cedula: '1745678901', documentType: 'cedula', active: true },
-  { id: 'c005', name: 'Pedro', lastName: 'Ramírez', email: 'pedro@example.com', cedula: '1756789012', documentType: 'cedula', active: true },
-  { id: 'c006', name: 'Laura', lastName: 'Sánchez', email: 'laura@example.com', cedula: '1767890123', documentType: 'cedula', active: true },
-  { id: 'c007', name: 'Diego', lastName: 'Torres', email: 'diego@example.com', cedula: '1778901234', documentType: 'ruc', active: true },
-  { id: 'c008', name: 'Sofía', lastName: 'Vargas', email: 'sofia@example.com', cedula: '1789012345', documentType: 'cedula', active: false },
-  { id: 'c009', name: 'Andrés', lastName: 'Mendoza', email: 'andres@example.com', cedula: '1790123456', documentType: 'cedula', active: true },
-  { id: 'c010', name: 'Valentina', lastName: 'Rojas', email: 'valentina@example.com', cedula: '1701234567', documentType: 'cedula', active: true },
+  { id: 'c001', name: 'Juan', lastName: 'Pérez', email: 'juan@example.com', cedula: '1712345678', active: true },
+  { id: 'c002', name: 'María', lastName: 'González', email: 'maria@example.com', cedula: '1723456789', active: true },
+  { id: 'c003', name: 'Carlos', lastName: 'López', email: 'carlos@example.com', cedula: '1734567890', active: true },
+  { id: 'c004', name: 'Ana', lastName: 'Martínez', email: 'ana@example.com', cedula: '1745678901', active: true },
+  { id: 'c005', name: 'Pedro', lastName: 'Ramírez', email: 'pedro@example.com', cedula: '1756789012', active: true },
+  { id: 'c006', name: 'Laura', lastName: 'Sánchez', email: 'laura@example.com', cedula: '1767890123', active: true },
+  { id: 'c007', name: 'Diego', lastName: 'Torres', email: 'diego@example.com', cedula: '1778901234', active: true },
+  { id: 'c008', name: 'Sofía', lastName: 'Vargas', email: 'sofia@example.com', cedula: '1789012345', active: false },
+  { id: 'c009', name: 'Andrés', lastName: 'Mendoza', email: 'andres@example.com', cedula: '1790123456', active: true },
+  { id: 'c010', name: 'Valentina', lastName: 'Rojas', email: 'valentina@example.com', cedula: '1701234567', active: true },
 ];
 
 const MOCK_PRODUCTS: ProductRowDto[] = [
@@ -390,7 +388,6 @@ export class InvoiceApiService {
         id: `c${String(MOCK_CUSTOMERS.length + 1).padStart(3, '0')}`,
         name: payload.firstName,
         lastName: payload.lastName,
-        documentType: payload.documentType,
         cedula: payload.cedula,
         email: payload.email,
         phone: payload.phone,
@@ -426,7 +423,6 @@ export class InvoiceApiService {
         ...MOCK_CUSTOMERS[idx],
         name: payload.firstName,
         lastName: payload.lastName,
-        documentType: payload.documentType,
         cedula: payload.cedula,
         email: payload.email,
         phone: payload.phone,
