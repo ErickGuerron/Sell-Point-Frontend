@@ -484,13 +484,13 @@ interface LineItem {
           title="{{ locale() === 'es' ? 'Nuevo Cliente' : 'New Customer' }}"
           subtitle="{{ locale() === 'es' ? 'Completá los datos del nuevo cliente' : 'Fill in the new customer details' }}"
           icon="person_add"
-          maxWidth="lg"
+          maxWidth="xl"
           [hasFooter]="true"
           (close)="closeCreateCustomerModal()"
         >
-          <div class="p-6 space-y-5">
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
             <!-- First Name -->
-            <div>
+            <div class="md:col-span-1">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Nombre' : 'First Name' }} <span class="text-error">*</span></label>
               <div class="relative">
                 <input
@@ -499,14 +499,14 @@ interface LineItem {
                   [maxLength]="100"
                   [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
                   [ngModel]="newCustomerFirstName()"
-                  (ngModelChange)="newCustomerFirstName.set($event)"
+                  (ngModelChange)="onNameInput($event, 'firstName')"
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerFirstName().length }}/100</span>
               </div>
             </div>
 
             <!-- Last Name -->
-            <div>
+            <div class="md:col-span-1">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Apellido' : 'Last Name' }} <span class="text-error">*</span></label>
               <div class="relative">
                 <input
@@ -515,14 +515,14 @@ interface LineItem {
                   [maxLength]="100"
                   [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
                   [ngModel]="newCustomerLastName()"
-                  (ngModelChange)="newCustomerLastName.set($event)"
+                  (ngModelChange)="onNameInput($event, 'lastName')"
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerLastName().length }}/100</span>
               </div>
             </div>
 
             <!-- Cedula (ID) -->
-            <div>
+            <div class="md:col-span-1">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Cédula' : 'ID Number' }} <span class="text-error">*</span></label>
               <div class="relative">
                 <input
@@ -531,14 +531,29 @@ interface LineItem {
                   [maxLength]="20"
                   [placeholder]="locale() === 'es' ? 'Ej: 12345678' : 'e.g. 12345678'"
                   [ngModel]="newCustomerCedula()"
-                  (ngModelChange)="newCustomerCedula.set($event)"
+                  (ngModelChange)="onNumericInput($event, 'cedula')"
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerCedula().length }}/20</span>
               </div>
             </div>
 
+            <!-- Phone -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Teléfono' : 'Phone' }}</label>
+              <div class="relative">
+                <input
+                  type="tel"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="20"
+                  [placeholder]="locale() === 'es' ? 'Ej: +595 981 123456' : 'e.g. +1 555 123 4567'"
+                  [ngModel]="newCustomerPhone()"
+                  (ngModelChange)="onNumericInput($event, 'phone')"
+                />
+              </div>
+            </div>
+
             <!-- Email -->
-            <div>
+            <div class="md:col-span-2">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">Email</label>
               <div class="relative">
                 <input
@@ -550,21 +565,6 @@ interface LineItem {
                   (ngModelChange)="newCustomerEmail.set($event)"
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerEmail().length }}/255</span>
-              </div>
-            </div>
-
-            <!-- Phone -->
-            <div>
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Teléfono' : 'Phone' }}</label>
-              <div class="relative">
-                <input
-                  type="tel"
-                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                  [maxLength]="20"
-                  [placeholder]="locale() === 'es' ? 'Ej: +595 981 123456' : 'e.g. +1 555 123 4567'"
-                  [ngModel]="newCustomerPhone()"
-                  (ngModelChange)="newCustomerPhone.set($event)"
-                />
               </div>
             </div>
           </div>
@@ -882,6 +882,20 @@ export class CreateInvoicePageComponent implements OnInit {
     && this.newCustomerLastName().trim().length > 0
     && this.newCustomerCedula().trim().length > 0
   );
+
+  /** Solo letras (incluyendo acentos y ñ) para nombre/apellido */
+  onNameInput(value: string, target: 'firstName' | 'lastName') {
+    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]/g, '');
+    if (target === 'firstName') this.newCustomerFirstName.set(cleaned);
+    else this.newCustomerLastName.set(cleaned);
+  }
+
+  /** Solo dígitos para cédula/teléfono */
+  onNumericInput(value: string, target: 'cedula' | 'phone') {
+    const cleaned = value.replace(/\D/g, '');
+    if (target === 'cedula') this.newCustomerCedula.set(cleaned);
+    else this.newCustomerPhone.set(cleaned);
+  }
 
   // ── Customer search & modal ───────────────────────────────────────────────
   customerQuery = signal('');

@@ -80,6 +80,10 @@ interface InvoiceCopy {
   notifications: string;
   languageToggle: string;
   sessionLabel: string;
+  colProduct: string;
+  colQty: string;
+  colUnitPrice: string;
+  colTotal: string;
 }
 
 const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
@@ -120,7 +124,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     subtotal: 'Subtotal',
     iva: 'IVA (15%)',
     invoicePreview: 'Vista previa de factura',
-    downloadPdf: 'Descargar PDF',
+    downloadPdf: 'Imprimir / Descargar PDF',
     close: 'Cerrar',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Facturas',
@@ -138,6 +142,10 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     notifications: 'Notificaciones',
     languageToggle: 'English',
     sessionLabel: 'Sesión',
+    colProduct: 'Producto',
+    colQty: 'Cant.',
+    colUnitPrice: 'Precio Unitario',
+    colTotal: 'Total',
   },
   en: {
     moduleLabel: 'Billing Module',
@@ -176,7 +184,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     subtotal: 'Subtotal',
     iva: 'VAT (15%)',
     invoicePreview: 'Invoice Preview',
-    downloadPdf: 'Download PDF',
+    downloadPdf: 'Print / Download PDF',
     close: 'Close',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
@@ -194,6 +202,10 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    colProduct: 'Product',
+    colQty: 'Qty.',
+    colUnitPrice: 'Unit Price',
+    colTotal: 'Total',
   },
 };
 
@@ -451,53 +463,97 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             title="{{ invoicePreview()?.invoiceNumber ?? '' }}"
             [subtitle]="copy().invoicePreview"
             icon="receipt_long"
-            maxWidth="md"
+            maxWidth="lg"
             [hasFooter]="true"
             (close)="closeInvoicePreview()"
           >
             <div class="p-6 space-y-6">
-              <!-- Customer & date row -->
-              <div class="flex items-start justify-between">
-                <div>
-                  <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
-                  <p class="text-base font-bold text-on-surface">{{ invoicePreview()?.customerName ?? '—' }}</p>
-                  <p class="text-xs text-on-surface-variant mt-0.5">{{ invoicePreview()?.id }}</p>
+              <!-- Invoice Header Banner -->
+              <div class="flex items-center justify-between bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/10">
+                <div class="flex items-center gap-2.5">
+                  <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
+                  <div>
+                    <h4 class="font-bold text-lg text-on-surface leading-tight">BillFlow Inc.</h4>
+                    <p class="text-xs text-on-surface-variant">{{ locale() === 'es' ? 'Comprobante Electrónico' : 'Electronic Invoice' }}</p>
+                  </div>
                 </div>
                 <div class="text-right">
-                  <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().dateIssued }}</p>
-                  <p class="text-sm font-semibold text-on-surface">{{ formatDate(invoicePreview()?.invoiceDate ?? '') }}</p>
+                  <span
+                    [ngClass]="statusClass(invoicePreview()?.status ?? 'paid')"
+                    class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'paid')"></span>
+                    {{ invoicePreview()?.statusLabel ?? '' }}
+                  </span>
                 </div>
               </div>
 
-              <hr class="border-outline-variant/30" />
+              <!-- Customer & date row -->
+              <div class="grid grid-cols-2 gap-4">
+                <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
+                  <p class="text-sm font-bold text-on-surface leading-tight">{{ invoicePreview()?.customerName ?? '—' }}</p>
+                  <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ locale() === 'es' ? 'Cédula:' : 'ID:' }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
+                </div>
+                <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
+                  <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().dateIssued }}</p>
+                    <p class="text-sm font-bold text-on-surface">{{ formatDate(invoicePreview()?.invoiceDate ?? '') }}</p>
+                  </div>
+                  <p class="text-xs text-on-surface-variant font-mono mt-1">Ref: {{ invoicePreview()?.id }}</p>
+                </div>
+              </div>
+
+              <!-- Product lines Table -->
+              <div class="space-y-2">
+                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
+                  {{ locale() === 'es' ? 'Productos Comprados' : 'Purchased Products' }}
+                </p>
+                <div class="overflow-x-auto rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
+                  <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr class="bg-surface-container-low border-b border-outline-variant/40 font-bold text-[10px] uppercase tracking-wider text-on-surface-variant">
+                        <th class="py-2.5 px-4">{{ copy().colProduct }}</th>
+                        <th class="py-2.5 px-3 text-right">{{ copy().colQty }}</th>
+                        <th class="py-2.5 px-3 text-right">{{ copy().colUnitPrice }}</th>
+                        <th class="py-2.5 px-4 text-right">{{ copy().colTotal }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let item of invoicePreview()?.items" class="border-b border-outline-variant/20 last:border-0 hover:bg-primary/5 transition-colors">
+                        <td class="py-2.5 px-4">
+                          <p class="font-bold text-on-background leading-tight">{{ item.productName || (locale() === 'es' ? 'Producto sin nombre' : 'Unknown Product') }}</p>
+                          <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{{ item.productCode || item.productId }}</p>
+                        </td>
+                        <td class="py-2.5 px-3 text-right font-semibold text-on-surface-variant">{{ item.quantity }}</td>
+                        <td class="py-2.5 px-3 text-right text-on-surface-variant">{{ formatMoney(item.unitPrice) }}</td>
+                        <td class="py-2.5 px-4 text-right font-bold text-on-surface">{{ formatMoney(item.unitPrice * item.quantity) }}</td>
+                      </tr>
+                      <tr *ngIf="!invoicePreview()?.items || invoicePreview()?.items?.length === 0">
+                        <td colspan="4" class="py-6 text-center text-on-surface-variant font-medium">
+                          {{ locale() === 'es' ? 'No hay productos registrados en esta factura.' : 'No products registered in this invoice.' }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
 
               <!-- Amount breakdown -->
-              <div class="space-y-3">
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-on-surface-variant">{{ copy().subtotal }}</span>
+              <div class="bg-surface-container-low/40 rounded-2xl p-4 border border-outline-variant/30 space-y-3">
+                <div class="flex items-center justify-between text-xs text-on-surface-variant">
+                  <span>{{ copy().subtotal }}</span>
                   <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.subtotal ?? 0) }}</span>
                 </div>
-                <div class="flex items-center justify-between text-sm">
-                  <span class="text-on-surface-variant">{{ copy().iva }}</span>
+                <div class="flex items-center justify-between text-xs text-on-surface-variant">
+                  <span>{{ copy().iva }}</span>
                   <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.iva ?? 0) }}</span>
                 </div>
                 <hr class="border-outline-variant/30" />
                 <div class="flex items-center justify-between">
-                  <span class="text-base font-bold text-on-surface">{{ copy().amount }}</span>
-                  <span class="text-xl font-extrabold text-primary">{{ formatMoney(invoicePreview()?.total ?? 0) }}</span>
+                  <span class="text-sm font-bold text-on-surface">{{ copy().amount }}</span>
+                  <span class="text-lg font-black text-primary">{{ formatMoney(invoicePreview()?.total ?? 0) }}</span>
                 </div>
-              </div>
-
-              <!-- Status -->
-              <div class="flex items-center justify-between pt-2">
-                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">{{ copy().status }}</p>
-                <span
-                  [ngClass]="statusClass(invoicePreview()?.status ?? 'paid')"
-                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'paid')"></span>
-                  {{ invoicePreview()?.statusLabel ?? '' }}
-                </span>
               </div>
             </div>
 
@@ -514,7 +570,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
                 (click)="downloadInvoicePdf(invoicePreview()?.id ?? '')"
               >
-                <span class="material-symbols-outlined text-[18px]">download</span>
+                <span class="material-symbols-outlined text-[18px]">print</span>
                 {{ copy().downloadPdf }}
               </button>
             </div>

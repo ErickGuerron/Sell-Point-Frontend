@@ -8,6 +8,8 @@ export interface InvoiceItemRowDto {
   productId: string;
   quantity: number;
   unitPrice: number;
+  productName?: string;
+  productCode?: string;
 }
 
 export interface InvoiceRowDto {
@@ -16,6 +18,7 @@ export interface InvoiceRowDto {
   invoiceDate: string;
   customerId: string;
   customerName?: string;
+  customerCedula?: string;
   subtotal: number;
   iva: number;
   total: number;
@@ -94,14 +97,127 @@ const MOCK_PRODUCTS: ProductRowDto[] = [
 ];
 
 const MOCK_INVOICES: InvoiceRowDto[] = [
-  { id: 'inv-001', invoiceNumber: 'FAC-001', invoiceDate: '2026-05-20T10:30:00Z', customerId: 'c001', customerName: 'Juan Pérez', subtotal: 28.40, iva: 4.26, total: 32.66 },
-  { id: 'inv-002', invoiceNumber: 'FAC-002', invoiceDate: '2026-05-19T14:15:00Z', customerId: 'c002', customerName: 'María González', subtotal: 55.00, iva: 8.25, total: 63.25 },
-  { id: 'inv-003', invoiceNumber: 'FAC-003', invoiceDate: '2026-05-18T09:45:00Z', customerId: 'c003', customerName: 'Carlos López', subtotal: 12.50, iva: 1.88, total: 14.38 },
-  { id: 'inv-004', invoiceNumber: 'FAC-004', invoiceDate: '2026-05-17T16:00:00Z', customerId: 'c005', customerName: 'Pedro Ramírez', subtotal: 89.20, iva: 13.38, total: 102.58 },
-  { id: 'inv-005', invoiceNumber: 'FAC-005', invoiceDate: '2026-05-15T11:20:00Z', customerId: 'c004', customerName: 'Ana Martínez', subtotal: 33.00, iva: 4.95, total: 37.95 },
-  { id: 'inv-006', invoiceNumber: 'FAC-006', invoiceDate: '2026-05-22T08:00:00Z', customerId: 'c006', customerName: 'Laura Sánchez', subtotal: 15.00, iva: 2.25, total: 17.25 },
-  { id: 'inv-007', invoiceNumber: 'FAC-007', invoiceDate: '2026-05-21T13:30:00Z', customerId: 'c007', customerName: 'Diego Torres', subtotal: 42.80, iva: 6.42, total: 49.22 },
-  { id: 'inv-008', invoiceNumber: 'FAC-008', invoiceDate: '2026-05-10T10:00:00Z', customerId: 'c008', customerName: 'Sofía Vargas', subtotal: 67.50, iva: 10.13, total: 77.63 },
+  {
+    id: 'inv-001',
+    invoiceNumber: 'FAC-001',
+    invoiceDate: '2026-05-20T10:30:00Z',
+    customerId: 'c001',
+    customerName: 'Juan Pérez',
+    customerCedula: '1712345678',
+    subtotal: 28.40,
+    iva: 4.26,
+    total: 32.66,
+    items: [
+      { id: 'item-001', productId: 'p005', productName: 'Aceite Girasol 1L', productCode: 'PRO-005', quantity: 2, unitPrice: 4.20 },
+      { id: 'item-002', productId: 'p012', productName: 'Café Instantáneo 100g', productCode: 'PRO-012', quantity: 4, unitPrice: 5.00 }
+    ]
+  },
+  {
+    id: 'inv-002',
+    invoiceNumber: 'FAC-002',
+    invoiceDate: '2026-05-19T14:15:00Z',
+    customerId: 'c002',
+    customerName: 'María González',
+    customerCedula: '1723456789',
+    subtotal: 55.00,
+    iva: 8.25,
+    total: 63.25,
+    items: [
+      { id: 'item-003', productId: 'p003', productName: 'Pan Bimbo 500g', productCode: 'PRO-003', quantity: 10, unitPrice: 3.50 },
+      { id: 'item-004', productId: 'p012', productName: 'Café Instantáneo 100g', productCode: 'PRO-012', quantity: 4, unitPrice: 5.00 }
+    ]
+  },
+  {
+    id: 'inv-003',
+    invoiceNumber: 'FAC-003',
+    invoiceDate: '2026-05-18T09:45:00Z',
+    customerId: 'c003',
+    customerName: 'Carlos López',
+    customerCedula: '1734567890',
+    subtotal: 12.50,
+    iva: 1.88,
+    total: 14.38,
+    items: [
+      { id: 'item-005', productId: 'p008', productName: 'Atún Enlatado 170g', productCode: 'PRO-008', quantity: 5, unitPrice: 2.50 }
+    ]
+  },
+  {
+    id: 'inv-004',
+    invoiceNumber: 'FAC-004',
+    invoiceDate: '2026-05-17T16:00:00Z',
+    customerId: 'c005',
+    customerName: 'Pedro Ramírez',
+    customerCedula: '1756789012',
+    subtotal: 89.20,
+    iva: 13.38,
+    total: 102.58,
+    items: [
+      { id: 'item-006', productId: 'p005', productName: 'Aceite Girasol 1L', productCode: 'PRO-005', quantity: 10, unitPrice: 4.20 },
+      { id: 'item-007', productId: 'p004', productName: 'Arroz Superior 1kg', productCode: 'PRO-004', quantity: 10, unitPrice: 2.80 },
+      { id: 'item-008', productId: 'p009', productName: 'Mayonesa Hellmanns 500g', productCode: 'PRO-009', quantity: 4, unitPrice: 3.90 },
+      { id: 'item-009', productId: 'p002', productName: 'Papas Lays 120g', productCode: 'PRO-002', quantity: 1, unitPrice: 2.00 },
+      { id: 'item-010', productId: 'p007', productName: 'Fideos Tallarines 500g', productCode: 'PRO-007', quantity: 1, unitPrice: 1.60 }
+    ]
+  },
+  {
+    id: 'inv-005',
+    invoiceNumber: 'FAC-005',
+    invoiceDate: '2026-05-15T11:20:00Z',
+    customerId: 'c004',
+    customerName: 'Ana Martínez',
+    customerCedula: '1745678901',
+    subtotal: 33.00,
+    iva: 4.95,
+    total: 37.95,
+    items: [
+      { id: 'item-011', productId: 'p003', productName: 'Pan Bimbo 500g', productCode: 'PRO-003', quantity: 6, unitPrice: 3.50 },
+      { id: 'item-012', productId: 'p002', productName: 'Papas Lays 120g', productCode: 'PRO-002', quantity: 6, unitPrice: 2.00 }
+    ]
+  },
+  {
+    id: 'inv-006',
+    invoiceNumber: 'FAC-006',
+    invoiceDate: '2026-05-22T08:00:00Z',
+    customerId: 'c006',
+    customerName: 'Laura Sánchez',
+    customerCedula: '1767890123',
+    subtotal: 15.00,
+    iva: 2.25,
+    total: 17.25,
+    items: [
+      { id: 'item-013', productId: 'p012', productName: 'Café Instantáneo 100g', productCode: 'PRO-012', quantity: 3, unitPrice: 5.00 }
+    ]
+  },
+  {
+    id: 'inv-007',
+    invoiceNumber: 'FAC-007',
+    invoiceDate: '2026-05-21T13:30:00Z',
+    customerId: 'c007',
+    customerName: 'Diego Torres',
+    customerCedula: '1778901234',
+    subtotal: 42.80,
+    iva: 6.42,
+    total: 49.22,
+    items: [
+      { id: 'item-014', productId: 'p002', productName: 'Papas Lays 120g', productCode: 'PRO-002', quantity: 20, unitPrice: 2.00 },
+      { id: 'item-015', productId: 'p004', productName: 'Arroz Superior 1kg', productCode: 'PRO-004', quantity: 1, unitPrice: 2.80 }
+    ]
+  },
+  {
+    id: 'inv-008',
+    invoiceNumber: 'FAC-008',
+    invoiceDate: '2026-05-10T10:00:00Z',
+    customerId: 'c008',
+    customerName: 'Sofía Vargas',
+    customerCedula: '1789012345',
+    subtotal: 67.50,
+    iva: 10.13,
+    total: 77.63,
+    items: [
+      { id: 'item-016', productId: 'p012', productName: 'Café Instantáneo 100g', productCode: 'PRO-012', quantity: 10, unitPrice: 5.00 },
+      { id: 'item-017', productId: 'p010', productName: 'Galletas Oreo 120g', productCode: 'PRO-010', quantity: 10, unitPrice: 1.75 }
+    ]
+  }
 ];
 
 let invoiceCounter = MOCK_INVOICES.length;
@@ -223,23 +339,35 @@ export class InvoiceApiService {
   async createInvoice(payload: CreateInvoicePayload): Promise<InvoiceRowDto> {
     if (USE_MOCK) {
       invoiceCounter++;
-      const subtotal = MOCK_PRODUCTS
-        .filter((p) => payload.items.some((i) => i.productId === p.id))
-        .reduce((sum, p) => {
-          const item = payload.items.find((i) => i.productId === p.id)!;
-          return sum + p.unitPrice * item.quantity;
-        }, 0);
+      const subtotal = payload.items.reduce((sum, item) => {
+        const prod = MOCK_PRODUCTS.find((p) => p.id === item.productId);
+        return sum + (prod ? prod.unitPrice * item.quantity : 0);
+      }, 0);
       const customer = MOCK_CUSTOMERS.find((c) => c.id === payload.customerId);
-      return {
+      const newInvoice: InvoiceRowDto = {
         id: `inv-${String(invoiceCounter).padStart(3, '0')}`,
         invoiceNumber: `FAC-${String(invoiceCounter).padStart(3, '0')}`,
         invoiceDate: new Date().toISOString(),
         customerId: payload.customerId,
         customerName: customer ? `${customer.name} ${customer.lastName}` : undefined,
+        customerCedula: customer?.cedula,
         subtotal,
         iva: subtotal * 0.15,
         total: subtotal * 1.15,
+        items: payload.items.map((item, idx) => {
+          const prod = MOCK_PRODUCTS.find((p) => p.id === item.productId)!;
+          return {
+            id: `item-${String(idx + 1)}`,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: prod.unitPrice,
+            productName: prod.name,
+            productCode: prod.code
+          };
+        })
       };
+      MOCK_INVOICES.push(newInvoice);
+      return newInvoice;
     }
     const response = await fetch(`${API_BASE_URL}/invoices`, {
       method: 'POST',
