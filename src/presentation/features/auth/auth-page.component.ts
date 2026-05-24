@@ -268,7 +268,11 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          employeeCode: payload.identifier,
+          password: payload.secret,
+          rememberMe: false,
+        }),
       });
 
       if (!response.ok) {
