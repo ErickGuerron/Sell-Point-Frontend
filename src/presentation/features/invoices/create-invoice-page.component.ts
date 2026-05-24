@@ -503,6 +503,11 @@ interface LineItem {
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerFirstName().length }}/100</span>
               </div>
+              @if (nameFieldError() === 'firstName') {
+                <p class="mt-1 text-xs text-error">
+                  {{ locale() === 'es' ? 'Los nombres no deben contener números' : 'Names must not contain numbers' }}
+                </p>
+              }
             </div>
 
             <!-- Last Name -->
@@ -519,6 +524,11 @@ interface LineItem {
                 />
                 <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerLastName().length }}/100</span>
               </div>
+              @if (nameFieldError() === 'lastName') {
+                <p class="mt-1 text-xs text-error">
+                  {{ locale() === 'es' ? 'Los nombres no deben contener números' : 'Names must not contain numbers' }}
+                </p>
+              }
             </div>
 
             <!-- Cedula (ID) -->
@@ -876,6 +886,9 @@ export class CreateInvoicePageComponent implements OnInit {
   newCustomerEmail = signal('');
   newCustomerPhone = signal('');
 
+  /** Rastrea qué campo de nombre tiene un error por caracter inválido */
+  nameFieldError = signal<'firstName' | 'lastName' | null>(null);
+
   /** Validación: nombre, apellido y cédula requeridos con texto no-vacío */
   readonly newCustomerFormValid = computed(() =>
     this.newCustomerFirstName().trim().length > 0
@@ -888,6 +901,12 @@ export class CreateInvoicePageComponent implements OnInit {
     const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]/g, '');
     if (target === 'firstName') this.newCustomerFirstName.set(cleaned);
     else this.newCustomerLastName.set(cleaned);
+
+    if (value !== cleaned) {
+      this.nameFieldError.set(target);
+    } else if (this.nameFieldError() === target) {
+      this.nameFieldError.set(null);
+    }
   }
 
   /** Solo dígitos para cédula/teléfono */
