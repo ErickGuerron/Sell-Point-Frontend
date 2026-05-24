@@ -401,16 +401,54 @@ export class InvoiceApiService {
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
-  private getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  // ── Auth helpers ──────────────────────────────────────────────────────────────
+
+  private getStoredSession(): { accessToken?: string; refreshToken?: string } | null {
     try {
       const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
-      if (raw) {
-        const session = JSON.parse(raw) as { token?: string };
-        if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
+      return raw ? JSON.parse(raw) as { accessToken?: string; refreshToken?: string } : null;
+    } catch { return null; }
+  }
+
+  private async refreshAccessToken(): Promise<boolean> {
+    const session = this.getStoredSession();
+    if (!session?.refreshToken) return false;
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: session.refreshToken }),
+      });
+      if (!response.ok) return false;
+      const newSession = await response.json() as { accessToken: string; refreshToken?: string; expiresIn?: number };
+      const merged = { ...session, ...newSession };
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
       }
-    } catch { /* ignore */ }
-    return headers;
+      return true;
+    } catch { return false; }
+  }
+
+  private async fetchWithRefresh(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const session = this.getStoredSession();
+    const headers: Record<string, string> = { ...(init?.headers as Record<string, string> | undefined) ?? {} };
+    if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
+
+    let response = await fetch(input, { ...init, headers });
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        const newSession = this.getStoredSession();
+        if (newSession?.accessToken) {
+          headers['Authorization'] = `Bearer ${newSession.accessToken}`;
+        }
+        response = await fetch(input, { ...init, headers });
+      }
+    }
+
+    return response;
   }
 
   private mapBackendCustomer(b: BackendCustomer): CustomerRowDto {
@@ -441,9 +479,9 @@ export class InvoiceApiService {
       MOCK_CUSTOMERS.push(newCustomer);
       return newCustomer;
     }
-    const response = await fetch(`${API_BASE_URL}/customers`, {
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers`, {
       method: 'POST',
-      headers: this.getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
@@ -456,9 +494,7 @@ export class InvoiceApiService {
 
   async listCustomers(): Promise<CustomerRowDto[]> {
     if (USE_MOCK) return [...MOCK_CUSTOMERS];
-    const response = await fetch(`${API_BASE_URL}/customers?limit=200`, {
-      headers: this.getAuthHeaders(),
-    });
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?limit=200`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as PaginatedResponse<BackendCustomer>;
     return body.data.map((b) => this.mapBackendCustomer(b));
@@ -478,9 +514,9 @@ export class InvoiceApiService {
       };
       return MOCK_CUSTOMERS[idx];
     }
-    const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}`, {
       method: 'PUT',
-      headers: this.getAuthHeaders(),
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
@@ -499,9 +535,8 @@ export class InvoiceApiService {
       return MOCK_CUSTOMERS[idx];
     }
     const endpoint = currentActive ? 'deactivate' : 'activate';
-    const response = await fetch(`${API_BASE_URL}/customers/${id}/${endpoint}`, {
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}/${endpoint}`, {
       method: 'PATCH',
-      headers: this.getAuthHeaders(),
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
