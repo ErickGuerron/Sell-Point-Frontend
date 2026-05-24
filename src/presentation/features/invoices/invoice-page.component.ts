@@ -14,6 +14,7 @@ import { BillflowUserMenuComponent } from '../../shared/components/billflow-user
 
 type InvoiceStatus = 'paid' | 'pending' | 'overdue';
 type InvoiceRange = '30d' | '90d' | 'year' | 'all';
+type InvoiceLocale = 'es' | 'en';
 
 interface InvoiceViewModel extends InvoiceRowDto {
   status: InvoiceStatus;
