@@ -649,8 +649,10 @@ export class DashboardPageComponent implements OnInit {
     }
   }
 
-  async startNewSale() {
-    await this.feedback.toast('success', 'Nueva venta', 'La terminal POS está lista para operar.');
+  startNewSale() {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+    }
   }
 
   toggleDashboardLocale() {
@@ -994,10 +996,5 @@ export class DashboardPageComponent implements OnInit {
       cedula: customer.cedula,
       email: customer.email,
     };
-  }
-  startNewSale() {
-    if (typeof window !== 'undefined') {
-      window.location.assign('/create-invoice');
-    }
   }
 }
