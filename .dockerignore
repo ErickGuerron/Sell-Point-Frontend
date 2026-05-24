@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.gitignore
+.env*
+*.md
+astro.config.mjs  # is copied into the image; no need to skip here
+!package.json
+!package-lock.json
