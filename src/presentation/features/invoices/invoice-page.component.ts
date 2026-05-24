@@ -53,6 +53,11 @@ interface InvoiceCopy {
   status: string;
   actions: string;
   createInvoice: string;
+  emitInvoice: string;
+  filterAll: string;
+  filterInvoiceNumber: string;
+  filterCustomer: string;
+  filterAmount: string;
   sidebarDashboard: string;
   sidebarInvoices: string;
   sidebarCustomers: string;
@@ -101,6 +106,11 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     status: 'Estado',
     actions: 'Acciones',
     createInvoice: 'Nueva Factura',
+    emitInvoice: 'Emitir Factura',
+    filterAll: 'Todos',
+    filterInvoiceNumber: 'Factura #',
+    filterCustomer: 'Cliente',
+    filterAmount: 'Monto',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Facturas',
     sidebarCustomers: 'Clientes',
@@ -147,6 +157,11 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     status: 'Status',
     actions: 'Actions',
     createInvoice: 'New Invoice',
+    emitInvoice: 'Issue Invoice',
+    filterAll: 'All',
+    filterInvoiceNumber: 'Invoice #',
+    filterCustomer: 'Customer',
+    filterAmount: 'Amount',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
     sidebarCustomers: 'Customers',
@@ -289,16 +304,39 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
                     >refresh</span>
                   </button>
+
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                    (click)="startNewInvoice()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    {{ copy().emitInvoice }}
+                  </button>
                 </div>
 
-                <div class="relative w-full lg:w-96">
-                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-                  <input
-                    class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
-                    [placeholder]="copy().searchPlaceholder"
-                    [value]="searchQuery()"
-                    (input)="setSearchQuery(($any($event.target).value))"
-                  />
+                <div class="flex items-center gap-3 w-full lg:w-auto">
+                  <!-- Filter combobox -->
+                  <select
+                    class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm shrink-0"
+                    [value]="invoiceFilterField()"
+                    (change)="setInvoiceFilterField(($any($event.target).value))"
+                  >
+                    <option value="all">{{ copy().filterAll }}</option>
+                    <option value="invoiceNumber">{{ copy().filterInvoiceNumber }}</option>
+                    <option value="customerName">{{ copy().filterCustomer }}</option>
+                    <option value="total">{{ copy().filterAmount }}</option>
+                  </select>
+
+                  <div class="relative flex-1 lg:w-72">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+                    <input
+                      class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                      [placeholder]="copy().searchPlaceholder"
+                      [value]="searchQuery()"
+                      (input)="setSearchQuery(($any($event.target).value))"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -358,8 +396,22 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
               </div>
 
               <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
-                <div class="text-sm text-on-surface-variant">
-                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
+                <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+                  <span>
+                    {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
+                  </span>
+                  <!-- Page size selector -->
+                  <select
+                    class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
+                    [value]="pageSize()"
+                    (change)="setPageSize(Number(($any($event.target).value)))"
+                  >
+                    <option [value]="5">5</option>
+                    <option [value]="10">10</option>
+                    <option [value]="15">15</option>
+                    <option [value]="20">20</option>
+                    <option [value]="30">30</option>
+                  </select>
                 </div>
 
                 <div class="flex items-center gap-2">
@@ -423,10 +475,11 @@ export class InvoicePageComponent implements OnInit {
   loading = signal(true);
   invoices = signal<InvoiceViewModel[]>([]);
   searchQuery = signal('');
+  invoiceFilterField = signal<'all' | 'invoiceNumber' | 'customerName' | 'total'>('all');
   statusFilter = signal<'all' | InvoiceStatus>('all');
   rangeFilter = signal<InvoiceRange>('30d');
   page = signal(1);
-  pageSize = 8;
+  pageSize = signal(10);
   displayName = 'Usuario';
   userInitials = 'US';
   userMenuVisible = signal(false);
@@ -436,23 +489,40 @@ export class InvoicePageComponent implements OnInit {
 
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
+    const filterField = this.invoiceFilterField();
     const status = this.statusFilter();
     const range = this.rangeFilter();
     const now = new Date();
 
     return this.invoices().filter((invoice) => {
-      const matchesQuery = !query || [invoice.invoiceNumber, invoice.customerName ?? '', invoice.id, String(invoice.total), this.formatDate(invoice.invoiceDate)].some((field) => field.toLowerCase().includes(query));
+      let matchesQuery = true;
+      if (query) {
+        switch (filterField) {
+          case 'invoiceNumber':
+            matchesQuery = invoice.invoiceNumber.toLowerCase().includes(query);
+            break;
+          case 'customerName':
+            matchesQuery = (invoice.customerName ?? '').toLowerCase().includes(query);
+            break;
+          case 'total':
+            matchesQuery = String(invoice.total).includes(query);
+            break;
+          default: // 'all'
+            matchesQuery = [invoice.invoiceNumber, invoice.customerName ?? '', invoice.id, String(invoice.total), this.formatDate(invoice.invoiceDate)]
+              .some((field) => field.toLowerCase().includes(query));
+        }
+      }
       const matchesStatus = status === 'all' || invoice.status === status;
       const matchesRange = this.matchesRange(invoice.invoiceDate, range, now);
       return matchesQuery && matchesStatus && matchesRange;
     });
   });
 
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredInvoices().length / this.pageSize)));
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredInvoices().length / this.pageSize())));
 
   readonly paginatedInvoices = computed(() => {
-    const start = (this.page() - 1) * this.pageSize;
-    return this.filteredInvoices().slice(start, start + this.pageSize);
+    const start = (this.page() - 1) * this.pageSize();
+    return this.filteredInvoices().slice(start, start + this.pageSize());
   });
 
   readonly visiblePages = computed(() => {
@@ -509,6 +579,16 @@ export class InvoicePageComponent implements OnInit {
 
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
+    this.page.set(1);
+  }
+
+  setInvoiceFilterField(value: string) {
+    this.invoiceFilterField.set(value === 'invoiceNumber' || value === 'customerName' || value === 'total' ? value : 'all');
+    this.page.set(1);
+  }
+
+  setPageSize(value: number) {
+    this.pageSize.set(value >= 5 ? value : 10);
     this.page.set(1);
   }
 
@@ -644,11 +724,11 @@ export class InvoicePageComponent implements OnInit {
 
   visibleRangeStart() {
     if (this.filteredInvoices().length === 0) return 0;
-    return (this.page() - 1) * this.pageSize + 1;
+    return (this.page() - 1) * this.pageSize() + 1;
   }
 
   visibleRangeEnd() {
-    return Math.min(this.filteredInvoices().length, this.page() * this.pageSize);
+    return Math.min(this.filteredInvoices().length, this.page() * this.pageSize());
   }
 
   private mapInvoice(invoice: InvoiceRowDto): InvoiceViewModel {
