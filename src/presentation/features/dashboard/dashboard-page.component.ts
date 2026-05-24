@@ -747,11 +747,19 @@ export class DashboardPageComponent implements OnInit {
   }
 
   async triggerQuickAction(action: QuickAction) {
-    if (action.icon === 'post_add' && typeof window !== 'undefined') {
-      window.location.assign('/create-invoice');
-      return;
+    if (typeof window === 'undefined') return;
+
+    switch (action.icon) {
+      case 'post_add':
+        window.location.assign('/create-invoice');
+        break;
+      case 'person_add':
+        window.location.assign('/customers');
+        break;
+      case 'add_box':
+        window.location.assign('/products');
+        break;
     }
-    await this.feedback.toast('success', action.label, 'Acción registrada en la interfaz del dashboard.');
   }
 
   async showPeriodDetail(label: string, value: string) {

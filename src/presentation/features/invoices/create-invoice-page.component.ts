@@ -6,6 +6,7 @@ import {
   InvoiceApiService,
   type CustomerRowDto,
   type ProductRowDto,
+  type CreateCustomerPayload,
 } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -13,8 +14,10 @@ import { BillflowPageShellComponent } from '../../shared/components/billflow-pag
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-particles-background.component';
+
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +27,7 @@ interface LineItem {
   productCode: string;
   quantity: number;
   unitPrice: number;
+  maxQuantity: number;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -38,6 +42,7 @@ interface LineItem {
     BillflowMobileSidebarComponent,
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
+    BillflowModalShellComponent,
     DashboardParticlesBackgroundComponent,
   ],
   template: `
@@ -144,22 +149,32 @@ interface LineItem {
                 </button>
               </div>
 
-              <!-- No customer: placeholder + Add button -->
-              <div *ngIf="!selectedCustomer()" class="flex flex-col items-center justify-center py-5 gap-3 text-center relative z-10">
-                <span class="material-symbols-outlined text-[40px] text-outline-variant">person_search</span>
-                <div>
-                  <p class="text-sm font-medium text-on-surface-variant">{{ copy().noCustomerTitle }}</p>
-                  <p class="text-xs text-outline mt-0.5">{{ copy().noCustomerHint }}</p>
-                </div>
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
-                  (click)="openCustomerModal()"
-                >
-                  <span class="material-symbols-outlined text-[18px]">person_add</span>
-                  {{ copy().addCustomerBtn }}
-                </button>
-              </div>
+               <!-- No customer: placeholder + Add button -->
+               <div *ngIf="!selectedCustomer()" class="flex flex-col items-center justify-center py-5 gap-3 text-center relative z-10">
+                 <span class="material-symbols-outlined text-[40px] text-outline-variant">person_search</span>
+                 <div>
+                   <p class="text-sm font-medium text-on-surface-variant">{{ copy().noCustomerTitle }}</p>
+                   <p class="text-xs text-outline mt-0.5">{{ copy().noCustomerHint }}</p>
+                 </div>
+                 <div class="flex gap-2">
+                   <button
+                     type="button"
+                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
+                     (click)="openCustomerModal()"
+                   >
+                     <span class="material-symbols-outlined text-[18px]">person_search</span>
+                     {{ copy().addCustomerBtn }}
+                   </button>
+                   <button
+                     type="button"
+                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container-low transition-all shadow-sm"
+                     (click)="openCreateCustomerModal()"
+                   >
+                     <span class="material-symbols-outlined text-[18px]">person_add</span>
+                     {{ locale() === 'es' ? 'Nuevo Cliente' : 'New Customer' }}
+                   </button>
+                 </div>
+               </div>
 
               <!-- Selected customer chip -->
               <div *ngIf="selectedCustomer() as customer" class="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3.5 relative z-10 border border-outline-variant/40">
@@ -167,7 +182,7 @@ interface LineItem {
                   {{ initials(customer.name, customer.lastName) }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="font-semibold text-sm text-on-surface">{{ customer.name }} {{ customer.lastName }}</p>
+                  <p class="font-semibold text-sm text-on-surface">{{ customerFullName(customer) }}</p>
                   <p class="text-xs text-on-surface-variant mt-0.5">{{ customer.cedula ?? customer.email ?? '' }}</p>
                 </div>
                 <button
@@ -197,7 +212,7 @@ interface LineItem {
                 <div>
                   <label class="block text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1.5">{{ copy().issueDateLabel }}</label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                     [value]="today"
                     disabled
@@ -258,12 +273,39 @@ interface LineItem {
                       <p class="text-xs text-on-surface-variant mt-0.5">{{ item.productCode }}</p>
                     </td>
                     <td class="py-3 px-3 md:px-4 md:py-4 text-right">
-                      <div class="inline-flex items-center border border-outline-variant rounded-lg overflow-hidden bg-surface-container-lowest">
-                        <button type="button" class="px-1.5 md:px-2 py-1 hover:bg-surface-container text-outline transition-colors" (click)="decQty(i)">
+                      <!-- Editing mode -->
+                      <div *ngIf="editingIndex() === i" class="inline-flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          class="w-16 text-center border border-primary rounded-lg px-2 py-1 text-sm font-semibold text-on-surface bg-surface-container-lowest outline-none focus:ring-2 focus:ring-primary/30 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          [value]="editValue()"
+                          (input)="onEditValueChange($event)"
+                          (keydown.enter)="confirmEdit(i)"
+                          (keydown.escape)="cancelEdit()"
+                          (blur)="cancelEdit()"
+                          autofocus
+                        />
+                        <button
+                          type="button"
+                          class="px-2 py-1 rounded-md bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all shadow-sm"
+                          (mousedown)="$event.preventDefault()"
+                          (click)="confirmEdit(i)"
+                        >
+                          {{ locale() === 'es' ? 'Actualizar Valor' : 'Update Value' }}
+                        </button>
+                      </div>
+                      <!-- Display mode: click to edit -->
+                      <div
+                        *ngIf="editingIndex() !== i"
+                        class="inline-flex items-center border border-outline-variant rounded-lg overflow-hidden bg-surface-container-lowest cursor-pointer"
+                        (click)="startEdit(i)"
+                      >
+                        <button type="button" class="px-1.5 md:px-2 py-1 hover:bg-surface-container text-outline transition-colors" (click)="$event.stopPropagation(); decQty(i)">
                           <span class="material-symbols-outlined text-[16px]">remove</span>
                         </button>
-                        <span class="px-2 md:px-3 text-sm font-semibold min-w-[1.5rem] text-center">{{ item.quantity }}</span>
-                        <button type="button" class="px-1.5 md:px-2 py-1 hover:bg-surface-container text-outline transition-colors" (click)="incQty(i)">
+                        <span class="px-2 md:px-3 text-sm font-semibold min-w-[1.5rem] text-center select-none">{{ item.quantity }}</span>
+                        <button type="button" class="px-1.5 md:px-2 py-1 hover:bg-surface-container text-outline transition-colors" (click)="$event.stopPropagation(); incQty(i)">
                           <span class="material-symbols-outlined text-[16px]">add</span>
                         </button>
                       </div>
@@ -271,7 +313,7 @@ interface LineItem {
                     <td class="py-3 px-3 md:px-4 md:py-4 text-right text-sm text-on-surface hidden sm:table-cell">{{ formatMoney(item.unitPrice) }}</td>
                     <td class="py-3 px-3 md:px-4 md:py-4 text-right text-sm font-semibold text-on-surface">{{ formatMoney(item.unitPrice * item.quantity) }}</td>
                     <td class="py-3 px-3 md:px-4 md:py-4 text-center">
-                      <button type="button" class="text-outline hover:text-error transition-colors" (click)="removeItem(i)">
+                      <button type="button" class="text-outline hover:text-error transition-colors" (click)="removeLineItem(i)">
                         <span class="material-symbols-outlined text-[20px]">delete</span>
                       </button>
                     </td>
@@ -310,46 +352,30 @@ interface LineItem {
         </main>
 
         <!-- ── Customer Selection Modal ── -->
-        <div
+        <billflow-modal-shell
           *ngIf="customerModalOpen()"
-          class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
-          (click)="closeCustomerModal()"
+          title="{{ copy().modalTitle }}"
+          [subtitle]="modalTotal() > 0 ? modalTotal() + ' ' + copy().customersFound : copy().searchHint"
+          icon="manage_accounts"
+          maxWidth="lg"
+          [hasFooter]="true"
+          (close)="closeCustomerModal()"
         >
-          <!-- Backdrop -->
-          <div class="absolute inset-0 bg-[#060d1f]/60 backdrop-blur-md"></div>
-
-          <!-- Modal panel: wider, taller -->
-          <div
-            class="relative z-10 w-full max-w-2xl bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/50 flex flex-col overflow-hidden"
-            style="max-height: min(90vh, 680px)"
-            (click)="$event.stopPropagation()"
-          >
-
-            <!-- ── Modal header ── -->
-            <div class="flex items-center justify-between px-6 pt-5 pb-4 border-b border-outline-variant/40 bg-surface/60 flex-shrink-0">
-              <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <span class="material-symbols-outlined text-primary text-[20px]">manage_accounts</span>
-                </div>
-                <div>
-                  <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy().modalTitle }}</h3>
-                  <p class="text-xs text-on-surface-variant mt-0.5">
-                    {{ modalTotal() > 0 ? modalTotal() + ' ' + copy().customersFound : copy().searchHint }}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface transition-all"
-                (click)="closeCustomerModal()"
+          <!-- Search bar + filter -->
+          <div class="px-6 py-3 border-b border-outline-variant/30 flex-shrink-0 bg-surface-container/30">
+            <div class="flex items-center gap-3">
+              <select
+                class="bg-surface border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shrink-0"
+                [value]="customerFilterField()"
+                (change)="onCustomerFilterFieldChange($event)"
               >
-                <span class="material-symbols-outlined text-[20px]">close</span>
-              </button>
-            </div>
-
-            <!-- ── Search bar ── -->
-            <div class="px-6 py-3 border-b border-outline-variant/30 flex-shrink-0 bg-surface-container/30">
-              <div class="relative">
+                <option value="all">{{ locale() === 'es' ? 'Todos' : 'All' }}</option>
+                <option value="name">{{ locale() === 'es' ? 'Nombre' : 'Name' }}</option>
+                <option value="lastName">{{ locale() === 'es' ? 'Apellido' : 'Last Name' }}</option>
+                <option value="cedula">{{ locale() === 'es' ? 'Cédula' : 'ID' }}</option>
+                <option value="email">Email</option>
+              </select>
+              <div class="relative flex-1">
                 <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
                 <input
                   id="modal-customer-search"
@@ -369,299 +395,338 @@ interface LineItem {
                 </button>
               </div>
             </div>
+          </div>
 
-            <!-- ── Table area ── -->
-            <div class="flex-1 overflow-auto">
-              <table class="w-full border-collapse text-sm">
+          <!-- Table area -->
+          <table class="w-full border-collapse text-sm">
+            <thead class="sticky top-0 z-20">
+              <tr class="bg-surface-container border-b-2 border-primary/30">
+                <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary w-20">#</th>
+                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary">Nombre completo</th>
+                <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary hidden sm:table-cell">Email</th>
+                <th class="px-4 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngIf="customerLoading()">
+                <tr *ngFor="let s of skeletonRows">
+                  <td class="px-5 py-3.5 border-b border-outline-variant/20"><div class="h-3.5 w-8 rounded bg-outline-variant/30 animate-pulse"></div></td>
+                  <td class="px-4 py-3.5 border-b border-outline-variant/20"><div class="h-3.5 w-36 rounded bg-outline-variant/30 animate-pulse"></div></td>
+                  <td class="px-4 py-3.5 border-b border-outline-variant/20 hidden sm:table-cell"><div class="h-3.5 w-28 rounded bg-outline-variant/20 animate-pulse"></div></td>
+                  <td class="px-4 py-3.5 border-b border-outline-variant/20"></td>
+                </tr>
+              </ng-container>
+              <tr
+                *ngFor="let c of pagedModalCustomers(); let i = index; let even = even"
+                class="group cursor-pointer transition-colors border-b border-outline-variant/15 hover:bg-primary/5"
+                [class.bg-surface-container-lowest]="even"
+                [class.bg-surface-container]="!even"
+                (click)="selectCustomer(c); closeCustomerModal()"
+              >
+                <td class="px-5 py-3.5"><span class="font-mono text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">{{ c.cedula ?? '—' }}</span></td>
+                <td class="px-4 py-3.5">
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 group-hover:bg-primary/20 transition-colors">{{ initials(c.name, c.lastName) }}</div>
+                    <span class="font-semibold text-on-surface group-hover:text-primary transition-colors">{{ customerFullName(c) }}</span>
+                  </div>
+                </td>
+                <td class="px-4 py-3.5 text-on-surface-variant text-xs hidden sm:table-cell">{{ c.email ?? '—' }}</td>
+                <td class="px-4 py-3.5 text-right"><span class="material-symbols-outlined text-outline/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all text-[18px]">arrow_forward</span></td>
+              </tr>
+              <tr *ngIf="!customerLoading() && modalCustomers().length === 0">
+                <td colspan="4" class="px-5 py-14 text-center">
+                  <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">person_search</span>
+                  <p class="text-sm font-medium text-on-surface-variant">{{ copy().noResultsLabel }}</p>
+                  <p class="text-xs text-outline mt-1">{{ copy().noResultsHint }}</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-                <!-- Sticky column headers -->
-                <thead class="sticky top-0 z-20">
-                  <tr class="bg-surface-container border-b-2 border-primary/30">
-                    <th class="px-5 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary w-20">#</th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary">Nombre completo</th>
-                    <th class="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-widest text-primary hidden sm:table-cell">Email</th>
-                    <th class="px-4 py-3 w-10"></th>
-                  </tr>
-                </thead>
+          <!-- Pagination footer slot -->
+          <div footer class="flex w-full items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+              <ng-container *ngIf="modalCustomers().length > 0">
+                <span>
+                  {{ (modalPage() - 1) * customerPageSize() + 1 }}
+                  –
+                  {{ minOf(modalPage() * customerPageSize(), modalTotal() || modalCustomers().length) }}
+                  {{ locale() === 'es' ? 'de' : 'of' }}
+                  <span class="font-semibold text-on-surface">{{ modalTotal() || modalCustomers().length }}</span>
+                </span>
+              </ng-container>
+              <ng-container *ngIf="modalCustomers().length === 0 && !customerLoading()">
+                {{ locale() === 'es' ? 'Sin resultados' : 'No results' }}
+              </ng-container>
+              <select
+                class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
+                [value]="customerPageSize()"
+                (change)="onCustomerPageSizeChange($event)"
+              >
+                <option [value]="5">5</option>
+                <option [value]="10">10</option>
+                <option [value]="15">15</option>
+                <option [value]="20">20</option>
+                <option [value]="30">30</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="modalPage() <= 1" (click)="prevModalPage()"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+              <button *ngFor="let p of modalPageNumbers()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="p === modalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(p)">{{ p }}</button>
+              <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="modalPage() >= totalModalPages()" (click)="nextModalPage()"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+            </div>
+          </div>
+        </billflow-modal-shell>
 
-                <tbody>
-                  <!-- Loading skeleton rows -->
-                  <ng-container *ngIf="customerLoading()">
-                    <tr *ngFor="let s of skeletonRows">
-                      <td class="px-5 py-3.5 border-b border-outline-variant/20">
-                        <div class="h-3.5 w-8 rounded bg-outline-variant/30 animate-pulse"></div>
-                      </td>
-                      <td class="px-4 py-3.5 border-b border-outline-variant/20">
-                        <div class="h-3.5 w-36 rounded bg-outline-variant/30 animate-pulse"></div>
-                      </td>
-                      <td class="px-4 py-3.5 border-b border-outline-variant/20 hidden sm:table-cell">
-                        <div class="h-3.5 w-28 rounded bg-outline-variant/20 animate-pulse"></div>
-                      </td>
-                      <td class="px-4 py-3.5 border-b border-outline-variant/20"></td>
-                    </tr>
-                  </ng-container>
-
-                  <!-- Data rows -->
-                  <tr
-                    *ngFor="let c of pagedModalCustomers(); let i = index; let even = even"
-                    class="group cursor-pointer transition-colors border-b border-outline-variant/15 hover:bg-primary/5"
-                    [class.bg-surface-container-lowest]="even"
-                    [class.bg-surface-container]="!even"
-                    (click)="selectCustomer(c); closeCustomerModal()"
-                  >
-                    <td class="px-5 py-3.5">
-                      <span class="font-mono text-xs font-semibold text-on-surface-variant group-hover:text-primary transition-colors">
-                        {{ c.cedula ?? '—' }}
-                      </span>
-                    </td>
-                    <td class="px-4 py-3.5">
-                      <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 group-hover:bg-primary/20 transition-colors">
-                          {{ initials(c.name, c.lastName) }}
-                        </div>
-                        <span class="font-semibold text-on-surface group-hover:text-primary transition-colors">
-                          {{ c.name }} {{ c.lastName }}
-                        </span>
-                      </div>
-                    </td>
-                    <td class="px-4 py-3.5 text-on-surface-variant text-xs hidden sm:table-cell">
-                      {{ c.email ?? '—' }}
-                    </td>
-                    <td class="px-4 py-3.5 text-right">
-                      <span class="material-symbols-outlined text-outline/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all text-[18px]">
-                        arrow_forward
-                      </span>
-                    </td>
-                  </tr>
-
-                  <!-- Empty state inside table -->
-                  <tr *ngIf="!customerLoading() && modalCustomers().length === 0">
-                    <td colspan="4" class="px-5 py-14 text-center">
-                      <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">person_search</span>
-                      <p class="text-sm font-medium text-on-surface-variant">{{ copy().noResultsLabel }}</p>
-                      <p class="text-xs text-outline mt-1">{{ copy().noResultsHint }}</p>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+        <!-- ══ New Customer Modal ══ -->
+        <billflow-modal-shell
+          *ngIf="newCustomerModalOpen()"
+          title="{{ locale() === 'es' ? 'Nuevo Cliente' : 'New Customer' }}"
+          subtitle="{{ locale() === 'es' ? 'Completá los datos del nuevo cliente' : 'Fill in the new customer details' }}"
+          icon="person_add"
+          maxWidth="xl"
+          [hasFooter]="true"
+          (close)="closeCreateCustomerModal()"
+        >
+          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- First Name -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Nombre' : 'First Name' }} <span class="text-error">*</span></label>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="100"
+                  [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
+                  [ngModel]="newCustomerFirstName()"
+                  (ngModelChange)="onNameInput($event, 'firstName')"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerFirstName().length }}/100</span>
+              </div>
+              @if (nameFieldError() === 'firstName') {
+                <p class="mt-1 text-xs text-error">
+                  {{ locale() === 'es' ? 'Los nombres no deben contener números' : 'Names must not contain numbers' }}
+                </p>
+              }
             </div>
 
-            <!-- ── Pagination footer (mismo estilo que tabla de facturas) ── -->
-            <div class="flex flex-col gap-3 border-t border-outline-variant/40 bg-surface/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-              <!-- Count label -->
-              <div class="text-sm text-on-surface-variant">
-                <ng-container *ngIf="modalCustomers().length > 0">
-                  Mostrando
-                  <span class="font-semibold text-on-surface">{{ (modalPage() - 1) * modalPageSize + 1 }}</span>
-                  a
-                  <span class="font-semibold text-on-surface">{{ minOf(modalPage() * modalPageSize, modalTotal() || modalCustomers().length) }}</span>
-                  de
-                  <span class="font-semibold text-on-surface">{{ modalTotal() || modalCustomers().length }}</span>
-                  clientes
-                </ng-container>
-                <ng-container *ngIf="modalCustomers().length === 0 && !customerLoading()">
-                  Sin resultados
-                </ng-container>
+            <!-- Last Name -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Apellido' : 'Last Name' }} <span class="text-error">*</span></label>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="100"
+                  [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
+                  [ngModel]="newCustomerLastName()"
+                  (ngModelChange)="onNameInput($event, 'lastName')"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerLastName().length }}/100</span>
               </div>
+              @if (nameFieldError() === 'lastName') {
+                <p class="mt-1 text-xs text-error">
+                  {{ locale() === 'es' ? 'Los nombres no deben contener números' : 'Names must not contain numbers' }}
+                </p>
+              }
+            </div>
 
-              <!-- Page buttons -->
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="modalPage() <= 1"
-                  (click)="prevModalPage()"
-                >
-                  <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-                </button>
+            <!-- Cédula -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Cédula' : 'ID Number' }} <span class="text-error">*</span></label>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="10"
+                  [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
+                  [ngModel]="newCustomerCedula()"
+                  (ngModelChange)="onNumericInput($event, 'cedula')"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerCedula().length }}/10</span>
+              </div>
+            </div>
 
-                <button
-                  *ngFor="let p of modalPageNumbers()"
-                  type="button"
-                  class="h-9 w-9 rounded-lg text-sm font-semibold transition"
-                  [ngClass]="p === modalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'"
-                  (click)="goToPage(p)"
-                >
-                  {{ p }}
-                </button>
+            <!-- Phone -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Teléfono' : 'Phone' }}</label>
+              <div class="relative">
+                <input
+                  type="tel"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="20"
+                  [placeholder]="locale() === 'es' ? 'Ej: +595 981 123456' : 'e.g. +1 555 123 4567'"
+                  [ngModel]="newCustomerPhone()"
+                  (ngModelChange)="onNumericInput($event, 'phone')"
+                />
+              </div>
+            </div>
 
-                <button
-                  type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="modalPage() >= totalModalPages()"
-                  (click)="nextModalPage()"
-                >
-                  <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                </button>
+            <!-- Email -->
+            <div class="md:col-span-2">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">Email</label>
+              <div class="relative">
+                <input
+                  type="email"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="255"
+                  [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
+                  [ngModel]="newCustomerEmail()"
+                  (ngModelChange)="newCustomerEmail.set($event)"
+                />
+                <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerEmail().length }}/255</span>
               </div>
             </div>
           </div>
-        </div>
 
-      <!-- ══ Product Modal ══ -->
-
-      <div
-        *ngIf="productModalOpen()"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        (click)="closeProductModal()"
-      >
-        <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <div
-          class="relative w-full max-w-3xl bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/60 flex flex-col max-h-[88vh] overflow-hidden"
-          (click)="$event.stopPropagation()"
-        >
-          <!-- Header -->
-          <div class="flex items-center gap-3 px-6 py-4 border-b border-outline-variant/50 bg-surface/60 flex-shrink-0">
-            <div class="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-              <span class="material-symbols-outlined text-primary text-[20px]">inventory_2</span>
-            </div>
-            <div>
-              <h3 class="text-base font-bold text-on-surface leading-tight">{{ copy().productModalTitle }}</h3>
-              <p class="text-xs text-on-surface-variant mt-0.5">
-                {{ productModalTotal() > 0 ? productModalTotal() + (locale() === 'es' ? ' productos' : ' products') : copy().productModalSearchPlaceholder }}
-              </p>
-            </div>
-            <button type="button" class="ml-auto text-outline hover:text-on-surface transition-colors" (click)="closeProductModal()">
-              <span class="material-symbols-outlined text-[22px]">close</span>
+          <div footer class="flex w-full items-center justify-end gap-3">
+            <button
+              type="button"
+              class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
+              (click)="closeCreateCustomerModal()"
+            >
+              {{ locale() === 'es' ? 'Cancelar' : 'Cancel' }}
+            </button>
+            <button
+              type="button"
+              class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
+              [disabled]="!newCustomerFormValid()"
+              (click)="saveNewCustomer()"
+            >
+              {{ locale() === 'es' ? 'Guardar Cliente' : 'Save Customer' }}
             </button>
           </div>
+        </billflow-modal-shell>
+        <!-- ══ /New Customer Modal ══ -->
 
-          <!-- Search -->
-          <div class="px-6 py-3 border-b border-outline-variant/30 bg-surface/40 flex-shrink-0 relative">
-            <span class="material-symbols-outlined absolute left-9 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
-            <input
-              id="product-modal-search"
-              type="text"
-              class="w-full pl-10 pr-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [placeholder]="copy().productModalSearchPlaceholder"
-              [ngModel]="productQuery()"
-              (ngModelChange)="onProductModalSearch($event)"
-            />
+        <!-- ══ Product Modal ══ -->
+        <billflow-modal-shell
+          *ngIf="productModalOpen()"
+          title="{{ copy().productModalTitle }}"
+          [subtitle]="productModalTotal() > 0 ? productModalTotal() + (locale() === 'es' ? ' productos' : ' products') : copy().productModalSearchPlaceholder"
+          icon="inventory_2"
+          maxWidth="lg"
+          [hasFooter]="true"
+          (close)="closeProductModal()"
+        >
+          <!-- Search + filter -->
+          <div class="px-6 py-3 border-b border-outline-variant/30 bg-surface/40 flex-shrink-0">
+            <div class="flex items-center gap-3">
+              <select
+                class="bg-surface border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shrink-0"
+                [value]="productFilterField()"
+                (change)="onProductFilterFieldChange($event)"
+              >
+                <option value="all">{{ locale() === 'es' ? 'Todos' : 'All' }}</option>
+                <option value="name">{{ locale() === 'es' ? 'Nombre' : 'Name' }}</option>
+                <option value="code">{{ locale() === 'es' ? 'Código' : 'Code' }}</option>
+                <option value="description">{{ locale() === 'es' ? 'Descripción' : 'Description' }}</option>
+              </select>
+              <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+                <input
+                  id="product-modal-search"
+                  type="text"
+                  class="w-full pl-10 pr-10 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [placeholder]="copy().productModalSearchPlaceholder"
+                  [ngModel]="productQuery()"
+                  (ngModelChange)="onProductModalSearch($event)"
+                />
+                <button
+                  *ngIf="productQuery()"
+                  type="button"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface transition-colors"
+                  (click)="onProductModalSearch('')"
+                >
+                  <span class="material-symbols-outlined text-[16px]">close</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- Table -->
-          <div class="overflow-y-auto flex-1">
-            <table class="w-full text-left border-collapse">
-              <thead class="sticky top-0 z-10">
-                <tr class="bg-surface-container border-b-2 border-primary/20">
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant w-24">{{ copy().productModalColCode }}</th>
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{{ copy().productModalColName }}</th>
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().productModalColPrice }}</th>
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">{{ copy().productModalColStock }}</th>
-                  <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-center w-32">{{ copy().productModalColQty }}</th>
-                  </tr>
-                </thead>
-              <tbody>
-                <ng-container *ngIf="productModalLoading()">
-                  <tr *ngFor="let s of skeletonRows" class="border-b border-outline-variant/20 animate-pulse">
-                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-8"></div></td>
-                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-40"></div></td>
-                    <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-16 ml-auto"></div></td>
-                    <td class="py-3 px-4 hidden sm:table-cell"><div class="h-3 bg-outline-variant/30 rounded w-10 ml-auto"></div></td>
-                    <td class="py-3 px-4"></td>
-                  </tr>
-                </ng-container>
-                <tr
-                  *ngFor="let p of visibleProductModalResults()"
-                  class="border-b border-outline-variant/20 hover:bg-primary/5 transition-colors"
-                >
-                  <td class="py-3 px-4 text-xs text-outline font-mono">{{ p.code }}</td>
-                  <td class="py-3 px-4">
-                    <p class="text-sm font-semibold text-on-surface leading-tight">{{ p.name }}</p>
-                    <p class="text-xs text-outline mt-0.5">{{ p.code }}</p>
-                  </td>
-                  <td class="py-3 px-4 text-right text-sm font-bold text-primary">{{ formatMoney(p.unitPrice) }}</td>
-                  <td class="py-3 px-4 text-right hidden sm:table-cell">
-                    <span [class]="p.availableQuantity > 0 ? 'text-xs font-semibold text-tertiary' : 'text-xs font-semibold text-error'">{{ p.availableQuantity }}</span>
-                  </td>
-                  <td class="py-3 px-4">
-                    <div class="flex items-center justify-center gap-1">
-                      <button type="button" class="w-6 h-6 rounded-md bg-surface-container hover:bg-primary/10 flex items-center justify-center transition-colors" (click)="decModalQty(p.id)">
-                        <span class="material-symbols-outlined text-[14px]">remove</span>
-                      </button>
-                      <span class="w-8 text-center text-sm font-bold text-on-surface">{{ getModalQty(p.id) }}</span>
-                      <button type="button" class="w-6 h-6 rounded-md bg-surface-container hover:bg-primary/10 flex items-center justify-center transition-colors" (click)="incModalQty(p.id)">
-                        <span class="material-symbols-outlined text-[14px]">add</span>
-                      </button>
-                    </div>
-                  </td>
-                    
-                  </tr>
-                  <tr *ngIf="!productModalLoading() && visibleProductModalResults().length === 0">
-                    <td colspan="5" class="py-16 text-center">
-                    <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">inventory_2</span>
-                    <p class="text-sm font-medium text-on-surface-variant">{{ copy().productModalNoResults }}</p>
-                    <p class="text-xs text-outline mt-1">{{ copy().productModalNoResultsHint }}</p>
-                  </td>
+          <table class="w-full text-left border-collapse">
+            <thead class="sticky top-0 z-10">
+              <tr class="bg-surface-container border-b-2 border-primary/20">
+                <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant w-24">{{ copy().productModalColCode }}</th>
+                <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">{{ copy().productModalColName }}</th>
+                <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right">{{ copy().productModalColPrice }}</th>
+                <th class="py-3 px-4 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant text-right hidden sm:table-cell">{{ copy().productModalColStock }}</th>
+                <th class="py-3 px-4 w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <ng-container *ngIf="productModalLoading()">
+                <tr *ngFor="let s of skeletonRows" class="border-b border-outline-variant/20 animate-pulse">
+                  <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-8"></div></td>
+                  <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-40"></div></td>
+                  <td class="py-3 px-4"><div class="h-3 bg-outline-variant/30 rounded w-16 ml-auto"></div></td>
+                  <td class="py-3 px-4 hidden sm:table-cell"><div class="h-3 bg-outline-variant/30 rounded w-10 ml-auto"></div></td>
+                  <td class="py-3 px-4"></td>
                 </tr>
-              </tbody>
-            </table>
-          </div>
+              </ng-container>
+              <tr
+                *ngFor="let p of visibleProductModalResults()"
+                class="border-b border-outline-variant/20 hover:bg-primary/5 cursor-pointer transition-colors"
+                (click)="selectProductFromModal(p)"
+              >
+                <td class="py-3 px-4 text-xs text-outline font-mono">{{ p.code }}</td>
+                <td class="py-3 px-4">
+                  <p class="text-sm font-semibold text-on-surface leading-tight">{{ p.name }}</p>
+                  <p class="text-xs text-outline mt-0.5">{{ p.code }}</p>
+                </td>
+                <td class="py-3 px-4 text-right text-sm font-bold text-primary">{{ formatMoney(p.unitPrice) }}</td>
+                <td class="py-3 px-4 text-right hidden sm:table-cell">
+                  <span [class]="p.availableQuantity > 0 ? 'text-xs font-semibold text-tertiary' : 'text-xs font-semibold text-error'">{{ p.availableQuantity }}</span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <span class="material-symbols-outlined text-outline/40 hover:text-primary transition-all text-[18px]">arrow_forward</span>
+                </td>
+              </tr>
+              <tr *ngIf="!productModalLoading() && visibleProductModalResults().length === 0">
+                <td colspan="5" class="py-16 text-center">
+                  <span class="material-symbols-outlined text-[44px] text-outline-variant block mb-3">inventory_2</span>
+                  <p class="text-sm font-medium text-on-surface-variant">{{ copy().productModalNoResults }}</p>
+                  <p class="text-xs text-outline mt-1">{{ copy().productModalNoResultsHint }}</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          <!-- Pagination -->
-          <div class="flex flex-col gap-3 border-t border-outline-variant/40 bg-surface/60 px-6 py-4 sm:flex-row sm:items-center sm:justify-between flex-shrink-0">
-            <div class="text-sm text-on-surface-variant">
+          <!-- Pagination footer slot -->
+          <div footer class="flex w-full items-center justify-between gap-3">
+            <div class="flex items-center gap-3 text-sm text-on-surface-variant">
               <ng-container *ngIf="productModalTotal() > 0">
-                {{ locale() === 'es' ? 'Página' : 'Page' }}
-                <span class="font-semibold text-on-surface">{{ productModalPage() }}</span>
-                {{ locale() === 'es' ? 'de' : 'of' }}
-                <span class="font-semibold text-on-surface">{{ totalProductModalPages() }}</span>
+                <span>
+                  {{ locale() === 'es' ? 'Página' : 'Page' }}
+                  <span class="font-semibold text-on-surface">{{ productModalPage() }}</span>
+                  {{ locale() === 'es' ? 'de' : 'of' }}
+                  <span class="font-semibold text-on-surface">{{ totalProductModalPages() }}</span>
+                </span>
               </ng-container>
               <ng-container *ngIf="visibleProductModalResults().length === 0 && !productModalLoading()">
                 {{ copy().productModalNoResults }}
               </ng-container>
+              <select
+                class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
+                [value]="productModalPageSize()"
+                (change)="onProductPageSizeChange($event)"
+              >
+                <option [value]="5">5</option>
+                <option [value]="10">10</option>
+                <option [value]="15">15</option>
+                <option [value]="20">20</option>
+                <option [value]="30">30</option>
+              </select>
             </div>
-
             <div class="flex items-center gap-2">
-              <button
-                type="button"
-                class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                [disabled]="productModalPage() <= 1"
-                (click)="prevProductModalPage()"
-              >
-                <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-              </button>
-
-              <button
-                *ngFor="let p of productModalPageNumbers()"
-                type="button"
-                class="h-9 w-9 rounded-lg text-sm font-semibold transition"
-                [ngClass]="p === productModalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'"
-                (click)="goToProductModalPage(p)"
-              >
-                {{ p }}
-              </button>
-
-              <button
-                type="button"
-                class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                [disabled]="productModalPage() >= totalProductModalPages()"
-                (click)="nextProductModalPage()"
-              >
-                <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-              </button>
+              <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="productModalPage() <= 1" (click)="prevProductModalPage()"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+              <button *ngFor="let p of productModalPageNumbers()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="p === productModalPage() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToProductModalPage(p)">{{ p }}</button>
+              <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="productModalPage() >= totalProductModalPages()" (click)="nextProductModalPage()"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
             </div>
           </div>
-
-          <!-- Footer -->
-          <div class="px-6 py-4 border-t border-outline-variant/40 bg-surface/60 flex items-center justify-between flex-shrink-0">
-            <span class="text-xs text-on-surface-variant">
-              {{ productModalSelectedCount() }} {{ locale() === 'es' ? 'seleccionados' : 'selected' }}
-            </span>
-            <button
-              type="button"
-              id="product-modal-add-all-btn"
-              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all disabled:opacity-40 disabled:pointer-events-none"
-              [disabled]="productModalSelectedCount() === 0"
-              (click)="addAllFromModal()"
-            >
-              <span class="material-symbols-outlined text-[18px]">shopping_cart_checkout</span>
-              {{ copy().productModalAddBtn }}
-            </button>
-          </div>
-        </div>
-      </div>
-      <!-- ══ /Product Modal ══ -->
+        </billflow-modal-shell>
+        <!-- ══ /Product Modal ══ -->
 
       </div><!-- /flex-1 wrapper -->
     </billflow-page-shell>
@@ -726,8 +791,7 @@ export class CreateInvoicePageComponent implements OnInit {
        productModalColName: 'Nombre',
        productModalColPrice: 'Precio',
        productModalColStock: 'Stock',
-       productModalColQty: 'Cantidad',
-        productModalAddBtn: 'Agregar al carrito',
+
       productModalNoResults: 'No se encontraron productos',
        productModalNoResultsHint: 'Intentá con otro nombre o código, o revisá el stock',
       productModalOpenBtn: 'Buscar Producto',
@@ -781,8 +845,6 @@ export class CreateInvoicePageComponent implements OnInit {
        productModalColName: 'Name',
        productModalColPrice: 'Price',
        productModalColStock: 'Stock',
-       productModalColQty: 'Quantity',
-        productModalAddBtn: 'Add to cart',
       productModalNoResults: 'No products found',
        productModalNoResultsHint: 'Try another name or code, or check stock',
       productModalOpenBtn: 'Browse Products',
@@ -796,6 +858,10 @@ export class CreateInvoicePageComponent implements OnInit {
   userMenuVisible = signal(false);
   userMenuClosing = signal(false);
   private userMenuCloseTimeout: number | undefined;
+
+  // ── Search filter fields ──────────────────────────────────────────────────
+  customerFilterField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email'>('all');
+  productFilterField = signal<'all' | 'name' | 'code' | 'description'>('all');
 
   // ── Sidebar ───────────────────────────────────────────────────────────────
   readonly sidebarItems = computed(() => {
@@ -812,6 +878,46 @@ export class CreateInvoicePageComponent implements OnInit {
     );
   });
 
+  // ── Customer creation modal ──────────────────────────────────────────────
+  newCustomerModalOpen = signal(false);
+  newCustomerFirstName = signal('');
+  newCustomerLastName = signal('');
+  newCustomerCedula = signal('');
+  newCustomerEmail = signal('');
+  newCustomerPhone = signal('');
+
+  /** Rastrea qué campo de nombre tiene un error por caracter inválido */
+  nameFieldError = signal<'firstName' | 'lastName' | null>(null);
+
+  /** Validación: nombre, apellido requeridos y cédula de 10 dígitos */
+  readonly newCustomerFormValid = computed(() =>
+    this.newCustomerFirstName().trim().length > 0
+    && this.newCustomerLastName().trim().length > 0
+    && this.newCustomerCedula().trim().length === 10
+  );
+
+  /** Solo letras (incluyendo acentos y ñ) para nombre/apellido */
+  onNameInput(value: string, target: 'firstName' | 'lastName') {
+    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]/g, '');
+    if (target === 'firstName') this.newCustomerFirstName.set(cleaned);
+    else this.newCustomerLastName.set(cleaned);
+
+    if (value !== cleaned) {
+      this.nameFieldError.set(target);
+    } else if (this.nameFieldError() === target) {
+      this.nameFieldError.set(null);
+    }
+  }
+
+  /** Solo dígitos para cédula/teléfono */
+  onNumericInput(value: string, target: 'cedula' | 'phone') {
+    if (target === 'cedula') {
+      this.newCustomerCedula.set(value.replace(/\D/g, '').slice(0, 10));
+    } else {
+      this.newCustomerPhone.set(value.replace(/\D/g, ''));
+    }
+  }
+
   // ── Customer search & modal ───────────────────────────────────────────────
   customerQuery = signal('');
   customerResults = signal<CustomerRowDto[]>([]);
@@ -822,10 +928,10 @@ export class CreateInvoicePageComponent implements OnInit {
   modalCustomers = signal<CustomerRowDto[]>([]);
   modalPage = signal(1);               // 1-based, matches backend
   modalTotal = signal(0);
-  readonly modalPageSize = 10;
+  customerPageSize = signal(5);
   readonly totalModalPages = computed(() => {
     const total = this.modalTotal() || this.modalCustomers().length;
-    return Math.max(1, Math.ceil(total / this.modalPageSize));
+    return Math.max(1, Math.ceil(total / this.customerPageSize()));
   });
   // pagedModalCustomers ya viene paginado del backend — es directamente modalCustomers()
   readonly pagedModalCustomers = computed(() => this.modalCustomers());
@@ -852,25 +958,17 @@ export class CreateInvoicePageComponent implements OnInit {
   productModalTotal   = signal(0);
   productQuery        = signal('');
   productModalPage    = signal(1);
-  readonly productModalPageSize = 10;
-  /** Map of productId → desired quantity in the modal */
-  private productModalQtyMap = signal<Record<string, number>>({});
-  private productModalCatalog = signal<Record<string, ProductRowDto>>({});
+  productModalPageSize = signal(5);
   private productModalSearchTimeout: number | undefined;
-  private productSearchRequestId = 0;
   private productModalRequestId = 0;
 
   readonly visibleProductModalResults = computed(() =>
     this.productModalResults().filter((product) => product.availableQuantity > 0)
   );
 
-  readonly productModalSelectedCount = computed(() =>
-    Object.values(this.productModalQtyMap()).reduce((s, q) => s + (q > 0 ? 1 : 0), 0)
-  );
-
   readonly totalProductModalPages = computed(() => {
     const total = this.productModalTotal() || this.visibleProductModalResults().length;
-    return Math.max(1, Math.ceil(total / this.productModalPageSize));
+    return Math.max(1, Math.ceil(total / this.productModalPageSize()));
   });
 
   readonly productModalPageNumbers = computed(() => {
@@ -884,12 +982,12 @@ export class CreateInvoicePageComponent implements OnInit {
     return pages;
   });
 
-  // legacy kept for backward compat (not used in UI anymore)
-  productResults = signal<ProductRowDto[]>([]);
-  private productSearchTimeout: number | undefined;
-
   // ── Line items ────────────────────────────────────────────────────────────
   lineItems = signal<LineItem[]>([]);
+  /** Index of the line item currently being edited (quantity) */
+  editingIndex = signal<number | null>(null);
+  /** Buffer for the quantity value being edited */
+  editValue = signal<number>(0);
 
   // ── Totals ────────────────────────────────────────────────────────────────
   readonly subtotal = computed(() =>
@@ -904,7 +1002,31 @@ export class CreateInvoicePageComponent implements OnInit {
     () => !!this.selectedCustomer() && this.lineItems().length > 0 && !this.submitting()
   );
 
-  readonly today = new Date().toISOString().split('T')[0];
+  readonly today = (() => {
+    const now = new Date();
+    const utcHours = now.getUTCHours();
+    const utcDate = now.getUTCDate();
+    const utcMonth = now.getUTCMonth();
+    const utcYear = now.getUTCFullYear();
+    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+
+    let h = utcHours - 5;
+    let d = utcDate;
+    let m = utcMonth;
+    let y = utcYear;
+
+    if (h < 0) {
+      h += 24;
+      d--;
+      if (d < 1) {
+        m--;
+        if (m < 0) { m = 11; y--; }
+        d = new Date(y, m + 1, 0).getDate();
+      }
+    }
+
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}T${String(h).padStart(2, '0')}:${minutes}`;
+  })();
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -935,6 +1057,40 @@ export class CreateInvoicePageComponent implements OnInit {
     this.customerModalRequestId++;
   }
 
+  /** Opens the new customer creation modal */
+  openCreateCustomerModal() {
+    this.newCustomerFirstName.set('');
+    this.newCustomerLastName.set('');
+    this.newCustomerCedula.set('');
+    this.newCustomerEmail.set('');
+    this.newCustomerPhone.set('');
+    this.newCustomerModalOpen.set(true);
+  }
+
+  closeCreateCustomerModal() {
+    this.newCustomerModalOpen.set(false);
+  }
+
+  /** Creates a new customer, selects it, and closes both modals */
+  async saveNewCustomer() {
+    const payload: CreateCustomerPayload = {
+      firstName: this.newCustomerFirstName().trim(),
+      lastName: this.newCustomerLastName().trim(),
+      cedula: this.newCustomerCedula().trim(),
+      email: this.newCustomerEmail().trim() || undefined,
+      phone: this.newCustomerPhone().trim() || undefined,
+    };
+    try {
+      const customer = await this.api.createCustomer(payload);
+      this.selectCustomer(customer);
+      this.newCustomerModalOpen.set(false);
+      this.feedback.toast('success', this.locale() === 'es' ? 'Cliente creado correctamente' : 'Customer created successfully');
+    } catch (err) {
+      console.error('[create customer]', err);
+      this.feedback.toast('error', this.locale() === 'es' ? 'Error al crear cliente' : 'Error creating customer');
+    }
+  }
+
   onModalCustomerSearch(value: string) {
     this.customerQuery.set(value);
     this.modalPage.set(1);
@@ -947,9 +1103,10 @@ export class CreateInvoicePageComponent implements OnInit {
   private async loadModalPage(page: number) {
     const requestId = ++this.customerModalRequestId;
     const query = this.customerQuery().trim();
+    const field = this.customerFilterField();
     this.customerLoading.set(true);
     try {
-      const res = await this.api.fetchCustomersPage(query, page, this.modalPageSize);
+      const res = await this.api.fetchCustomersPage(query, page, this.customerPageSize(), field);
       if (requestId !== this.customerModalRequestId) return;
       this.modalCustomers.set(res.data);
       this.modalTotal.set(res.pagination?.total ?? res.data.length);
@@ -1009,7 +1166,7 @@ export class CreateInvoicePageComponent implements OnInit {
   selectCustomer(c: CustomerRowDto) {
     this.selectedCustomer.set(c);
     this.customerResults.set([]);
-    this.customerQuery.set(`${c.name} ${c.lastName}`);
+    this.customerQuery.set([c.name, c.lastName].filter(Boolean).join(' '));
     this.customerSearchRequestId++;
     this.changingCustomer.set(false);
   }
@@ -1022,51 +1179,34 @@ export class CreateInvoicePageComponent implements OnInit {
     this.changingCustomer.set(false);
   }
 
-  // ── Products ──────────────────────────────────────────────────────────────
+  // ── Filter field + page size handlers ──────────────────────────────────────
 
-  onProductSearch(value: string) {
-    this.productQuery.set(value);
-    if (typeof window !== 'undefined') window.clearTimeout(this.productSearchTimeout);
-    if (!value.trim()) {
-      this.productSearchRequestId++;
-      this.productResults.set([]);
-      return;
-    }
-
-    this.productSearchTimeout = typeof window !== 'undefined'
-      ? window.setTimeout(() => { void this.fetchProducts(value); }, 350)
-      : undefined;
+  onCustomerFilterFieldChange(event: Event) {
+    const value = (event.target as HTMLSelectElement).value as 'all' | 'name' | 'lastName' | 'cedula' | 'email';
+    this.customerFilterField.set(value);
+    this.modalPage.set(1);
+    void this.loadModalPage(1);
   }
 
-  private async fetchProducts(q: string) {
-    const requestId = ++this.productSearchRequestId;
-    try {
-      const res = await this.api.searchProducts(q);
-      if (requestId !== this.productSearchRequestId) return;
-      this.productResults.set(res.data);
-    } catch {
-      if (requestId !== this.productSearchRequestId) return;
-      this.productResults.set([]);
-    }
+  onCustomerPageSizeChange(event: Event) {
+    const value = Number((event.target as HTMLSelectElement).value);
+    this.customerPageSize.set(value);
+    this.modalPage.set(1);
+    void this.loadModalPage(1);
   }
 
-  addProduct(p: ProductRowDto) {
-    const existing = this.lineItems().findIndex((i) => i.productId === p.id);
-    if (existing >= 0) {
-      this.lineItems.update((items) =>
-        items.map((item, idx) =>
-          idx === existing ? { ...item, quantity: item.quantity + 1 } : item
-        )
-      );
-    } else {
-      this.lineItems.update((items) => [
-        ...items,
-        { productId: p.id, productName: p.name, productCode: p.code, quantity: 1, unitPrice: p.unitPrice },
-      ]);
-    }
-    this.productQuery.set('');
-    this.productResults.set([]);
-    this.productSearchRequestId++;
+  onProductFilterFieldChange(event: Event) {
+    const value = (event.target as HTMLSelectElement).value as 'all' | 'name' | 'code' | 'description';
+    this.productFilterField.set(value);
+    this.productModalPage.set(1);
+    void this.loadProductModalPage(1);
+  }
+
+  onProductPageSizeChange(event: Event) {
+    const value = Number((event.target as HTMLSelectElement).value);
+    this.productModalPageSize.set(value);
+    this.productModalPage.set(1);
+    void this.loadProductModalPage(1);
   }
 
   // ── Product modal methods ──────────────────────────────────────────────────
@@ -1076,8 +1216,6 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productModalResults.set([]);
     this.productModalTotal.set(0);
     this.productModalPage.set(1);
-    this.productModalQtyMap.set({});
-    this.productModalCatalog.set({});
     this.productModalRequestId++;
     this.productModalOpen.set(true);
     void this.loadProductModalPage(1);
@@ -1087,8 +1225,6 @@ export class CreateInvoicePageComponent implements OnInit {
     this.productModalOpen.set(false);
     this.productQuery.set('');
     this.productModalResults.set([]);
-    this.productModalQtyMap.set({});
-    this.productModalCatalog.set({});
     this.productModalPage.set(1);
     this.productModalRequestId++;
   }
@@ -1106,18 +1242,14 @@ export class CreateInvoicePageComponent implements OnInit {
   private async loadProductModalPage(page: number) {
     const requestId = ++this.productModalRequestId;
     const query = this.productQuery().trim();
+    const field = this.productFilterField();
     this.productModalLoading.set(true);
     try {
-      const res = await this.api.fetchProductsPage(query, page, this.productModalPageSize);
+      const res = await this.api.fetchProductsPage(query, page, this.productModalPageSize(), field);
       if (requestId !== this.productModalRequestId) return;
       this.productModalResults.set(res.data);
       this.productModalTotal.set(res.pagination?.total ?? res.data.length);
       this.productModalPage.set(page);
-      this.productModalCatalog.update((current) => {
-        const next = { ...current };
-        for (const product of res.data) next[product.id] = product;
-        return next;
-      });
     } catch {
       if (requestId !== this.productModalRequestId) return;
       this.productModalResults.set([]);
@@ -1143,70 +1275,96 @@ export class CreateInvoicePageComponent implements OnInit {
     void this.loadProductModalPage(p);
   }
 
-  getModalQty(productId: string): number {
-    return this.productModalQtyMap()[productId] ?? 0;
-  }
-
-  incModalQty(productId: string) {
-    const product = this.productModalCatalog()[productId];
-    const current = this.productModalQtyMap()[productId] ?? 0;
-    const max = product?.availableQuantity ?? Number.MAX_SAFE_INTEGER;
-    if (current >= max) return;
-    this.productModalQtyMap.update((m) => ({ ...m, [productId]: current + 1 }));
-  }
-
-  decModalQty(productId: string) {
-    const cur = this.productModalQtyMap()[productId] ?? 0;
-    if (cur <= 0) return;
-    this.productModalQtyMap.update((m) => ({ ...m, [productId]: cur - 1 }));
-  }
-
-  /** Add all products that have qty > 0 in the map */
-  addAllFromModal() {
-    const map = this.productModalQtyMap();
-    const catalog = this.productModalCatalog();
-    for (const [productId, qty] of Object.entries(map)) {
-      if (qty <= 0) continue;
-      const product = catalog[productId];
-      if (!product || product.availableQuantity <= 0) continue;
-      this.mergeIntoCart(product, Math.min(qty, product.availableQuantity));
-    }
-    this.closeProductModal();
-  }
-
-  private mergeIntoCart(p: ProductRowDto, qty: number) {
-    const existing = this.lineItems().findIndex(i => i.productId === p.id);
+  selectProductFromModal(product: ProductRowDto) {
+    const existing = this.lineItems().findIndex(i => i.productId === product.id);
     if (existing >= 0) {
+      const currentItem = this.lineItems()[existing];
+      if (currentItem.quantity >= product.availableQuantity) {
+        this.feedback.toast('warning', this.locale() === 'es'
+          ? `Stock máximo alcanzado (${product.availableQuantity})`
+          : `Maximum stock reached (${product.availableQuantity})`);
+        this.closeProductModal();
+        return;
+      }
       this.lineItems.update(items =>
         items.map((item, idx) =>
-          idx === existing ? { ...item, quantity: item.quantity + qty } : item
+          idx === existing ? { ...item, quantity: item.quantity + 1 } : item
         )
       );
     } else {
       this.lineItems.update(items => [
         ...items,
-        { productId: p.id, productName: p.name, productCode: p.code, quantity: qty, unitPrice: p.unitPrice },
+        { productId: product.id, productName: product.name, productCode: product.code, quantity: 1, unitPrice: product.unitPrice, maxQuantity: product.availableQuantity },
       ]);
     }
+    this.closeProductModal();
   }
 
   incQty(index: number) {
     this.lineItems.update((items) =>
-      items.map((item, i) => (i === index ? { ...item, quantity: item.quantity + 1 } : item))
+      items.map((item, i) => {
+        if (i !== index) return item;
+        if (item.quantity >= item.maxQuantity) {
+          this.feedback.toast('warning', this.locale() === 'es'
+            ? `Stock máximo: ${item.maxQuantity}`
+            : `Max stock: ${item.maxQuantity}`);
+          return item;
+        }
+        return { ...item, quantity: item.quantity + 1 };
+      })
     );
   }
 
   decQty(index: number) {
-    const item = this.lineItems()[index];
-    if (item.quantity <= 1) { this.removeItem(index); return; }
     this.lineItems.update((items) =>
-      items.map((it, i) => (i === index ? { ...it, quantity: it.quantity - 1 } : it))
+      items.map((item, i) => (i === index ? { ...item, quantity: Math.max(1, item.quantity - 1) } : item))
     );
   }
 
-  removeItem(index: number) {
+  removeLineItem(index: number) {
     this.lineItems.update((items) => items.filter((_, i) => i !== index));
   }
+
+  /** Inicia edición inline de cantidad */
+  startEdit(index: number) {
+    const currentQty = this.lineItems()[index].quantity;
+    this.editingIndex.set(index);
+    this.editValue.set(currentQty);
+  }
+
+  confirmEdit(index: number) {
+    const value = this.editValue();
+    if (Number.isFinite(value) && value >= 1) {
+      const floorVal = Math.floor(value);
+      const item = this.lineItems()[index];
+      if (floorVal > item.maxQuantity) {
+        this.feedback.toast('warning', this.locale() === 'es'
+          ? `Stock máximo: ${item.maxQuantity}`
+          : `Max stock: ${item.maxQuantity}`);
+        this.cancelEdit();
+        return;
+      }
+      this.lineItems.update((items) =>
+        items.map((item, i) =>
+          i === index ? { ...item, quantity: floorVal } : item
+        )
+      );
+    }
+    this.editingIndex.set(null);
+    this.editValue.set(0);
+  }
+
+  cancelEdit() {
+    this.editingIndex.set(null);
+    this.editValue.set(0);
+  }
+
+  onEditValueChange(event: Event) {
+    const raw = (event.target as HTMLInputElement).value;
+    const parsed = parseInt(raw, 10);
+    this.editValue.set(Number.isFinite(parsed) && parsed >= 1 ? parsed : 1);
+  }
+
 
   // ── Submit ────────────────────────────────────────────────────────────────
 
@@ -1240,8 +1398,6 @@ export class CreateInvoicePageComponent implements OnInit {
     this.clearCustomer();
     this.lineItems.set([]);
     this.productQuery.set('');
-    this.productResults.set([]);
-    this.productSearchRequestId++;
   }
 
   // ── User menu ─────────────────────────────────────────────────────────────
@@ -1285,8 +1441,14 @@ export class CreateInvoicePageComponent implements OnInit {
     );
   }
 
-  initials(name: string, lastName: string) {
-    return `${name[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
+  initials(name: string, lastName?: string) {
+    return `${name[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
+  }
+
+  customerFullName(c: { name: string; lastName?: string }): string {
+    return c.lastName?.trim()
+      ? `${c.name} ${c.lastName}`
+      : c.name;
   }
 
   private applyStoredUser() {

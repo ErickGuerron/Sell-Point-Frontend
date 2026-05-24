@@ -47,6 +47,21 @@ export class UiFeedbackService {
     });
   }
 
+  async alertHtml(icon: ToastIcon, title: string, html: string) {
+    const Swal = await this.loadSwal();
+    const dark = this.isDarkMode();
+
+    return Swal.fire({
+      icon,
+      title,
+      html,
+      confirmButtonText: 'Entendido',
+      background: dark ? '#11182b' : '#ffffff',
+      color: dark ? '#eef0ff' : '#131b2e',
+      confirmButtonColor: '#3525cd',
+    });
+  }
+
   async confirm(title: string, text: string, confirmButtonText = 'Confirmar', cancelButtonText = 'Cancelar') {
     const Swal = await this.loadSwal();
     const dark = this.isDarkMode();
