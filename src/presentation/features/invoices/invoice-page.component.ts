@@ -11,6 +11,7 @@ import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-pa
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 
 type InvoiceStatus = 'paid' | 'pending' | 'overdue';
 type InvoiceRange = '30d' | '90d' | 'year' | 'all';
@@ -58,6 +59,11 @@ interface InvoiceCopy {
   filterInvoiceNumber: string;
   filterCustomer: string;
   filterAmount: string;
+  subtotal: string;
+  iva: string;
+  invoicePreview: string;
+  downloadPdf: string;
+  close: string;
   sidebarDashboard: string;
   sidebarInvoices: string;
   sidebarCustomers: string;
@@ -111,6 +117,11 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     filterInvoiceNumber: 'Factura #',
     filterCustomer: 'Cliente',
     filterAmount: 'Monto',
+    subtotal: 'Subtotal',
+    iva: 'IVA (15%)',
+    invoicePreview: 'Vista previa de factura',
+    downloadPdf: 'Descargar PDF',
+    close: 'Cerrar',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Facturas',
     sidebarCustomers: 'Clientes',
@@ -162,6 +173,11 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     filterInvoiceNumber: 'Invoice #',
     filterCustomer: 'Customer',
     filterAmount: 'Amount',
+    subtotal: 'Subtotal',
+    iva: 'VAT (15%)',
+    invoicePreview: 'Invoice Preview',
+    downloadPdf: 'Download PDF',
+    close: 'Close',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
     sidebarCustomers: 'Customers',
@@ -185,7 +201,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 @Component({
   selector: 'billflow-invoice-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
+  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
@@ -369,16 +385,14 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                         </span>
                       </td>
                       <td class="p-4 pr-7 text-right">
-                        <a
+                        <button
+                          type="button"
                           class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
-                          [href]="invoicePdfUrl(invoice.id)"
-                          target="_blank"
-                          rel="noopener"
-                          (click)="$event.stopPropagation()"
+                          (click)="$event.stopPropagation(); openInvoicePreview(invoice)"
                         >
                           <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                           {{ locale() === 'es' ? 'PDF' : 'PDF' }}
-                        </a>
+                          PDF
+                        </button>
                       </td>
                     </tr>
 
@@ -431,6 +445,82 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             </section>
           </main>
 
+          <!-- ── Invoice Preview Modal ── -->
+          <billflow-modal-shell
+            *ngIf="invoicePreview()"
+            title="{{ invoicePreview()?.invoiceNumber ?? '' }}"
+            [subtitle]="copy().invoicePreview"
+            icon="receipt_long"
+            maxWidth="md"
+            [hasFooter]="true"
+            (close)="closeInvoicePreview()"
+          >
+            <div class="p-6 space-y-6">
+              <!-- Customer & date row -->
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
+                  <p class="text-base font-bold text-on-surface">{{ invoicePreview()?.customerName ?? '—' }}</p>
+                  <p class="text-xs text-on-surface-variant mt-0.5">{{ invoicePreview()?.id }}</p>
+                </div>
+                <div class="text-right">
+                  <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().dateIssued }}</p>
+                  <p class="text-sm font-semibold text-on-surface">{{ formatDate(invoicePreview()?.invoiceDate ?? '') }}</p>
+                </div>
+              </div>
+
+              <hr class="border-outline-variant/30" />
+
+              <!-- Amount breakdown -->
+              <div class="space-y-3">
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-on-surface-variant">{{ copy().subtotal }}</span>
+                  <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.subtotal ?? 0) }}</span>
+                </div>
+                <div class="flex items-center justify-between text-sm">
+                  <span class="text-on-surface-variant">{{ copy().iva }}</span>
+                  <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.iva ?? 0) }}</span>
+                </div>
+                <hr class="border-outline-variant/30" />
+                <div class="flex items-center justify-between">
+                  <span class="text-base font-bold text-on-surface">{{ copy().amount }}</span>
+                  <span class="text-xl font-extrabold text-primary">{{ formatMoney(invoicePreview()?.total ?? 0) }}</span>
+                </div>
+              </div>
+
+              <!-- Status -->
+              <div class="flex items-center justify-between pt-2">
+                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">{{ copy().status }}</p>
+                <span
+                  [ngClass]="statusClass(invoicePreview()?.status ?? 'paid')"
+                  class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'paid')"></span>
+                  {{ invoicePreview()?.statusLabel ?? '' }}
+                </span>
+              </div>
+            </div>
+
+            <div footer class="flex w-full items-center justify-end gap-3">
+              <button
+                type="button"
+                class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
+                (click)="closeInvoicePreview()"
+              >
+                {{ copy().close }}
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
+                (click)="downloadInvoicePdf(invoicePreview()?.id ?? '')"
+              >
+                <span class="material-symbols-outlined text-[18px]">download</span>
+                {{ copy().downloadPdf }}
+              </button>
+            </div>
+          </billflow-modal-shell>
+          <!-- ── /Invoice Preview Modal ── -->
+
           <nav class="md:hidden app-dashboard-mobile-nav">
             <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
               <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
@@ -480,6 +570,7 @@ export class InvoicePageComponent implements OnInit {
   rangeFilter = signal<InvoiceRange>('30d');
   page = signal(1);
   pageSize = signal(10);
+  invoicePreview = signal<InvoiceViewModel | null>(null);
   displayName = 'Usuario';
   userInitials = 'US';
   userMenuVisible = signal(false);
@@ -691,6 +782,20 @@ export class InvoicePageComponent implements OnInit {
 
   invoicePdfUrl(id: string) {
     return this.api.invoicePdfUrl(id);
+  }
+
+  openInvoicePreview(invoice: InvoiceViewModel) {
+    this.invoicePreview.set(invoice);
+  }
+
+  closeInvoicePreview() {
+    this.invoicePreview.set(null);
+  }
+
+  downloadInvoicePdf(id: string) {
+    if (typeof window !== 'undefined') {
+      window.open(this.invoicePdfUrl(id), '_blank', 'noopener');
+    }
   }
 
   formatMoney(value: number) {
