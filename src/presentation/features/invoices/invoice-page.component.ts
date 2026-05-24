@@ -404,7 +404,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                   <select
                     class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
                     [value]="pageSize()"
-                    (change)="setPageSize(Number(($any($event.target).value)))"
+                    (change)="onPageSizeChange($event)"
                   >
                     <option [value]="5">5</option>
                     <option [value]="10">10</option>
@@ -587,8 +587,10 @@ export class InvoicePageComponent implements OnInit {
     this.page.set(1);
   }
 
-  setPageSize(value: number) {
-    this.pageSize.set(value >= 5 ? value : 10);
+  onPageSizeChange(event: Event) {
+    const value = parseInt((event.target as HTMLSelectElement).value, 10);
+    if (!Number.isFinite(value) || value < 5) return;
+    this.pageSize.set(value);
     this.page.set(1);
   }
 
