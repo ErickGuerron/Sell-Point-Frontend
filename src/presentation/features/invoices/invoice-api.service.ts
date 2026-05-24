@@ -51,6 +51,7 @@ export interface CreateInvoicePayload {
 export interface CreateCustomerPayload {
   firstName: string;
   lastName: string;
+  documentType: 'cedula' | 'ruc';
   cedula: string;
   email?: string;
   phone?: string;
