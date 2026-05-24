@@ -934,7 +934,7 @@ export class CustomersPageComponent implements OnInit {
     if (!confirmed) return;
 
     try {
-      await this.api.toggleCustomerActive(customer.id);
+      await this.api.toggleCustomerActive(customer.id, isActive);
       const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
       await this.reloadCustomers();

@@ -625,7 +625,7 @@ export class InvoicePageComponent implements OnInit {
   statusFilter = signal<'all' | InvoiceStatus>('all');
   rangeFilter = signal<InvoiceRange>('30d');
   page = signal(1);
-  pageSize = signal(10);
+  pageSize = signal(5);
   invoicePreview = signal<InvoiceViewModel | null>(null);
   displayName = 'Usuario';
   userInitials = 'US';

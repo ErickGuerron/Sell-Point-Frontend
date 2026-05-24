@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
-const USE_MOCK = true; // ← backend sin implementar todavía
+const USE_MOCK = false;
+
+const AUTH_KEY = 'billflow-session';
 
 export interface InvoiceItemRowDto {
   id: string;
@@ -55,6 +57,7 @@ export interface CreateCustomerPayload {
   cedula: string;
   email?: string;
   phone?: string;
+  address?: string;
 }
 
 interface PaginatedResponse<T> {
@@ -65,6 +68,20 @@ interface PaginatedResponse<T> {
     limit: number;
     totalPages: number;
   };
+}
+
+/** Schema que devuelve el backend */
+interface BackendCustomer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  cedula: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  isActive: number | boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -382,6 +399,34 @@ export class InvoiceApiService {
     return response.json() as Promise<InvoiceRowDto>;
   }
 
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  private getAuthHeaders(): Record<string, string> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
+      if (raw) {
+        const session = JSON.parse(raw) as { token?: string };
+        if (session.token) headers['Authorization'] = `Bearer ${session.token}`;
+      }
+    } catch { /* ignore */ }
+    return headers;
+  }
+
+  private mapBackendCustomer(b: BackendCustomer): CustomerRowDto {
+    return {
+      id: b.id,
+      name: b.firstName,
+      lastName: b.lastName,
+      cedula: b.cedula,
+      email: b.email ?? undefined,
+      phone: b.phone ?? undefined,
+      active: b.isActive === true || b.isActive === 1,
+    };
+  }
+
+  // ── Customers ─────────────────────────────────────────────────────────────────
+
   async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
     if (USE_MOCK) {
       const newCustomer: CustomerRowDto = {
@@ -398,21 +443,25 @@ export class InvoiceApiService {
     }
     const response = await fetch(`${API_BASE_URL}/customers`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' })) as { message?: string };
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
       throw new Error(error.message ?? `Request failed: ${response.status}`);
     }
-    return response.json() as Promise<CustomerRowDto>;
+    const backend = await response.json() as BackendCustomer;
+    return this.mapBackendCustomer(backend);
   }
 
   async listCustomers(): Promise<CustomerRowDto[]> {
     if (USE_MOCK) return [...MOCK_CUSTOMERS];
-    const response = await fetch(`${API_BASE_URL}/customers`);
+    const response = await fetch(`${API_BASE_URL}/customers?limit=200`, {
+      headers: this.getAuthHeaders(),
+    });
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<CustomerRowDto[]>;
+    const body = await response.json() as PaginatedResponse<BackendCustomer>;
+    return body.data.map((b) => this.mapBackendCustomer(b));
   }
 
   async updateCustomer(id: string, payload: CreateCustomerPayload): Promise<CustomerRowDto> {
@@ -431,25 +480,35 @@ export class InvoiceApiService {
     }
     const response = await fetch(`${API_BASE_URL}/customers/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(payload),
     });
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<CustomerRowDto>;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const backend = await response.json() as BackendCustomer;
+    return this.mapBackendCustomer(backend);
   }
 
-  async toggleCustomerActive(id: string): Promise<CustomerRowDto> {
+  async toggleCustomerActive(id: string, currentActive: boolean): Promise<CustomerRowDto> {
     if (USE_MOCK) {
       const idx = MOCK_CUSTOMERS.findIndex((c) => c.id === id);
       if (idx === -1) throw new Error('Customer not found');
-      MOCK_CUSTOMERS[idx] = { ...MOCK_CUSTOMERS[idx], active: !MOCK_CUSTOMERS[idx].active };
+      MOCK_CUSTOMERS[idx] = { ...MOCK_CUSTOMERS[idx], active: !currentActive };
       return MOCK_CUSTOMERS[idx];
     }
-    const response = await fetch(`${API_BASE_URL}/customers/${id}/toggle-active`, {
+    const endpoint = currentActive ? 'deactivate' : 'activate';
+    const response = await fetch(`${API_BASE_URL}/customers/${id}/${endpoint}`, {
       method: 'PATCH',
+      headers: this.getAuthHeaders(),
     });
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<CustomerRowDto>;
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const backend = await response.json() as BackendCustomer;
+    return this.mapBackendCustomer(backend);
   }
 
   invoicePdfUrl(id: string): string {
