@@ -1,0 +1,54 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+---
+
+<MainLayout title="404 — Page Not Found | BillFlow">
+  <div class="relative isolate min-h-[100dvh] w-full overflow-hidden bg-background text-on-background flex items-center justify-center">
+    <!-- Background -->
+    <div class="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-tertiary/5 pointer-events-none"></div>
+    <div class="absolute -top-1/4 -left-1/4 w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-1/4 -right-1/4 w-[60vw] h-[60vw] max-w-[500px] max-h-[500px] bg-tertiary/5 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="relative z-10 text-center px-5 py-12 w-full max-w-[28rem] mx-auto">
+      <!-- Icon -->
+      <div class="mb-5 flex justify-center">
+        <div class="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shadow-lg shadow-primary/5">
+          <span class="material-symbols-outlined text-[32px] sm:text-[48px] icon-fill">explore_off</span>
+        </div>
+      </div>
+
+      <!-- Code -->
+      <h1 class="text-7xl sm:text-8xl lg:text-[120px] font-black leading-none text-primary/20 select-none">404</h1>
+
+      <!-- Title -->
+      <h2 class="text-xl sm:text-2xl lg:text-h2 text-on-surface mt-2 mb-3 font-bold">
+        Page not found
+      </h2>
+
+      <!-- Description -->
+      <p class="text-sm sm:text-body-md text-on-surface-variant mb-8">
+        The page you're looking for doesn't exist or has been moved.
+        Maybe the link is broken or you typed the wrong address.
+      </p>
+
+      <!-- Actions -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a
+          href="/dashboard"
+          class="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-primary text-on-primary rounded-xl font-bold text-sm sm:text-base hover:opacity-90 transition-all shadow-lg shadow-primary/20 active:scale-95"
+        >
+          <span class="material-symbols-outlined text-[18px] sm:text-[20px]">dashboard</span>
+          Go to Dashboard
+        </a>
+        <button
+          type="button"
+          class="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-surface-container-high text-on-surface rounded-xl font-bold text-sm sm:text-base border border-outline-variant/60 hover:bg-surface-container-higher transition-all active:scale-95 cursor-pointer"
+          onclick="window.history.back()"
+        >
+          <span class="material-symbols-outlined text-[18px] sm:text-[20px]">arrow_back</span>
+          Go Back
+        </button>
+      </div>
+    </div>
+  </div>
+</MainLayout>

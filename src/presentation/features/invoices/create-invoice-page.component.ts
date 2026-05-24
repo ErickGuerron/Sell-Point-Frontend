@@ -182,7 +182,7 @@ interface LineItem {
                   {{ initials(customer.name, customer.lastName) }}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="font-semibold text-sm text-on-surface">{{ customer.name }} {{ customer.lastName }}</p>
+                  <p class="font-semibold text-sm text-on-surface">{{ customerFullName(customer) }}</p>
                   <p class="text-xs text-on-surface-variant mt-0.5">{{ customer.cedula ?? customer.email ?? '' }}</p>
                 </div>
                 <button
@@ -427,7 +427,7 @@ interface LineItem {
                 <td class="px-4 py-3.5">
                   <div class="flex items-center gap-3">
                     <div class="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-xs flex-shrink-0 group-hover:bg-primary/20 transition-colors">{{ initials(c.name, c.lastName) }}</div>
-                    <span class="font-semibold text-on-surface group-hover:text-primary transition-colors">{{ c.name }} {{ c.lastName }}</span>
+                    <span class="font-semibold text-on-surface group-hover:text-primary transition-colors">{{ customerFullName(c) }}</span>
                   </div>
                 </td>
                 <td class="px-4 py-3.5 text-on-surface-variant text-xs hidden sm:table-cell">{{ c.email ?? '—' }}</td>
@@ -1166,7 +1166,7 @@ export class CreateInvoicePageComponent implements OnInit {
   selectCustomer(c: CustomerRowDto) {
     this.selectedCustomer.set(c);
     this.customerResults.set([]);
-    this.customerQuery.set(`${c.name} ${c.lastName}`);
+    this.customerQuery.set([c.name, c.lastName].filter(Boolean).join(' '));
     this.customerSearchRequestId++;
     this.changingCustomer.set(false);
   }
@@ -1441,8 +1441,14 @@ export class CreateInvoicePageComponent implements OnInit {
     );
   }
 
-  initials(name: string, lastName: string) {
-    return `${name[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase();
+  initials(name: string, lastName?: string) {
+    return `${name[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
+  }
+
+  customerFullName(c: { name: string; lastName?: string }): string {
+    return c.lastName?.trim()
+      ? `${c.name} ${c.lastName}`
+      : c.name;
   }
 
   private applyStoredUser() {

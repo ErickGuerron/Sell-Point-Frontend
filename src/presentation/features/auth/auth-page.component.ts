@@ -269,7 +269,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          employeeCode: payload.identifier,
+          email: payload.identifier,
           password: payload.secret,
           rememberMe: false,
         }),

@@ -6,18 +6,20 @@ export interface AuthText {
   login: {
     title: string;
     subtitle: string;
-    employeeLabel: string;
-    employeePlaceholder: string;
-    pinLabel: string;
-    pinPlaceholder: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    passwordLabel: string;
+    passwordPlaceholder: string;
     submit: string;
     help: string;
+    googleLogin: string;
+    orText: string;
   };
   validation: {
-    employeeRequired: string;
-    employeeMinLength: string;
-    pinRequired: string;
-    pinMinLength: string;
+    emailRequired: string;
+    emailInvalid: string;
+    passwordRequired: string;
+    passwordMinLength: string;
     formInvalid: string;
   };
   support: {
@@ -61,18 +63,20 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     login: {
       title: 'Terminal Access',
       subtitle: 'Enter your credentials to unlock your register.',
-      employeeLabel: 'Employee ID or Email',
-      employeePlaceholder: 'e.g. EMP-1042',
-      pinLabel: 'PIN or Password',
-      pinPlaceholder: '••••••••',
+      emailLabel: 'Email',
+      emailPlaceholder: 'e.g. employee@company.com',
+      passwordLabel: 'Password',
+      passwordPlaceholder: '••••••••',
       submit: 'Unlock Terminal',
-      help: 'Need help? Contact IT Support'
+      help: 'Need help? Contact IT Support',
+      googleLogin: 'Continue with Google',
+      orText: 'or',
     },
     validation: {
-      employeeRequired: 'Employee ID or email is required.',
-      employeeMinLength: 'Employee ID or email must be at least 3 characters.',
-      pinRequired: 'PIN or password is required.',
-      pinMinLength: 'PIN or password must be at least 4 characters.',
+      emailRequired: 'Email is required.',
+      emailInvalid: 'Enter a valid email address.',
+      passwordRequired: 'Password is required.',
+      passwordMinLength: 'Password must be at least 4 characters.',
       formInvalid: 'Please complete the required login fields.'
     },
     support: {
@@ -96,7 +100,7 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     feedback: {
       success: 'Login successful.',
-      invalid: 'Invalid employee ID/email or PIN/password.'
+      invalid: 'Invalid email or password.'
     },
     panel: {
       title: 'Welcome to<br/>BillFlow POS',
@@ -108,19 +112,21 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     language: 'ES',
     login: {
       title: 'Acceso a Terminal',
-      subtitle: 'Ingresa tus credenciales para desbloquear tu caja.',
-      employeeLabel: 'ID de Empleado o Correo',
-      employeePlaceholder: 'ej. EMP-1042',
-      pinLabel: 'PIN o Contraseña',
-      pinPlaceholder: '••••••••',
+      subtitle: 'Ingresá tus credenciales para desbloquear tu caja.',
+      emailLabel: 'Correo Electrónico',
+      emailPlaceholder: 'ej. empleado@empresa.com',
+      passwordLabel: 'Contraseña',
+      passwordPlaceholder: '••••••••',
       submit: 'Desbloquear Terminal',
-      help: '¿Necesitás ayuda? Contactá al Soporte IT'
+      help: '¿Necesitás ayuda? Contactá al Soporte IT',
+      googleLogin: 'Ingresar con Google',
+      orText: 'o',
     },
     validation: {
-      employeeRequired: 'El ID de empleado o correo es obligatorio.',
-      employeeMinLength: 'El ID de empleado o correo debe tener al menos 3 caracteres.',
-      pinRequired: 'El PIN o contraseña es obligatorio.',
-      pinMinLength: 'El PIN o contraseña debe tener al menos 4 caracteres.',
+      emailRequired: 'El correo es obligatorio.',
+      emailInvalid: 'Ingresá un correo válido.',
+      passwordRequired: 'La contraseña es obligatoria.',
+      passwordMinLength: 'La contraseña debe tener al menos 4 caracteres.',
       formInvalid: 'Completá los campos obligatorios para ingresar.'
     },
     support: {
@@ -144,7 +150,7 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     feedback: {
       success: 'Inicio de sesión correcto.',
-      invalid: 'ID/correo o PIN/contraseña inválidos.'
+      invalid: 'Correo o contraseña inválidos.'
     },
     panel: {
       title: 'Bienvenido a<br/>BillFlow POS',

@@ -30,10 +30,11 @@ export interface InvoiceRowDto {
 export interface CustomerRowDto {
   id: string;
   name: string;
-  lastName: string;
+  lastName?: string;
   email?: string;
   phone?: string;
   cedula?: string;
+  address?: string;
   active: boolean;
 }
 
@@ -70,11 +71,11 @@ interface PaginatedResponse<T> {
   };
 }
 
-/** Schema que devuelve el backend */
+/** Schema que devuelve el backend (el listado NO incluye lastName) */
 interface BackendCustomer {
   id: string;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   cedula: string;
   email: string | null;
   phone: string | null;
@@ -301,7 +302,7 @@ function filterProducts(
 export class InvoiceApiService {
   async listInvoices(limit = 150): Promise<PaginatedResponse<InvoiceRowDto>> {
     if (USE_MOCK) return mockPaginated(MOCK_INVOICES, 1, limit);
-    const response = await fetch(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<InvoiceRowDto>>;
   }
@@ -313,7 +314,7 @@ export class InvoiceApiService {
     }
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await fetch(`${API_BASE_URL}/customers?${params.toString()}`);
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<CustomerRowDto>>;
   }
@@ -325,7 +326,7 @@ export class InvoiceApiService {
     }
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await fetch(`${API_BASE_URL}/customers?${params.toString()}`);
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<CustomerRowDto>>;
   }
@@ -337,7 +338,7 @@ export class InvoiceApiService {
     }
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
   }
@@ -349,7 +350,7 @@ export class InvoiceApiService {
     }
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await fetch(`${API_BASE_URL}/products?${params.toString()}`);
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
   }
@@ -387,7 +388,7 @@ export class InvoiceApiService {
       MOCK_INVOICES.push(newInvoice);
       return newInvoice;
     }
-    const response = await fetch(`${API_BASE_URL}/invoices`, {
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/invoices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -445,20 +446,29 @@ export class InvoiceApiService {
           headers['Authorization'] = `Bearer ${newSession.accessToken}`;
         }
         response = await fetch(input, { ...init, headers });
+      } else {
+        this.clearSessionAndRedirect();
       }
     }
 
     return response;
   }
 
+  private clearSessionAndRedirect(): void {
+    if (typeof window === 'undefined') return;
+    try { window.localStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
+    window.location.href = '/auth';
+  }
+
   private mapBackendCustomer(b: BackendCustomer): CustomerRowDto {
     return {
       id: b.id,
       name: b.firstName,
-      lastName: b.lastName,
+      lastName: b.lastName ?? '',
       cedula: b.cedula,
       email: b.email ?? undefined,
       phone: b.phone ?? undefined,
+      address: b.address ?? undefined,
       active: b.isActive === true || b.isActive === 1,
     };
   }

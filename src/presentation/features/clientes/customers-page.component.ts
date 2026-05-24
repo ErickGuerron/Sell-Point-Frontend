@@ -376,6 +376,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().document }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().email }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().phone }}</th>
+                    <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Dirección' : 'Address' }}</th>
                     <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
                     <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
                   </tr>
@@ -389,7 +390,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                           {{ getCustomerInitials(customer) }}
                         </div>
                         <div>
-                          <div class="font-semibold text-on-background">{{ customer.name }} {{ customer.lastName }}</div>
+                          <div class="font-semibold text-on-background">{{ customerFullName(customer) }}</div>
                           <div class="text-[10px] text-outline mt-0.5 md:hidden font-mono">CI: {{ customer.cedula }}</div>
                         </div>
                       </div>
@@ -399,6 +400,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                     </td>
                     <td class="p-4 text-on-surface font-medium">{{ customer.email || '—' }}</td>
                     <td class="p-4 text-on-surface font-medium">{{ customer.phone || '—' }}</td>
+                    <td class="p-4 text-on-surface font-medium max-w-[140px] truncate">{{ customer.address || '—' }}</td>
                     <td class="p-4">
                       <span
                         class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide"
@@ -445,7 +447,7 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
                   </tr>
 
                   <tr *ngIf="paginatedCustomers().length === 0">
-                    <td colspan="6" class="p-8">
+                    <td colspan="7" class="p-8">
                       <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
                         <span class="material-symbols-outlined dashboard-table-card__empty-icon">groups</span>
                         <p class="dashboard-table-card__empty-title">{{ copy().noCustomersTitle }}</p>
@@ -572,6 +574,21 @@ const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
               </div>
             </div>
 
+            <!-- Address -->
+            <div class="md:col-span-1">
+              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Dirección' : 'Address' }}</label>
+              <div class="relative">
+                <input
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+                  [maxLength]="200"
+                  placeholder="Ej: Av. Principal 123, Asunción"
+                  [ngModel]="formAddress()"
+                  (ngModelChange)="formAddress.set($event)"
+                />
+              </div>
+            </div>
+
             <!-- Email -->
             <div class="md:col-span-2">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }}</label>
@@ -673,6 +690,7 @@ export class CustomersPageComponent implements OnInit {
   formCedula = signal('');
   formPhone = signal('');
   formEmail = signal('');
+  formAddress = signal('');
   nameFieldError = signal<'firstName' | 'lastName' | null>(null);
 
   readonly formValid = computed(() =>
@@ -697,12 +715,12 @@ export class CustomersPageComponent implements OnInit {
       let matchesQuery = true;
       if (query) {
         if (field === 'all') {
-          matchesQuery = [customer.name, customer.lastName, customer.cedula ?? '', customer.email ?? '', customer.phone ?? '']
+          matchesQuery = [customer.name, customer.lastName ?? '', customer.cedula ?? '', customer.email ?? '', customer.phone ?? '']
             .some((f) => f.toLowerCase().includes(query));
         } else if (field === 'name') {
           matchesQuery = customer.name.toLowerCase().includes(query);
         } else if (field === 'lastName') {
-          matchesQuery = customer.lastName.toLowerCase().includes(query);
+          matchesQuery = (customer.lastName ?? '').toLowerCase().includes(query);
         } else if (field === 'cedula') {
           matchesQuery = (customer.cedula ?? '').toLowerCase().includes(query);
         } else if (field === 'email') {
@@ -874,10 +892,11 @@ export class CustomersPageComponent implements OnInit {
   openEditModal(customer: CustomerRowDto) {
     this.editingCustomer.set(customer);
     this.formFirstName.set(customer.name);
-    this.formLastName.set(customer.lastName);
+    this.formLastName.set(customer.lastName ?? '');
     this.formCedula.set(customer.cedula ?? '');
     this.formPhone.set(customer.phone ?? '');
     this.formEmail.set(customer.email ?? '');
+    this.formAddress.set(customer.address ?? '');
     this.customerModalOpen.set(true);
   }
 
@@ -892,6 +911,7 @@ export class CustomersPageComponent implements OnInit {
     this.formCedula.set('');
     this.formPhone.set('');
     this.formEmail.set('');
+    this.formAddress.set('');
     this.nameFieldError.set(null);
   }
 
@@ -902,6 +922,7 @@ export class CustomersPageComponent implements OnInit {
       cedula: this.formCedula().trim(),
       email: this.formEmail().trim() || undefined,
       phone: this.formPhone().trim() || undefined,
+      address: this.formAddress().trim() || undefined,
     };
 
     try {
@@ -985,6 +1006,12 @@ export class CustomersPageComponent implements OnInit {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
   }
 
+  customerFullName(customer: { name: string; lastName?: string }): string {
+    return customer.lastName?.trim()
+      ? `${customer.name} ${customer.lastName}`
+      : customer.name;
+  }
+
   getCustomerInitials(customer: CustomerRowDto): string {
     const first = customer.name ? customer.name.charAt(0) : '';
     const last = customer.lastName ? customer.lastName.charAt(0) : '';
@@ -1007,19 +1034,28 @@ export class CustomersPageComponent implements OnInit {
     const statusText = customer.active
       ? (this.locale() === 'es' ? 'Activo' : 'Active')
       : (this.locale() === 'es' ? 'Inactivo' : 'Inactive');
+    const fullName = this.customerFullName(customer);
 
-    const fields = [
-      `${this.locale() === 'es' ? 'Nombre completo' : 'Full name'}: ${customer.name} ${customer.lastName}`,
-      `${this.locale() === 'es' ? 'Cédula' : 'ID'}: ${customer.cedula ?? '—'}`,
-      `Email: ${customer.email || '—'}`,
-      `${this.locale() === 'es' ? 'Teléfono' : 'Phone'}: ${customer.phone || '—'}`,
-      `${this.locale() === 'es' ? 'Estado' : 'Status'}: ${statusText}`
-    ];
-    
-    void this.feedback.alert(
+    const html = `
+<div style="font-family: monospace; font-size: 14px; line-height: 1.8; text-align: left;">
+  <div style="font-weight: bold; padding-bottom: 6px; border-bottom: 1px solid #ccc; margin-bottom: 10px;">
+    ${this.locale() === 'es' ? 'DATOS PERSONALES' : 'PERSONAL INFO'}
+  </div>
+  <div><strong>${this.locale() === 'es' ? 'Nombre' : 'Name'}:</strong> ${fullName}</div>
+  <div><strong>${this.locale() === 'es' ? 'Cédula' : 'ID'}:</strong> ${customer.cedula ?? '—'}</div>
+  <div><strong>Email:</strong> ${customer.email || '—'}</div>
+  <div><strong>${this.locale() === 'es' ? 'Teléfono' : 'Phone'}:</strong> ${customer.phone || '—'}</div>
+  <div><strong>${this.locale() === 'es' ? 'Dirección' : 'Address'}:</strong> ${customer.address || '—'}</div>
+  <div style="font-weight: bold; padding-top: 10px; margin-top: 10px; border-top: 1px solid #ccc;">
+    ${this.locale() === 'es' ? 'ESTADO' : 'STATUS'}
+  </div>
+  <div><strong>${this.locale() === 'es' ? 'Estado' : 'Status'}:</strong> ${statusText}</div>
+</div>`;
+
+    void this.feedback.alertHtml(
       'info',
       this.locale() === 'es' ? 'Detalles del Cliente' : 'Customer Details',
-      fields.join('\n')
+      html,
     );
   }
 
