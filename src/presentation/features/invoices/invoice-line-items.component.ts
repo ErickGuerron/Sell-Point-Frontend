@@ -173,6 +173,11 @@ export class InvoiceLineItemsComponent {
 
   // ── Public methods ──────────────────────────────────────────────────────────
 
+  /** Emits addProduct to parent when user clicks "Browse Products" */
+  onAddProduct() {
+    this.addProduct.emit();
+  }
+
   /** Called by parent when a product is selected from the modal */
   addProductItem(product: ProductRowDto): void {
     const existing = this.items().findIndex(i => i.productId === product.id);

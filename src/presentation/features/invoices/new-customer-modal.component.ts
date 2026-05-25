@@ -91,8 +91,8 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
             <input
               type="tel"
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="20"
-              [placeholder]="locale === 'es' ? 'Ej: +595 981 123456' : 'e.g. +1 555 123 4567'"
+              [maxLength]="10"
+              [placeholder]="locale === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="newCustomerPhone()"
               (ngModelChange)="onNumericInput($event, 'phone')"
             />
@@ -160,7 +160,7 @@ export class NewCustomerModalComponent {
   );
 
   onNameInput(value: string, target: 'firstName' | 'lastName') {
-    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]/g, '');
+    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ ]/g, '');
     if (target === 'firstName') this.newCustomerFirstName.set(cleaned);
     else this.newCustomerLastName.set(cleaned);
 
@@ -175,7 +175,7 @@ export class NewCustomerModalComponent {
     if (target === 'cedula') {
       this.newCustomerCedula.set(value.replace(/\D/g, '').slice(0, 10));
     } else {
-      this.newCustomerPhone.set(value.replace(/\D/g, ''));
+      this.newCustomerPhone.set(value.replace(/\D/g, '').slice(0, 10));
     }
   }
 
