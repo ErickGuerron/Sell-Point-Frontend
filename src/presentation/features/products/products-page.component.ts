@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { ProductApiService, type ProductWithStockDto, type CategoryDto, type StockMovementDto, type CreateProductPayload } from './product-api.service';
+import { ProductApiService, type ProductWithStockDto, type CategoryDto, type StockMovementDto, type CreateProductPayload, type AdjustStockPayload } from './product-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -13,6 +13,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
+import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
 type ProductsLocale = 'es' | 'en';
 
@@ -60,6 +61,7 @@ interface ProductsCopy {
   sidebarCustomers: string;
   sidebarProducts: string;
   sidebarEmployees: string;
+  sidebarCategories: string;
   signOut: string;
   settings: string;
   notifications: string;
@@ -90,6 +92,18 @@ interface ProductsCopy {
   mvtReason: string;
   noMovementsTitle: string;
   noMovementsText: string;
+  // Stock adjustment form
+  stockAdjustTitle: string;
+  stockAdjustType: string;
+  stockAdjustQty: string;
+  stockAdjustReason: string;
+  stockAdjustBtn: string;
+  stockAdjustSuccess: string;
+  stockAdjustError: string;
+  stockInsufficient: string;
+  stockTypeIn: string;
+  stockTypeOut: string;
+  stockTypeAdjust: string;
 }
 
 const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
@@ -137,6 +151,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     sidebarCustomers: 'Clientes',
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
+    sidebarCategories: 'Categorías',
     signOut: 'Cerrar sesión',
     settings: 'Configuración',
     notifications: 'Notificaciones',
@@ -165,6 +180,17 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     mvtReason: 'Motivo',
     noMovementsTitle: 'Sin movimientos',
     noMovementsText: 'Este producto no registra ningún movimiento de stock aún.',
+    stockAdjustTitle: 'Ajustar Stock',
+    stockAdjustType: 'Tipo',
+    stockAdjustQty: 'Cantidad',
+    stockAdjustReason: 'Motivo',
+    stockAdjustBtn: 'Realizar Movimiento',
+    stockAdjustSuccess: 'Movimiento registrado correctamente',
+    stockAdjustError: 'Error al registrar el movimiento',
+    stockInsufficient: 'Stock insuficiente para realizar la salida',
+    stockTypeIn: 'Ingreso',
+    stockTypeOut: 'Salida',
+    stockTypeAdjust: 'Ajuste',
   },
   en: {
     moduleLabel: 'Products Module',
@@ -210,6 +236,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     sidebarCustomers: 'Customers',
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
+    sidebarCategories: 'Categories',
     signOut: 'Sign out',
     settings: 'Settings',
     notifications: 'Notifications',
@@ -238,6 +265,17 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     mvtReason: 'Reason',
     noMovementsTitle: 'No movements',
     noMovementsText: 'This product does not have any stock movements yet.',
+    stockAdjustTitle: 'Adjust Stock',
+    stockAdjustType: 'Type',
+    stockAdjustQty: 'Quantity',
+    stockAdjustReason: 'Reason',
+    stockAdjustBtn: 'Make Movement',
+    stockAdjustSuccess: 'Movement recorded successfully',
+    stockAdjustError: 'Error recording movement',
+    stockInsufficient: 'Insufficient stock for this operation',
+    stockTypeIn: 'Inbound',
+    stockTypeOut: 'Outbound',
+    stockTypeAdjust: 'Adjustment',
   },
 };
 
@@ -253,6 +291,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
     BillflowModalShellComponent,
+    BillflowComboboxComponent,
   ],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().newProduct" actionIcon="add" (actionClick)="openCreateModal()">
@@ -355,78 +394,97 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
           </section>
 
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-            <!-- Unified Filter Toolbar -->
-            <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-outline-variant/20">
+            <!-- Toolbar: lupa toggle filters on left, actions on right -->
+            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/20">
 
-              <!-- Status combo -->
-              <select
-                class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-2 px-3 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm cursor-pointer"
-                [value]="statusFilter()"
-                (change)="setStatusFilter(($any($event.target).value))"
+              <!-- Search toggle (lupa) — ALWAYS visible -->
+              <button
+                type="button"
+                [title]="showFilters() ? (locale() === 'es' ? 'Ocultar filtros' : 'Hide filters') : (locale() === 'es' ? 'Mostrar filtros' : 'Show filters')"
+                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
+                (click)="toggleFilters()"
               >
-                <option value="all">{{ copy().allStatuses }}</option>
-                <option value="active">{{ copy().active }}</option>
-                <option value="inactive">{{ copy().inactive }}</option>
-              </select>
+                <span class="material-symbols-outlined text-[20px]">search</span>
+              </button>
 
-              <!-- Category combo -->
-              <select
-                class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-2 px-3 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm cursor-pointer"
-                [value]="categoryFilter()"
-                (change)="setCategoryFilter(($any($event.target).value))"
-              >
-                <option value="all">{{ copy().allCategories }}</option>
-                <option *ngFor="let cat of categories()" [value]="cat.id">{{ cat.name }}</option>
-              </select>
+              <!-- Filters (only when toggled) -->
+              <ng-container *ngIf="showFilters()">
+                <!-- Status -->
+                <billflow-combobox
+                  [options]="statusFilterOptions()"
+                  [value]="statusFilter()"
+                  placeholder="{{ copy().allStatuses }}"
+                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                  [compact]="true"
+                  (valueChange)="setStatusFilter($event)"
+                ></billflow-combobox>
 
-              <!-- Search field combo + text input fused -->
-              <div class="flex flex-1 min-w-[220px] max-w-md">
-                <select
-                  class="shrink-0 bg-surface-container-lowest border border-outline-variant/60 border-r-0 rounded-l-lg text-sm py-2 px-3 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm cursor-pointer"
-                  [value]="searchField()"
-                  (change)="searchField.set($any($event.target).value)"
-                >
-                  <option value="all">{{ locale() === 'es' ? 'Todos' : 'All' }}</option>
-                  <option value="code">{{ copy().code }}</option>
-                  <option value="name">{{ copy().name }}</option>
-                </select>
-                <div class="relative flex-1">
-                  <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none">search</span>
-                  <input
-                    class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-r-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-                    [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
-                    [value]="searchQuery()"
-                    (input)="setSearchQuery(($any($event.target).value))"
-                  />
+                <!-- Category -->
+                <billflow-combobox
+                  [options]="categoryFilterOptions()"
+                  [value]="categoryFilter()"
+                  placeholder="{{ copy().allCategories }}"
+                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
+                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                  [compact]="true"
+                  (valueChange)="setCategoryFilter($event)"
+                ></billflow-combobox>
+
+                <!-- Search field type + text input (takes remaining space) -->
+                <div class="flex items-stretch flex-3 min-w-[180px]">
+                  <billflow-combobox
+                    [options]="searchFieldOptions()"
+                    [value]="searchField()"
+                    placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    [compact]="true"
+                    (valueChange)="searchField.set($event)"
+                  ></billflow-combobox>
+                  <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
+                    <input
+                      class="w-full pl-8 pr-2 py-[5px] bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                      [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
+                      [value]="searchQuery()"
+                      (input)="setSearchQuery(($any($event.target).value))"
+                    />
+                  </div>
                 </div>
-              </div>
+              </ng-container>
 
-              <!-- Spacer -->
-              <div class="flex-1 hidden lg:block"></div>
+              <!-- Spacer pushes actions to the right -->
+              <div class="flex-1"></div>
 
-              <!-- Refresh button -->
+              <!-- Refresh — ALWAYS visible -->
               <button
                 type="button"
                 [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
+                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
                 (click)="void reloadProducts()"
               >
-                <span
-                  class="material-symbols-outlined text-[20px]"
-                  [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
-                >refresh</span>
+                <span class="material-symbols-outlined text-[18px]" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
               </button>
 
-              <!-- New product button -->
+              <!-- Go to Categories — ALWAYS visible -->
+              <a
+                href="/categories"
+                class="inline-flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap shrink-0"
+              >
+                <span class="material-symbols-outlined text-[16px]">category</span>
+                <span class="hidden sm:inline">{{ locale() === 'es' ? 'Categorías' : 'Categories' }}</span>
+              </a>
+
+              <!-- New Product — ALWAYS visible -->
               <button
                 type="button"
-                class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                class="inline-flex items-center gap-1 bg-primary text-on-primary rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap shrink-0"
                 (click)="openCreateModal()"
               >
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                {{ copy().newProduct }}
+                <span class="material-symbols-outlined text-[16px]">add</span>
+                <span class="hidden sm:inline">{{ copy().newProduct }}</span>
               </button>
-
             </div>
 
             <!-- Products Table -->
@@ -595,14 +653,13 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
             <!-- Category -->
             <div class="md:col-span-1">
               <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().category }} <span class="text-error">*</span></label>
-              <select
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
-                [ngModel]="formCategoryId()"
-                (ngModelChange)="formCategoryId.set($event)"
-              >
-                <option value="">{{ copy().categorySelect }}</option>
-                <option *ngFor="let cat of categories()" [value]="cat.id">{{ cat.name }}</option>
-              </select>
+              <billflow-combobox
+                [options]="categorySelectOptions()"
+                [value]="formCategoryId()"
+                placeholder="{{ copy().categorySelect }}"
+                searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
+                (valueChange)="formCategoryId.set($event)"
+              ></billflow-combobox>
             </div>
 
             <!-- Name -->
@@ -691,17 +748,81 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
         </billflow-modal-shell>
         <!-- ══ /Create/Edit Product Modal ══ -->
 
-        <!-- ══ Stock Movements History Modal ══ -->
+        <!-- ══ Stock Movements Modal (adjust + history) ══ -->
         <billflow-modal-shell
           *ngIf="movementsModalOpen()"
-          title="{{ copy().modalMovementsTitle }}"
-          subtitle="{{ selectedProductForMovements()?.name }} ({{ selectedProductForMovements()?.code }})"
+          title="{{ selectedProductForMovements()?.name }} ({{ selectedProductForMovements()?.code }})"
+          subtitle="{{ copy().modalMovementsSubtitle }}"
           icon="history"
           maxWidth="2xl"
           [hasFooter]="false"
           (close)="closeMovementsModal()"
         >
           <div class="p-6">
+            <!-- ══ Stock Adjustment Form ══ -->
+            <div class="rounded-xl border border-outline-variant/40 bg-surface-container-low/30 p-4 mb-5">
+              <h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px] text-primary">swap_vert</span>
+                {{ copy().stockAdjustTitle }}
+              </h4>
+              <div class="flex flex-wrap items-end gap-3">
+                <!-- Type -->
+                <div class="min-w-[120px]">
+                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustType }}</label>
+                  <billflow-combobox
+                    [options]="movementTypeOptions()"
+                    [value]="mvtFormType()"
+                    placeholder="{{ copy().stockAdjustType }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar...' : 'Search...' }}"
+                    [compact]="true"
+                    (valueChange)="mvtFormType.set($event)"
+                  ></billflow-combobox>
+                </div>
+
+                <!-- Quantity -->
+                <div class="min-w-[100px]">
+                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustQty }}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    class="w-full px-3 py-[5px] bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all"
+                    placeholder="0"
+                    [value]="mvtFormQuantity()"
+                    (input)="onMvtQuantityInput($any($event.target).value)"
+                  />
+                </div>
+
+                <!-- Reason -->
+                <div class="flex-1 min-w-[150px]">
+                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustReason }}</label>
+                  <input
+                    type="text"
+                    class="w-full px-3 py-[5px] bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all"
+                    [placeholder]="locale() === 'es' ? 'Motivo del ajuste...' : 'Adjustment reason...'"
+                    [value]="mvtFormDescription()"
+                    (input)="mvtFormDescription.set($any($event.target).value)"
+                  />
+                </div>
+
+                <!-- Submit -->
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 bg-primary text-on-primary rounded-lg px-3 py-[5px] text-xs font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-50 shrink-0"
+                  [disabled]="!mvtFormValid() || mvtFormSubmitting()"
+                  (click)="submitMovement()"
+                >
+                  <span class="material-symbols-outlined text-[16px]" [style.animation]="mvtFormSubmitting() ? 'spin 0.7s linear infinite' : 'none'">{{ mvtFormSubmitting() ? 'refresh' : 'check' }}</span>
+                  {{ copy().stockAdjustBtn }}
+                </button>
+              </div>
+            </div>
+            <!-- ══ /Stock Adjustment Form ══ -->
+
+            <!-- ══ Movement History ══ -->
+            <h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px] text-outline">history</span>
+              {{ locale() === 'es' ? 'Historial de Movimientos' : 'Movement History' }}
+            </h4>
             <div class="overflow-x-auto rounded-xl border border-outline-variant/40 overflow-hidden mb-4">
               <table class="w-full border-collapse text-left">
                 <thead>
@@ -773,7 +894,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
             </div>
           </div>
         </billflow-modal-shell>
-        <!-- ══ /Stock Movements History Modal ══ -->
+        <!-- ══ /Stock Movements Modal ══ -->
 
         <nav class="md:hidden app-dashboard-mobile-nav">
           <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
@@ -798,6 +919,8 @@ export class ProductsPageComponent implements OnInit {
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
 
   Math = Math;
+  String = String;
+  Number = Number;
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
 
@@ -807,6 +930,7 @@ export class ProductsPageComponent implements OnInit {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
+    categories: this.copy().sidebarCategories,
   }, 'products'));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
@@ -822,10 +946,41 @@ export class ProductsPageComponent implements OnInit {
   categories = signal<CategoryDto[]>([]);
   
   // Filters
+  showFilters = signal(false);
   searchQuery = signal('');
   searchField = signal<'all' | 'code' | 'name'>('all');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   categoryFilter = signal<string>('all');
+
+  // Combobox options (computed from locale and categories)
+  readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
+    { value: 'all', label: this.copy().allStatuses },
+    { value: 'active', label: this.copy().active },
+    { value: 'inactive', label: this.copy().inactive },
+  ]);
+
+  readonly searchFieldOptions = computed<ComboboxOption[]>(() => [
+    { value: 'all', label: this.locale() === 'es' ? 'Todos' : 'All' },
+    { value: 'code', label: this.copy().code },
+    { value: 'name', label: this.copy().name },
+  ]);
+
+  readonly pageSizeOptions: ComboboxOption[] = [
+    { value: '5', label: '5' },
+    { value: '10', label: '10' },
+    { value: '20', label: '20' },
+    { value: '50', label: '50' },
+  ];
+
+  readonly categoryFilterOptions = computed<ComboboxOption[]>(() => [
+    { value: 'all', label: this.copy().allCategories },
+    ...this.categories().map((c) => ({ value: c.id, label: c.name })),
+  ]);
+
+  readonly categorySelectOptions = computed<ComboboxOption[]>(() => [
+    { value: '', label: this.copy().categorySelect },
+    ...this.categories().map((c) => ({ value: c.id, label: c.name })),
+  ]);
   
   // Pagination
   page = signal(1);
@@ -874,6 +1029,22 @@ export class ProductsPageComponent implements OnInit {
   mvtPageSize = signal(5);
   mvtTotalCount = signal(0);
   mvtTotalPages = computed(() => Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize())));
+
+  // Movement form state
+  mvtFormType = signal<'IN' | 'OUT' | 'ADJUST'>('IN');
+  mvtFormQuantity = signal<number | null>(null);
+  mvtFormDescription = signal('');
+  mvtFormSubmitting = signal(false);
+
+  readonly mvtFormValid = computed(() =>
+    this.mvtFormQuantity() !== null && this.mvtFormQuantity()! > 0
+  );
+
+  readonly movementTypeOptions = computed<ComboboxOption[]>(() => [
+    { value: 'IN', label: this.copy().stockTypeIn },
+    { value: 'OUT', label: this.copy().stockTypeOut },
+    { value: 'ADJUST', label: this.copy().stockTypeAdjust },
+  ]);
 
   readonly totalProducts = computed(() => this.totalProductsCount());
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize())));
@@ -939,6 +1110,10 @@ export class ProductsPageComponent implements OnInit {
   }
 
   // ── Search & Filters ──────────────────────────────────────────────────────
+  toggleFilters() {
+    this.showFilters.update((v) => !v);
+  }
+
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
     this.page.set(1);
@@ -961,6 +1136,14 @@ export class ProductsPageComponent implements OnInit {
     const value = parseInt((event.target as HTMLSelectElement).value, 10);
     if (!Number.isFinite(value) || value < 5) return;
     this.pageSize.set(value);
+    this.page.set(1);
+    void this.reloadProducts();
+  }
+
+  onPageSizeCombo(value: string) {
+    const num = parseInt(value, 10);
+    if (!Number.isFinite(num) || num < 5) return;
+    this.pageSize.set(num);
     this.page.set(1);
     void this.reloadProducts();
   }
@@ -1189,6 +1372,50 @@ export class ProductsPageComponent implements OnInit {
     if (this.mvtPage() > 1) {
       this.mvtPage.update(v => v - 1);
       void this.loadMovements();
+    }
+  }
+
+  onMvtQuantityInput(raw: string) {
+    // Strip everything except digits
+    const cleaned = raw.replace(/\D/g, '');
+    this.mvtFormQuantity.set(cleaned ? Number(cleaned) : null);
+  }
+
+  async submitMovement() {
+    if (!this.mvtFormValid() || this.mvtFormSubmitting()) return;
+
+    const product = this.selectedProductForMovements();
+    if (!product) return;
+
+    this.mvtFormSubmitting.set(true);
+    try {
+      const payload: AdjustStockPayload = {
+        type: this.mvtFormType(),
+        quantity: Number(this.mvtFormQuantity()),
+        description: this.mvtFormDescription().trim() || '',
+      };
+      await this.api.adjustStock(product.id, payload);
+      await this.feedback.toast('success', this.copy().stockAdjustSuccess);
+
+      // Reset form
+      this.mvtFormType.set('IN');
+      this.mvtFormQuantity.set(null);
+      this.mvtFormDescription.set('');
+
+      // Reload movements and refresh product list
+      this.mvtPage.set(1);
+      await this.loadMovements();
+      await this.reloadProducts();
+    } catch (err) {
+      console.error('[submitMovement]', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.toLowerCase().includes('insufficient')) {
+        await this.feedback.toast('error', this.copy().stockInsufficient);
+      } else {
+        await this.feedback.toast('error', this.copy().stockAdjustError);
+      }
+    } finally {
+      this.mvtFormSubmitting.set(false);
     }
   }
 

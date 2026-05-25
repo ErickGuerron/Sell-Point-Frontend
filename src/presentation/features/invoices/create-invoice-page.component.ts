@@ -1441,9 +1441,13 @@ export class CreateInvoicePageComponent implements OnInit {
     );
   }
 
-  initials(name: string, lastName?: string) {
-    return `${name[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase();
+ initials(name: string | null | undefined): string {
+  if (!name || typeof name !== 'string' || name.trim().length === 0) {
+    return '?'; 
   }
+  
+  return name.trim()[0].toUpperCase();
+}
 
   customerFullName(c: { name: string; lastName?: string }): string {
     return c.lastName?.trim()
