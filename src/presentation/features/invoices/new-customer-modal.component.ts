@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, EventEmitter, inject, Input, Output, signal } from '@angular/core';
+import { Component, computed, ElementRef, EventEmitter, inject, Input, Output, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   InvoiceApiService,
@@ -37,6 +37,7 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
               [placeholder]="locale === 'es' ? 'Ej: Carlos' : 'e.g. John'"
               [ngModel]="newCustomerFirstName()"
               (ngModelChange)="onNameInput($event, 'firstName')"
+              (keydown.space)="onNameSpace($event)"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerFirstName().length }}/100</span>
           </div>
@@ -52,6 +53,7 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale === 'es' ? 'Apellido' : 'Last Name' }} <span class="text-error">*</span></label>
           <div class="relative">
             <input
+              #lastNameInput
               type="text"
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [maxLength]="100"
@@ -146,6 +148,8 @@ export class NewCustomerModalComponent {
   @Output() customerCreated = new EventEmitter<CustomerRowDto>();
   @Output() close = new EventEmitter<void>();
 
+  @ViewChild('lastNameInput') lastNameInputEl!: ElementRef<HTMLInputElement>;
+
   newCustomerFirstName = signal('');
   newCustomerLastName = signal('');
   newCustomerCedula = signal('');
@@ -158,6 +162,11 @@ export class NewCustomerModalComponent {
     && this.newCustomerLastName().trim().length > 0
     && this.newCustomerCedula().trim().length === 10
   );
+
+  onNameSpace(event: KeyboardEvent) {
+    event.preventDefault();
+    this.lastNameInputEl?.nativeElement.focus();
+  }
 
   onNameInput(value: string, target: 'firstName' | 'lastName') {
     const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ ]/g, '');
