@@ -173,10 +173,21 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<any>;
+    const body = await response.json() as any;
+    const rawItems: any[] = body.data || [];
+    // Safety cap: truncate if backend ignores pagination
+    if (rawItems.length > limit) {
+      console.warn(`[searchProducts] Backend returned ${rawItems.length} items but limit=${limit}. Truncating.`);
+    }
+    const capped = rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p));
     return {
-      ...body,
-      data: body.data.map((p) => this.mapBackendProduct(p)),
+      data: capped,
+      pagination: {
+        total: body.pagination?.total ?? body.total ?? capped.length,
+        page: 1,
+        limit,
+        totalPages: Math.ceil((body.pagination?.total ?? capped.length) / limit),
+      },
     };
   }
 
@@ -185,10 +196,21 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<any>;
+    const body = await response.json() as any;
+    const rawItems: any[] = body.data || [];
+    // Safety cap: truncate if backend ignores pagination
+    if (rawItems.length > limit) {
+      console.warn(`[fetchProductsPage] Backend returned ${rawItems.length} items but limit=${limit}. Truncating.`);
+    }
+    const capped = rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p));
     return {
-      ...body,
-      data: body.data.map((p) => this.mapBackendProduct(p)),
+      data: capped,
+      pagination: {
+        total: body.pagination?.total ?? body.total ?? capped.length,
+        page: body.pagination?.page ?? body.page ?? page,
+        limit: body.pagination?.limit ?? body.limit ?? limit,
+        totalPages: body.pagination?.totalPages ?? body.totalPages ?? Math.ceil((body.pagination?.total ?? capped.length) / limit),
+      },
     };
   }
 
