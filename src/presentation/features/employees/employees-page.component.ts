@@ -2,7 +2,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { EmployeeApiService, type EmployeeRowDto } from './employee-api.service';
+import { EmployeeApiService, type EmployeeRowDto, type CreateUserPayload, type UpdateUserPayload } from './employee-api.service';
+import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -223,12 +224,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   },
 };
 
-const ROLE_OPTIONS: ComboboxOption[] = [
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'VENDEDOR', label: 'Vendedor' },
-  { value: 'CAJERO', label: 'Cajero' },
-  { value: 'BODEGA', label: 'Bodega' },
-];
+// Roles are now loaded dynamically from RoleApiService (see roleOptions computed)
 
 @Component({
   selector: 'billflow-employees-page',
@@ -240,7 +236,7 @@ const ROLE_OPTIONS: ComboboxOption[] = [
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
     BillflowUserMenuComponent, BillflowModalShellComponent,
   ],
-  template: `<billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().newEmployee" actionIcon="add" (actionClick)="openCreateModal()">
+  template: `<billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
   <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
   <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
     <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
@@ -497,45 +493,56 @@ const ROLE_OPTIONS: ComboboxOption[] = [
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: Carlos" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (ngModelChange)="formFirstName.set($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: González" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (ngModelChange)="formLastName.set($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().employeeIdLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-001" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-001" [ngModel]="formEmployeeId()" (ngModelChange)="formEmployeeId.set($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="15" placeholder="Ej: 1234567" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="Ej: 1234567890" [ngModel]="formCedula()" (ngModelChange)="onCedulaInput($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
-          <input type="email" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" />
+          <input type="email" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="50" placeholder="Ej: carlos.gonzalez" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (ngModelChange)="formUsername.set($event)" />
         </div>
         @if (!editingEmployee()) {
           <div class="md:col-span-1">
             <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().passwordLabel }} <span class="text-error">*</span></label>
-            <input type="password" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="••••••••" />
+            <input type="password" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="••••••••" [ngModel]="formPassword()" (ngModelChange)="formPassword.set($event)" />
           </div>
         }
         <div [ngClass]="editingEmployee() ? 'md:col-span-1' : 'md:col-span-1'">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
-          <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer">
+          <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
             <option value="">-- {{ locale() === 'es' ? 'Seleccionar' : 'Select' }} --</option>
-            <option *ngFor="let opt of ROLE_OPTIONS" [value]="opt.value">{{ opt.label }}</option>
+            @for (opt of roleOptions(); track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </div>
       </div>
       <div footer class="flex w-full items-center justify-end gap-3">
         <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeEmployeeModal()">{{ copy().cancel }}</button>
-        <button type="button" class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm">{{ editingEmployee() ? copy().saveEdit : copy().save }}</button>
+        <button type="button" class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50" [disabled]="!formValid() || formSubmitting()" (click)="void saveEmployee()">
+          @if (formSubmitting()) {
+            <span class="inline-flex items-center gap-2">
+              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              {{ locale() === 'es' ? 'Guardando...' : 'Saving...' }}
+            </span>
+          } @else {
+            {{ editingEmployee() ? copy().saveEdit : copy().save }}
+          }
+        </button>
       </div>
     </billflow-modal-shell>
     <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ locale() === 'es' ? 'Usuarios bloqueados del sistema' : 'Blocked system users' }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
@@ -587,6 +594,7 @@ const ROLE_OPTIONS: ComboboxOption[] = [
 })
 export class EmployeesPageComponent implements OnInit {
   private readonly api = inject(EmployeeApiService);
+  private readonly roleApi = inject(RoleApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
@@ -639,9 +647,16 @@ export class EmployeesPageComponent implements OnInit {
     { value: 'inactive', label: this.copy().inactive },
   ]);
 
+  // ── Roles (loaded dynamically from API) ──
+  roles = signal<RoleDto[]>([]);
+
+  readonly roleOptions = computed<ComboboxOption[]>(() =>
+    this.roles().map((r) => ({ value: r.name, label: r.name }))
+  );
+
   readonly roleFilterOptions = computed<ComboboxOption[]>(() => [
     { value: 'all', label: this.copy().allRoles },
-    ...ROLE_OPTIONS,
+    ...this.roleOptions(),
   ]);
 
   // ── Filter values ──
@@ -671,13 +686,48 @@ export class EmployeesPageComponent implements OnInit {
   editingEmployee = signal<EmployeeRowDto | null>(null);
   reactivateModalOpen = signal(false);
 
+  // ── Form signals ──
+  formFirstName = signal('');
+  formLastName = signal('');
+  formEmployeeId = signal('');
+  formCedula = signal('');
+  formEmail = signal('');
+  formUsername = signal('');
+  formPassword = signal('');
+  formRole = signal('');
+  formSubmitting = signal(false);
+
+  readonly formValid = computed(() =>
+    this.formFirstName().trim().length > 0
+    && this.formLastName().trim().length > 0
+    && this.formEmployeeId().trim().length > 0
+    && this.formCedula().trim().length > 0
+    && this.formEmail().trim().length > 0
+    && this.formUsername().trim().length > 0
+    && this.formRole().trim().length > 0
+    && (this.editingEmployee() !== null || this.formPassword().trim().length >= 6)
+  );
+
   // ── Lifecycle ──
   async ngOnInit() {
     this.applyStoredTheme();
     this.applyStoredUser();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
-    await this.reloadEmployees();
+    // Load roles and employees in parallel
+    await Promise.all([
+      this.loadRoles(),
+      this.reloadEmployees(),
+    ]);
+  }
+
+  async loadRoles() {
+    try {
+      const list = await this.roleApi.listRoles();
+      this.roles.set(list);
+    } catch (err) {
+      console.error('[load roles]', err);
+    }
   }
 
   onSearchFieldSelected(value: string) {
@@ -689,16 +739,13 @@ export class EmployeesPageComponent implements OnInit {
   async reloadEmployees() {
     this.loading.set(true);
     try {
-      const status = this.statusFilter();
-      const params: Record<string, any> = {
+      const result = await this.api.listUsers({
         page: this.page(),
         limit: this.pageSize(),
         q: this.searchQuery().trim() || undefined,
-      };
-      if (status !== 'all') {
-        params.isActive = status === 'active';
-      }
-      const result = await this.api.listEmployees(params);
+        role: this.roleFilter() !== 'all' ? this.roleFilter() : undefined,
+        status: this.statusFilter() !== 'all' ? this.statusFilter() : undefined,
+      });
       this.employees.set(result.data || []);
       this.totalCount.set(result.total || 0);
     } catch (err) {
@@ -814,10 +861,11 @@ export class EmployeesPageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settings,
-      this.locale() === 'es' ? 'Acá podés actualizar tu perfil y preferencias.' : 'You can update your profile and preferences here.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {
@@ -838,11 +886,21 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Employee modals ──
   openCreateModal() {
+    this.resetForm();
     this.editingEmployee.set(null);
     this.employeeModalOpen.set(true);
   }
 
   openEditModal(employee: EmployeeRowDto) {
+    this.formFirstName.set(employee.firstName);
+    this.formLastName.set(employee.lastName);
+    this.formEmployeeId.set(employee.employeeId);
+    this.formCedula.set(employee.cedula);
+    this.formEmail.set(employee.email);
+    this.formUsername.set(employee.username);
+    this.formRole.set(employee.role);
+    this.formPassword.set('');
+    this.formSubmitting.set(false);
     this.editingEmployee.set(employee);
     this.employeeModalOpen.set(true);
   }
@@ -850,6 +908,66 @@ export class EmployeesPageComponent implements OnInit {
   closeEmployeeModal() {
     this.employeeModalOpen.set(false);
     this.editingEmployee.set(null);
+    this.resetForm();
+  }
+
+  onCedulaInput(value: string) {
+    this.formCedula.set(value.replace(/\D/g, '').slice(0, 10));
+  }
+
+  private resetForm() {
+    this.formFirstName.set('');
+    this.formLastName.set('');
+    this.formEmployeeId.set('');
+    this.formCedula.set('');
+    this.formEmail.set('');
+    this.formUsername.set('');
+    this.formPassword.set('');
+    this.formRole.set('');
+    this.formSubmitting.set(false);
+  }
+
+  async saveEmployee() {
+    if (!this.formValid() || this.formSubmitting()) return;
+    this.formSubmitting.set(true);
+    try {
+      if (this.editingEmployee()) {
+        const updated = await this.api.updateUser(this.editingEmployee()!.id, {
+          firstName: this.formFirstName().trim(),
+          lastName: this.formLastName().trim(),
+          email: this.formEmail().trim(),
+          role: this.formRole(),
+          cedula: this.formCedula().trim(),
+        });
+        this.employees.update(emps =>
+          emps.map(e => e.id === updated.id ? updated : e)
+        );
+        await this.feedback.toast('success',
+          this.locale() === 'es' ? 'Empleado actualizado correctamente' : 'Employee updated successfully');
+      } else {
+        const created = await this.api.createUser({
+          employeeId: this.formEmployeeId().trim(),
+          username: this.formUsername().trim(),
+          email: this.formEmail().trim(),
+          password: this.formPassword(),
+          role: this.formRole(),
+          firstName: this.formFirstName().trim(),
+          lastName: this.formLastName().trim(),
+          cedula: this.formCedula().trim(),
+        });
+        this.employees.update(emps => [created, ...emps]);
+        this.totalCount.update(c => c + 1);
+        await this.feedback.toast('success',
+          this.locale() === 'es' ? 'Empleado creado correctamente' : 'Employee created successfully');
+      }
+      this.closeEmployeeModal();
+    } catch (err) {
+      console.error('[save employee]', err);
+      await this.feedback.alert('error',
+        this.locale() === 'es' ? 'Error al guardar empleado' : 'Error saving employee');
+    } finally {
+      this.formSubmitting.set(false);
+    }
   }
 
   openReactivateModal() {
@@ -898,7 +1016,7 @@ export class EmployeesPageComponent implements OnInit {
     }
   }
 
-  // ── Mock activate/deactivate for future integration ──
+  // ── Activate / Deactivate user ──
   async toggleActive(employee: EmployeeRowDto) {
     const isActive = employee.isActive;
     const confirmed = await this.feedback.confirm(
@@ -910,14 +1028,14 @@ export class EmployeesPageComponent implements OnInit {
     if (!confirmed) return;
 
     try {
-      // When backend endpoint is ready, replace with:
-      // await this.api.updateEmployee(employee.id, { isActive: !isActive });
+      const result = isActive
+        ? await this.api.deactivateUser(employee.id)
+        : await this.api.activateUser(employee.id);
+      this.employees.update(emps =>
+        emps.map(e => e.id === result.id ? result : e)
+      );
       await this.feedback.toast('success',
         isActive ? this.copy().toggledInactive : this.copy().toggledActive);
-      // Optimistic update for now
-      this.employees.update(emps =>
-        emps.map(e => e.id === employee.id ? { ...e, isActive: !e.isActive } : e)
-      );
     } catch (err) {
       console.error('[toggle active]', err);
       await this.feedback.alert('error',

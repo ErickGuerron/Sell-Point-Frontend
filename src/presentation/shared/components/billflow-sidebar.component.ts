@@ -34,10 +34,22 @@ export interface BillflowSidebarItem {
         </a>
       </div>
 
-      <div class="mt-auto pt-6">
-        <button type="button" class="w-full py-3.5 px-4 bg-[#6862f3] text-white rounded-xl font-bold hover:bg-[#514be6] hover:shadow-lg hover:shadow-[#6862f3]/20 active:scale-95 transition-all flex items-center justify-center gap-2" (click)="actionClick.emit()">
-          <span class="material-symbols-outlined text-[20px]">{{ actionIcon }}</span>
-          {{ actionLabel }}
+      <div class="mt-auto pt-6 space-y-2">
+        <button
+          type="button"
+          class="w-full py-3 px-4 bg-surface-container-low border border-outline-variant/40 text-on-surface rounded-xl font-bold hover:bg-surface-container hover:border-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+          (click)="settingsClicked.emit()"
+        >
+          <span class="material-symbols-outlined text-[20px]">settings</span>
+          {{ locale === 'es' ? 'Configuración' : 'Settings' }}
+        </button>
+        <button
+          type="button"
+          class="w-full py-3 px-4 bg-error/10 text-error rounded-xl font-bold hover:bg-error/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+          (click)="logoutClicked.emit()"
+        >
+          <span class="material-symbols-outlined text-[20px]">logout</span>
+          {{ locale === 'es' ? 'Cerrar Sesión' : 'Sign Out' }}
         </button>
       </div>
     </aside>
@@ -45,9 +57,9 @@ export interface BillflowSidebarItem {
 })
 export class BillflowSidebarComponent {
   @Input({ required: true }) items: BillflowSidebarItem[] = [];
-  @Input({ required: true }) actionLabel = '';
-  @Input() actionIcon = 'add';
-  @Output() actionClick = new EventEmitter<void>();
+  @Input() locale = 'en';
+  @Output() settingsClicked = new EventEmitter<void>();
+  @Output() logoutClicked = new EventEmitter<void>();
 
   iconSettings(active = false) {
     return active ? "'FILL' 1" : "'FILL' 0";

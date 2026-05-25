@@ -471,10 +471,11 @@ export class CustomersPageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settings,
-      this.locale() === 'es' ? 'Acá podés actualizar tu perfil y preferencias.' : 'You can update your profile and preferences here.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {

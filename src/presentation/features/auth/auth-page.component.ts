@@ -276,6 +276,35 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       });
 
       if (!response.ok) {
+        // Intentar leer el body del error para detectar cuenta bloqueada
+        let body: Record<string, unknown> | null = null;
+        try {
+          body = (await response.json()) as Record<string, unknown>;
+        } catch {
+          // body no es JSON válido, seguir con el error genérico
+        }
+
+        const message =
+          (body?.message as string | undefined) ??
+          (body?.error as string | undefined) ??
+          '';
+
+        const isBlocked =
+          response.status === 423 ||
+          response.status === 403 ||
+          /blocked|locked|bloqueada|bloqueado|deshabilitada|disabled/i.test(message);
+
+        if (isBlocked) {
+          this.loginStatusTone.set('error');
+          this.loginStatusMessage.set(this.copy().feedback.blockedTitle);
+          await this.feedback.alert(
+            'warning',
+            this.copy().feedback.blockedTitle,
+            `${this.copy().feedback.blockedMessage}\n\n${this.copy().feedback.blockedContact}`,
+          );
+          return;
+        }
+
         throw new Error('Invalid credentials');
       }
 

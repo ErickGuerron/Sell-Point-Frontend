@@ -294,7 +294,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     BillflowComboboxComponent,
   ],
   template: `
-    <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().newProduct" actionIcon="add" (actionClick)="openCreateModal()">
+    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
@@ -342,9 +342,10 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
             </div>
           </section>
 
-          <!-- KPIs Section -->
+          <!-- KPIs: total from server; active & low-stock come from /products/aggregates
+               (TODO(backend): implement the endpoint, then uncomment the aggregate call in reloadProducts) -->
           <section class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <!-- Card 1: Total Products -->
+            <!-- Total Products -->
             <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
               <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
                 <span class="material-symbols-outlined text-[96px] font-light">inventory_2</span>
@@ -360,7 +361,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
               </div>
             </div>
 
-            <!-- Card 2: Active Products -->
+            <!-- Active Products — backend-driven (pending /products/aggregates) -->
             <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
               <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
                 <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
@@ -376,7 +377,7 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
               </div>
             </div>
 
-            <!-- Card 3: Out of Stock / Low Stock Products -->
+            <!-- Low / Out of Stock — backend-driven (pending /products/aggregates) -->
             <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 col-span-2 lg:col-span-1">
               <div class="absolute -right-4 -bottom-4 text-error/5 dark:text-error/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
                 <span class="material-symbols-outlined text-[96px] font-light">warning</span>
@@ -986,10 +987,14 @@ export class ProductsPageComponent implements OnInit {
   page = signal(1);
   pageSize = signal(10);
   totalProductsCount = signal(0);
-  
-  // KPIs
+
+  // TODO(backend): fetch these from a /products/aggregates endpoint
   activeCount = signal(0);
   lowStockCount = signal(0);
+
+  // Request management
+  private abortController: AbortController | null = null;
+  private searchTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // User
   displayName = 'Usuario';
@@ -1081,6 +1086,11 @@ export class ProductsPageComponent implements OnInit {
   }
 
   async reloadProducts() {
+    // Cancel any in-flight request to prevent stale data & request pile-up
+    this.abortController?.abort();
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
+
     this.loading.set(true);
     try {
       const res = await this.api.fetchProductsPage(
@@ -1088,18 +1098,19 @@ export class ProductsPageComponent implements OnInit {
         this.categoryFilter(),
         this.statusFilter(),
         this.page(),
-        this.pageSize()
+        this.pageSize(),
+        signal
       );
       this.products.set(res.data);
       this.totalProductsCount.set(res.total);
-      
-      // Load quick aggregates / aggregates count (client-side of loaded page or query if backend handles it)
-      // Since backend page list might be filtered, let's also fetch active vs low stock aggregates.
-      // For simplicity, we calculate them from the response page or set defaults.
-      this.activeCount.set(res.data.filter(p => p.isActive).length);
-      this.lowStockCount.set(res.data.filter(p => p.currentStock <= 5).length);
-      
+
+      // TODO(backend): once /products/aggregates endpoint exists, call it here and set:
+      //   this.activeCount.set(agg.active);
+      //   this.lowStockCount.set(agg.lowStock);
     } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return; // Silently ignore cancelled requests
+      }
       console.error('[reload products]', err);
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los productos' : 'Could not load products',
@@ -1117,7 +1128,10 @@ export class ProductsPageComponent implements OnInit {
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
     this.page.set(1);
-    void this.reloadProducts();
+
+    // Debounce: wait for the user to stop typing before fetching
+    if (this.searchTimeout) clearTimeout(this.searchTimeout);
+    this.searchTimeout = setTimeout(() => void this.reloadProducts(), 350);
   }
 
   setStatusFilter(value: string) {
@@ -1217,10 +1231,11 @@ export class ProductsPageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settings,
-      this.locale() === 'es' ? 'Acá podés actualizar tu perfil y preferencias.' : 'You can update your profile and preferences here.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {

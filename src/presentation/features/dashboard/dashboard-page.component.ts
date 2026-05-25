@@ -710,9 +710,11 @@ export class DashboardPageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settingsTitle, this.copy().settingsText);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {

@@ -35,9 +35,9 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
-      [actionLabel]="locale() === 'es' ? 'Nueva Factura' : 'New Invoice'"
-      actionIcon="add"
-      (actionClick)="resetForm()"
+      [locale]="locale()"
+      (settings)="openUserSettings()"
+      (logout)="logout()"
     >
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
@@ -70,12 +70,13 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
                   [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
                   [languageLabel]="locale() === 'es' ? 'English' : 'Español'"
-                  settingsLabel="Configuración"
-                  logoutLabel="Cerrar sesión"
-                  sessionLabel="Sesión"
+                  [settingsLabel]="locale() === 'es' ? 'Configuración' : 'Settings'"
+                  [logoutLabel]="locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out'"
+                  [sessionLabel]="locale() === 'es' ? 'Sesión' : 'Session'"
                   (toggle)="toggleUserMenu($event)"
                   (close)="closeUserMenu()"
                   (languageToggle)="toggleLocale()"
+                  (settings)="openUserSettings()"
                   (logout)="logout()"
                 ></billflow-user-menu>
               </div>
@@ -428,9 +429,21 @@ export class CreateInvoicePageComponent implements OnInit {
     }
   }
 
+  openUserSettings() {
+    this.closeUserMenu();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
+  }
+
   async logout() {
     this.closeUserMenu();
-    const ok = await this.feedback.confirm('Cerrar sesión', '¿Seguro que querés salir?', 'Cerrar sesión', 'Cancelar');
+    const ok = await this.feedback.confirm(
+      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
+      this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?',
+      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
+      this.locale() === 'es' ? 'Cancelar' : 'Cancel',
+    );
     if (!ok || typeof window === 'undefined') return;
     window.localStorage.removeItem('billflow-session');
     window.location.replace('/auth');
