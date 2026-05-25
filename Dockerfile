@@ -12,6 +12,7 @@ RUN --mount=type=cache,target=/root/.npm \
 
 # Source layer — invalidated only when src actually changes
 COPY src/ ./src/
+COPY public/ ./public/
 
 # Build
 RUN npm run build
