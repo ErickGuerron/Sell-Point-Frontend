@@ -340,7 +340,11 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
+    const body = await response.json() as PaginatedResponse<any>;
+    return {
+      ...body,
+      data: body.data.map((p) => this.mapBackendProduct(p)),
+    };
   }
 
   async fetchProductsPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<ProductRowDto>> {
@@ -352,7 +356,11 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<PaginatedResponse<ProductRowDto>>;
+    const body = await response.json() as PaginatedResponse<any>;
+    return {
+      ...body,
+      data: body.data.map((p) => this.mapBackendProduct(p)),
+    };
   }
 
   async createInvoice(payload: CreateInvoicePayload): Promise<InvoiceRowDto> {
@@ -470,6 +478,17 @@ export class InvoiceApiService {
       phone: b.phone ?? undefined,
       address: b.address ?? undefined,
       active: b.isActive === true || b.isActive === 1,
+    };
+  }
+
+  private mapBackendProduct(p: any): ProductRowDto {
+    return {
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      description: p.description ?? undefined,
+      unitPrice: Number(p.salePrice),
+      availableQuantity: Number(p.currentStock),
     };
   }
 
