@@ -3,13 +3,14 @@ import { Component, computed, EventEmitter, inject, Input, Output, signal } from
 import { FormsModule } from '@angular/forms';
 import { InvoiceApiService, type ProductRowDto } from './invoice-api.service';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
+import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 @Component({
   selector: 'billflow-product-selection-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, BillflowModalShellComponent],
+  imports: [CommonModule, FormsModule, BillflowModalShellComponent, BillflowComboboxComponent],
   template: `
     <billflow-modal-shell
       *ngIf="open"
@@ -23,16 +24,14 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
       <!-- Search + filter -->
       <div class="px-6 py-3 border-b border-outline-variant/30 bg-surface/40 flex-shrink-0">
         <div class="flex items-center gap-3">
-          <select
-            class="bg-surface border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shrink-0"
+          <billflow-combobox
+            [options]="productFilterOptions()"
             [value]="productFilterField()"
-            (change)="onProductFilterFieldChange($event)"
-          >
-            <option value="all">{{ locale === 'es' ? 'Todos' : 'All' }}</option>
-            <option value="name">{{ locale === 'es' ? 'Nombre' : 'Name' }}</option>
-            <option value="code">{{ locale === 'es' ? 'Código' : 'Code' }}</option>
-            <option value="description">{{ locale === 'es' ? 'Descripción' : 'Description' }}</option>
-          </select>
+            [placeholder]="locale === 'es' ? 'Filtrar por...' : 'Filter by...'"
+            searchPlaceholder="{{ locale === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+            [compact]="true"
+            (valueChange)="onProductFilterFieldChange($event)"
+          ></billflow-combobox>
           <div class="relative flex-1">
             <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
             <input
@@ -161,6 +160,15 @@ export class ProductSelectionModalComponent {
   productModalPage = signal(1);
   productModalPageSize = signal(5);
   productFilterField = signal<'all' | 'name' | 'code' | 'description'>('all');
+  readonly productFilterOptions = computed<ComboboxOption[]>(() => {
+    const es = this.locale === 'es';
+    return [
+      { value: 'all',         label: es ? 'Todos'         : 'All' },
+      { value: 'name',        label: es ? 'Nombre'        : 'Name' },
+      { value: 'code',        label: es ? 'Código'        : 'Code' },
+      { value: 'description', label: es ? 'Descripción'   : 'Description' },
+    ];
+  });
   readonly skeletonRows = [1, 2, 3, 4, 5];
 
   private productModalSearchTimeout: number | undefined;
@@ -192,9 +200,8 @@ export class ProductSelectionModalComponent {
     );
   }
 
-  onProductFilterFieldChange(event: Event) {
-    const value = (event.target as HTMLSelectElement).value as 'all' | 'name' | 'code' | 'description';
-    this.productFilterField.set(value);
+  onProductFilterFieldChange(value: string) {
+    this.productFilterField.set(value as 'all' | 'name' | 'code' | 'description');
     this.productModalPage.set(1);
     void this.loadProductModalPage(1);
   }
@@ -227,8 +234,9 @@ export class ProductSelectionModalComponent {
       this.productModalResults.set(res.data);
       this.productModalTotal.set(res.pagination?.total ?? res.data.length);
       this.productModalPage.set(page);
-    } catch {
+    } catch (err) {
       if (requestId !== this.productModalRequestId) return;
+      console.error('[product-modal] fetch error:', err);
       this.productModalResults.set([]);
       this.productModalTotal.set(0);
     } finally {

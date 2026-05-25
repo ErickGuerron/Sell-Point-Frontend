@@ -3,13 +3,14 @@ import { Component, computed, EventEmitter, inject, Input, Output, signal } from
 import { FormsModule } from '@angular/forms';
 import { InvoiceApiService, type CustomerRowDto } from './invoice-api.service';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
+import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 @Component({
   selector: 'billflow-customer-selection-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, BillflowModalShellComponent],
+  imports: [CommonModule, FormsModule, BillflowModalShellComponent, BillflowComboboxComponent],
   template: `
     <billflow-modal-shell
       *ngIf="open"
@@ -23,17 +24,14 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
       <!-- Search bar + filter -->
       <div class="px-6 py-3 border-b border-outline-variant/30 flex-shrink-0 bg-surface-container/30">
         <div class="flex items-center gap-3">
-          <select
-            class="bg-surface border border-outline-variant rounded-xl px-3 py-2.5 text-sm text-on-surface font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer shrink-0"
+          <billflow-combobox
+            [options]="customerFilterOptions()"
             [value]="customerFilterField()"
-            (change)="onCustomerFilterFieldChange($event)"
-          >
-            <option value="all">{{ locale === 'es' ? 'Todos' : 'All' }}</option>
-            <option value="name">{{ locale === 'es' ? 'Nombre' : 'Name' }}</option>
-            <option value="lastName">{{ locale === 'es' ? 'Apellido' : 'Last Name' }}</option>
-            <option value="cedula">{{ locale === 'es' ? 'Cédula' : 'ID' }}</option>
-            <option value="email">Email</option>
-          </select>
+            [placeholder]="locale === 'es' ? 'Filtrar por...' : 'Filter by...'"
+            searchPlaceholder="{{ locale === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+            [compact]="true"
+            (valueChange)="onCustomerFilterFieldChange($event)"
+          ></billflow-combobox>
           <div class="relative flex-1">
             <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
             <input
@@ -154,6 +152,16 @@ export class CustomerSelectionModalComponent {
   @Output() close = new EventEmitter<void>();
 
   customerFilterField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email'>('all');
+  readonly customerFilterOptions = computed<ComboboxOption[]>(() => {
+    const es = this.locale === 'es';
+    return [
+      { value: 'all',      label: es ? 'Todos'     : 'All' },
+      { value: 'name',     label: es ? 'Nombre'    : 'Name' },
+      { value: 'lastName', label: es ? 'Apellido'  : 'Last Name' },
+      { value: 'cedula',   label: es ? 'Cédula'    : 'ID' },
+      { value: 'email',    label: 'Email' },
+    ];
+  });
   customerQuery = signal('');
   customerLoading = signal(false);
   modalCustomers = signal<CustomerRowDto[]>([]);
@@ -194,9 +202,8 @@ export class CustomerSelectionModalComponent {
 
   minOf(a: number, b: number) { return Math.min(a, b); }
 
-  onCustomerFilterFieldChange(event: Event) {
-    const value = (event.target as HTMLSelectElement).value as 'all' | 'name' | 'lastName' | 'cedula' | 'email';
-    this.customerFilterField.set(value);
+  onCustomerFilterFieldChange(value: string) {
+    this.customerFilterField.set(value as 'all' | 'name' | 'lastName' | 'cedula' | 'email');
     this.modalPage.set(1);
     void this.loadModalPage(1);
   }
