@@ -1,10 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormControl } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { Observable } from 'rxjs';
-import { startWith, map } from 'rxjs/operators';
-import { MatAutocompleteModule } from '@angular/material/autocomplete';
 import { EmployeeApiService, type EmployeeRowDto } from './employee-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -16,7 +13,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
-import { type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -237,7 +234,7 @@ const ROLE_OPTIONS: ComboboxOption[] = [
   selector: 'billflow-employees-page',
   standalone: true,
   imports: [
-    CommonModule, FormsModule, ReactiveFormsModule, MatAutocompleteModule,
+    CommonModule, FormsModule, BillflowComboboxComponent,
 
     BillflowPageShellComponent, DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
@@ -348,18 +345,22 @@ const ROLE_OPTIONS: ComboboxOption[] = [
       <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
         <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex flex-wrap items-center gap-3">
-            <div class="mat-filter-combo">
-              <input type="text" class="w-44 min-w-0 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm placeholder:text-outline-variant cursor-pointer" [formControl]="statusControl" [matAutocomplete]="statusAuto" [placeholder]="copy().allStatuses" />
-              <mat-autocomplete #statusAuto="mat-autocomplete" (optionSelected)="onStatusSelected($event.option.value)">
-                <mat-option *ngFor="let opt of filteredStatusOptions | async" [value]="opt.value">{{ opt.label }}</mat-option>
-              </mat-autocomplete>
-            </div>
-            <div class="mat-filter-combo">
-              <input type="text" class="w-44 min-w-0 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm placeholder:text-outline-variant cursor-pointer" [formControl]="roleControl" [matAutocomplete]="roleAuto" [placeholder]="copy().allRoles" />
-              <mat-autocomplete #roleAuto="mat-autocomplete" (optionSelected)="onRoleSelected($event.option.value)">
-                <mat-option *ngFor="let opt of filteredRoleOptions | async" [value]="opt.value">{{ opt.label }}</mat-option>
-              </mat-autocomplete>
-            </div>
+            <billflow-combobox
+              [options]="statusFilterOptions()"
+              [value]="statusFilter()"
+              [placeholder]="copy().allStatuses"
+              searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+              [compact]="true"
+              (valueChange)="setStatusFilter($event)"
+            ></billflow-combobox>
+            <billflow-combobox
+              [options]="roleFilterOptions()"
+              [value]="roleFilter()"
+              [placeholder]="copy().allRoles"
+              searchPlaceholder="{{ locale() === 'es' ? 'Buscar rol...' : 'Search role...' }}"
+              [compact]="true"
+              (valueChange)="setRoleFilter($event)"
+            ></billflow-combobox>
             <button type="button" title="Refresh" class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="void reloadEmployees()">
               <span class="material-symbols-outlined text-[20px] transition-transform" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
             </button>
@@ -371,12 +372,14 @@ const ROLE_OPTIONS: ComboboxOption[] = [
             </button>
           </div>
           <div class="flex items-center gap-2 w-full lg:w-auto">
-            <div class="mat-filter-combo">
-              <input type="text" class="w-40 min-w-0 px-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm placeholder:text-outline-variant cursor-pointer" [formControl]="searchFieldControl" [matAutocomplete]="searchFieldAuto" [placeholder]="locale() === 'es' ? 'Buscar por...' : 'Search by...'" />
-              <mat-autocomplete #searchFieldAuto="mat-autocomplete" (optionSelected)="onSearchFieldSelected($event.option.value)">
-                <mat-option *ngFor="let opt of filteredSearchFieldOptions | async" [value]="opt.value">{{ opt.label }}</mat-option>
-              </mat-autocomplete>
-            </div>
+            <billflow-combobox
+              [options]="searchFieldOptionsList()"
+              [value]="searchFieldValue()"
+              [placeholder]="locale() === 'es' ? 'Buscar por...' : 'Search by...'"
+              searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+              [compact]="true"
+              (valueChange)="onSearchFieldSelected($event)"
+            ></billflow-combobox>
             <div class="relative flex-1 lg:w-64">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
               <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
@@ -641,8 +644,7 @@ export class EmployeesPageComponent implements OnInit {
     ...ROLE_OPTIONS,
   ]);
 
-  // ── Angular Material autocomplete for filters ──
-  readonly searchFieldControl = new FormControl('');
+  // ── Filter values ──
   readonly searchFieldOptionsList = computed(() => [
     { value: 'all', label: this.locale() === 'es' ? 'Cualquier campo' : 'Any field' },
     { value: 'employeeId', label: this.copy().employeeId },
@@ -654,13 +656,6 @@ export class EmployeesPageComponent implements OnInit {
     { value: 'status', label: this.copy().status },
   ]);
   searchFieldValue = signal('all');
-  filteredSearchFieldOptions = new Observable<{ value: string; label: string }[]>();
-
-  readonly statusControl = new FormControl('');
-  filteredStatusOptions = new Observable<ComboboxOption[]>();
-
-  readonly roleControl = new FormControl('');
-  filteredRoleOptions = new Observable<ComboboxOption[]>();
 
   // ── User menu ──
   displayName = 'Usuario';
@@ -682,63 +677,12 @@ export class EmployeesPageComponent implements OnInit {
     this.applyStoredUser();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
-    // Setup Material autocomplete filter observables
-    this.filteredSearchFieldOptions = this.searchFieldControl.valueChanges.pipe(
-      startWith(''),
-      map(value => this._filterSearchFields(value || '')),
-    );
-    this.filteredStatusOptions = this.statusControl.valueChanges.pipe(
-      startWith(''),
-      map(value => this._filterOptions(value || '', this.statusFilterOptions())),
-    );
-    this.filteredRoleOptions = this.roleControl.valueChanges.pipe(
-      startWith(''),
-      map(value => this._filterOptions(value || '', this.roleFilterOptions())),
-    );
-
     await this.reloadEmployees();
-  }
-
-  private _filterSearchFields(value: string): { value: string; label: string }[] {
-    const filterValue = value.toLowerCase();
-    return this.searchFieldOptionsList().filter(opt =>
-      opt.label.toLowerCase().includes(filterValue)
-    );
-  }
-
-  private _filterOptions(value: string, options: ComboboxOption[]): ComboboxOption[] {
-    const filterValue = value.toLowerCase();
-    return options.filter(opt => opt.label.toLowerCase().includes(filterValue));
   }
 
   onSearchFieldSelected(value: string) {
     this.searchFieldValue.set(value);
-    this.searchFieldControl.setValue(
-      this.searchFieldOptionsList().find(o => o.value === value)?.label || '',
-      { emitEvent: false }
-    );
     this.page.set(1);
-  }
-
-  onStatusSelected(value: string) {
-    this.setStatusFilter(value);
-    this.statusControl.setValue(
-      this._optionLabel(value, this.statusFilterOptions()),
-      { emitEvent: false }
-    );
-  }
-
-  onRoleSelected(value: string) {
-    this.setRoleFilter(value);
-    this.roleControl.setValue(
-      this._optionLabel(value, this.roleFilterOptions()),
-      { emitEvent: false }
-    );
-  }
-
-  private _optionLabel(value: string, options: ComboboxOption[]): string {
-    const match = options.find(o => o.value === value);
-    return match?.label || '';
   }
 
   // ── Data loading ──
