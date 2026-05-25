@@ -141,7 +141,13 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
 export class CustomerSelectionModalComponent {
   private readonly api = inject(InvoiceApiService);
 
-  @Input({ required: true }) open = false;
+  private _open = false;
+  @Input() set open(value: boolean) {
+    this._open = value;
+    if (value) this.openModal();
+  }
+  get open(): boolean { return this._open; }
+
   @Input({ required: true }) locale!: string;
 
   @Output() selectedCustomer = new EventEmitter<CustomerRowDto>();
@@ -149,7 +155,6 @@ export class CustomerSelectionModalComponent {
 
   customerFilterField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email'>('all');
   customerQuery = signal('');
-  customerResults = signal<CustomerRowDto[]>([]);
   customerLoading = signal(false);
   modalCustomers = signal<CustomerRowDto[]>([]);
   modalPage = signal(1);
@@ -250,6 +255,15 @@ export class CustomerSelectionModalComponent {
   selectCustomer(c: CustomerRowDto) {
     this.selectedCustomer.emit(c);
     this.doClose();
+  }
+
+  private openModal() {
+    this.customerQuery.set('');
+    this.modalCustomers.set([]);
+    this.modalTotal.set(0);
+    this.modalPage.set(1);
+    this.customerModalRequestId++;
+    void this.loadModalPage(1);
   }
 
   doClose() {

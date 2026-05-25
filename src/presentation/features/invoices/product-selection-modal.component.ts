@@ -142,13 +142,18 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
 export class ProductSelectionModalComponent {
   private readonly api = inject(InvoiceApiService);
 
-  @Input({ required: true }) open = false;
+  private _open = false;
+  @Input() set open(value: boolean) {
+    this._open = value;
+    if (value) this.openModal();
+  }
+  get open(): boolean { return this._open; }
+
   @Input({ required: true }) locale!: string;
 
   @Output() productSelected = new EventEmitter<ProductRowDto>();
   @Output() close = new EventEmitter<void>();
 
-  productModalOpen = signal(false);
   productModalLoading = signal(false);
   productModalResults = signal<ProductRowDto[]>([]);
   productModalTotal = signal(0);
@@ -250,6 +255,15 @@ export class ProductSelectionModalComponent {
   selectProduct(product: ProductRowDto) {
     this.productSelected.emit(product);
     this.doClose();
+  }
+
+  private openModal() {
+    this.productQuery.set('');
+    this.productModalResults.set([]);
+    this.productModalTotal.set(0);
+    this.productModalPage.set(1);
+    this.productModalRequestId++;
+    void this.loadProductModalPage(1);
   }
 
   doClose() {
