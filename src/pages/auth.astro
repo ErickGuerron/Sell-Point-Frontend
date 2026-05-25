@@ -1,0 +1,12 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { AuthPageComponent } from '../presentation/features/auth/auth-page.component';
+import { AuthParticlesBackgroundComponent } from '../presentation/features/auth/auth-particles-background.component';
+---
+
+<MainLayout title="BillFlow POS - Login">
+  <div class="relative isolate min-h-[100dvh] flex items-center justify-center px-md py-md lg:px-xl lg:py-xl font-body-md text-on-surface antialiased overflow-hidden bg-surface">
+    <AuthParticlesBackgroundComponent client:load />
+    <AuthPageComponent client:load />
+  </div>
+</MainLayout>

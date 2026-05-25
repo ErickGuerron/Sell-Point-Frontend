@@ -1,0 +1,14 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { DashboardPageComponent } from '../presentation/features/dashboard/dashboard-page.component';
+import { DashboardParticlesBackgroundComponent } from '../presentation/features/dashboard/dashboard-particles-background.component';
+---
+
+<MainLayout title="BillFlow - Dashboard POS" lang="es">
+  <div class="relative isolate min-h-[100dvh] overflow-hidden bg-surface text-on-surface">
+    <DashboardParticlesBackgroundComponent client:load />
+    <div class="relative z-10">
+      <DashboardPageComponent client:load />
+    </div>
+  </div>
+</MainLayout>

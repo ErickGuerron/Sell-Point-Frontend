@@ -1,0 +1,12 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { InvoicePageComponent } from '../presentation/features/invoices/invoice-page.component';
+---
+
+<MainLayout title="BillFlow - Invoice History" lang="en">
+  <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
+    <div class="relative z-10">
+      <InvoicePageComponent client:load />
+    </div>
+  </div>
+</MainLayout>
