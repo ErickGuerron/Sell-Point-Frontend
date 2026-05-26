@@ -316,7 +316,8 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<PaginatedResponse<CustomerRowDto>>;
+    const body = await response.json() as PaginatedResponse<any>;
+    return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
   }
 
   async fetchCustomersPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<CustomerRowDto>> {
@@ -328,7 +329,8 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<PaginatedResponse<CustomerRowDto>>;
+    const body = await response.json() as PaginatedResponse<any>;
+    return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
   }
 
   async searchProducts(q: string, limit = 20): Promise<PaginatedResponse<ProductRowDto>> {

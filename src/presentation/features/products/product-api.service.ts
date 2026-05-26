@@ -42,6 +42,14 @@ export interface UpdateProductPayload {
   costPrice?: number;
 }
 
+export interface AdjustStockPayload {
+  type: 'IN' | 'OUT' | 'ADJUST';
+  quantity: number;
+  description: string;
+  referenceType?: string;
+  referenceId?: string;
+}
+
 export interface StockMovementDto {
   id: number | string;
   productId: string;
@@ -199,6 +207,22 @@ export class ProductApiService {
       page: body.page ?? page,
       limit: body.limit ?? limit,
     };
+  }
+
+  async adjustStock(productId: string, payload: AdjustStockPayload): Promise<StockMovementDto> {
+    const response = await this.fetchWithRefresh(
+      `${API_BASE_URL}/products/${productId}/stock`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }
+    );
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(err.message ?? `Request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    return this.mapMovement(body);
   }
 
   // ─── Categories ────────────────────────────────────────────────────────────
