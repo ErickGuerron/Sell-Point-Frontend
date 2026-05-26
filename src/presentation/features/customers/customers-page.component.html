@@ -12,23 +12,19 @@
           <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
         </div>
 
-        <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
-          <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
+        <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
+          <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
           <billflow-user-menu
-            [displayName]="displayName"
-            [initials]="userInitials"
-            [open]="userMenuVisible()"
-            [closing]="userMenuClosing()"
+            [displayName]="session.displayName()"
+            [initials]="session.userInitials()"
             [showLanguageToggle]="true"
             [languageLabel]="copy().languageToggle"
             [settingsLabel]="copy().settings"
             [logoutLabel]="copy().signOut"
             [sessionLabel]="copy().sessionLabel"
-            (toggle)="toggleUserMenu($event)"
-            (close)="closeUserMenu()"
             (languageToggle)="toggleLocale()"
-            (settings)="openUserSettings()"
-            (logout)="logout()"
+            (settings)="session.openUserSettings()"
+            (logout)="session.logout()"
           ></billflow-user-menu>
         </div>
       </div>
@@ -93,7 +89,7 @@
     <!-- Mobile nav -->
     <nav class="md:hidden app-dashboard-mobile-nav">
       <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-        <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+        <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
         <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
       </a>
 
