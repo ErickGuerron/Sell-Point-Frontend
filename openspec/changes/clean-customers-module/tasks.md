@@ -28,20 +28,20 @@ Chain strategy: pending
 
 ## Phase 1: Domain Layer (zero external dependencies)
 
-- [ ] **T-001** (`src/domain/customer.entity.ts`, `src/domain/customer.repository.ts`): Crear `CustomerEntity` + `CreateCustomerPayload` interfaces y `CustomerRepository` abstract class. Sin imports de Angular. (~26 lines)
-- [ ] **T-002** (`src/domain/use-cases/`): Crear 4 use-cases: `ListCustomersUseCase` (sort active-first), `CreateCustomerUseCase`, `UpdateCustomerUseCase`, `ToggleCustomerActiveUseCase`. Todos con `@Injectable()` y constructor que recibe `CustomerRepository`. (~62 lines)
+- [x] **T-001** (`src/presentation/features/customers/domain/customer.entity.ts`): Crear `CustomerEntity` + `CreateCustomerPayload` interfaces. Sin imports de Angular. (~12 lines)
+- [x] **T-002** (`src/presentation/features/customers/domain/`): Crear `CustomerRepository` abstract class + 4 use-cases: `ListCustomersUseCase` (sort active-first), `CreateCustomerUseCase`, `UpdateCustomerUseCase`, `ToggleCustomerActiveUseCase`. Todos con `@Injectable()` y `inject(CustomerRepository)`. (~68 lines)
   - Dependencias: T-001
 
 ## Phase 2: Data Layer (depende de domain)
 
-- [ ] **T-003** (`src/data/customer-remote.datasource.ts`): Crear `CustomerRemoteDataSource` con `fetchWithAuth` (replica de InvoiceApiService sin redirect, lanza `AuthError`), mocks migrados, y 4 métodos HTTP. (~120 lines)
+- [x] **T-003** (`src/presentation/features/customers/data/customer-remote.datasource.ts`): Crear `CustomerRemoteDataSource` con `fetchWithAuth` (replica de InvoiceApiService sin redirect, lanza `AuthError`), mocks migrados, y 4 métodos HTTP. (~145 lines)
   - Dependencias: T-001
-- [ ] **T-004** (`src/data/customer.mapper.ts`, `src/data/customer-impl.repository.ts`): Crear `mapBackendToEntity()` y `CustomerImplRepository extends CustomerRepository`. (~53 lines)
+- [x] **T-004** (`src/presentation/features/customers/data/customer.mapper.ts`, `src/presentation/features/customers/data/customer-impl.repository.ts`): Crear `mapBackendToEntity()` y `CustomerImplRepository extends CustomerRepository`. (~43 lines)
   - Dependencias: T-001, T-003
 
 ## Phase 3: i18n Extraction
 
-- [ ] **T-005** (`src/presentation/i18n/customers.translations.ts`): Extraer 82 strings × 2 idiomas del monolito. Estructura `CustomersCopy` + `CUSTOMERS_TEXT` + helper `customersCopy()`. (~210 lines)
+- [x] **T-005** (`src/presentation/features/customers/i18n/customers.translations.ts`): Extraer ~80 strings × 2 idiomas del monolito. Estructura `CustomersCopy` + `CUSTOMERS_TEXT` + helper `customersCopy()`. (~210 lines)
   - Dependencias: ninguno (extracción pura)
 
 ## Phase 4: Presentation Subcomponents
