@@ -46,11 +46,11 @@ Chain strategy: pending
 
 ## Phase 4: Presentation Subcomponents
 
-- [ ] **T-006** (`src/presentation/features/customers/components/customer-kpi-cards.component.ts`): Extraer 3 glass cards en componente standalone con `@Input()` total/active/inactive. (~50 lines)
+- [x] **T-006** (`src/presentation/features/customers/components/customer-kpi-cards.component.ts`): Extraer 3 glass cards en componente standalone con `@Input()` total/active/inactive. (~50 lines)
   - Dependencias: T-005
-- [ ] **T-007** (`src/presentation/features/customers/components/customer-table.component.ts`, `.html`): Extraer tabla + paginación + helpers (fullName, initials, gradient, showInfo). `@Input`/`@Output` bound. (~300 lines)
+- [x] **T-007** (`src/presentation/features/customers/components/customer-table.component.ts`, `.html`): Extraer tabla + paginación + helpers (fullName, initials, gradient, showInfo). `@Input`/`@Output` bound. (~300 lines)
   - Dependencias: T-001, T-005
-- [ ] **T-008** (`src/presentation/features/customers/components/customer-form-modal.component.ts`): Extraer modal formulario con signals, sanitización, validación. Emite `save`/`close`. (~200 lines)
+- [x] **T-008** (`src/presentation/features/customers/components/customer-form-modal.component.ts`): Extraer modal formulario con signals, sanitización, validación. Emite `save`/`close`. (~200 lines)
   - Dependencias: T-001, T-005
 
 ## Phase 5: Orchestrator Reduction
