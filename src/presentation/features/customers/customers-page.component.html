@@ -42,378 +42,55 @@
         </div>
         <div class="flex items-center gap-2 text-sm text-on-surface-variant">
           <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredCustomers().length }} {{ copy().resultsLabel }}</span>
-          <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span>
         </div>
       </section>
 
-      <!-- KPIs Section -->
-      <section class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-        <!-- Card 1: Total Clientes -->
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">groups</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">groups</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total de Clientes' : 'Total Customers' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalCustomersCount() }}</h3>
-            </div>
-          </div>
-        </div>
+      <!-- KPI Cards -->
+      <billflow-customer-kpi-cards
+        [total]="totalCustomersCount()"
+        [active]="activeCustomersCount()"
+        [inactive]="inactiveCustomersCount()">
+      </billflow-customer-kpi-cards>
 
-        <!-- Card 2: Clientes Activos -->
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">check_circle</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activos' : 'Active' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeCustomersCount() }}</h3>
-            </div>
-          </div>
-        </div>
-
-        <!-- Card 3: Clientes Inactivos -->
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-error/5 dark:text-error/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">block</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-error/10 text-error flex items-center justify-center border border-error/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">block</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Inactivos' : 'Inactive' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ inactiveCustomersCount() }}</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-        <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div class="flex flex-wrap items-center gap-3">
-            <billflow-combobox
-              [options]="statusFilterOptions()"
-              [value]="statusFilter()"
-              placeholder="{{ copy().allStatuses }}"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-              [compact]="true"
-              (valueChange)="setStatusFilter($event)"
-            ></billflow-combobox>
-
-            <button
-              type="button"
-              [title]="copy().searchPlaceholder"
-              class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
-              (click)="void reloadCustomers()"
-            >
-              <span
-                class="material-symbols-outlined text-[20px] transition-transform"
-                [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
-              >refresh</span>
-            </button>
-
-            <button
-              type="button"
-              class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-              (click)="openCreateModal()"
-            >
-              <span class="material-symbols-outlined text-[18px]">add</span>
-              {{ copy().newCustomer }}
-            </button>
-          </div>
-
-          <div class="flex items-center gap-2 w-full lg:w-auto">
-            <billflow-combobox
-              [options]="searchFieldOptions()"
-              [value]="searchField()"
-              placeholder="{{ locale() === 'es' ? 'Buscar por...' : 'Search by...' }}"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-              [compact]="true"
-              (valueChange)="setSearchField($event)"
-            ></billflow-combobox>
-
-            <div class="relative flex-1 lg:w-64">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-              <input
-                class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
-                [placeholder]="copy().searchPlaceholder"
-                [value]="searchQuery()"
-                (input)="setSearchQuery(($any($event.target).value))"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-left">
-            <thead>
-              <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ locale() === 'es' ? 'Cliente' : 'Customer' }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().document }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().email }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().phone }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ locale() === 'es' ? 'Dirección' : 'Address' }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
-                <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
-              </tr>
-            </thead>
-
-            <tbody class="font-body-sm text-body-sm">
-              <tr *ngFor="let customer of paginatedCustomers()" class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200" [ngClass]="!customer.active ? 'opacity-70 bg-surface-container-lowest/20' : ''">
-                <td class="p-4 pl-7 font-semibold text-on-background">
-                  <div class="flex items-center gap-3">
-                    <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm" [ngClass]="getCustomerGradient(customer)">
-                      {{ getCustomerInitials(customer) }}
-                    </div>
-                    <div>
-                      <div class="font-semibold text-on-background">{{ customerFullName(customer) }}</div>
-                      <div class="text-[10px] text-outline mt-0.5 md:hidden font-mono">CI: {{ customer.cedula }}</div>
-                    </div>
-                  </div>
-                </td>
-                <td class="p-4">
-                  <span class="font-mono text-sm text-on-surface">{{ customer.cedula ?? '—' }}</span>
-                </td>
-                <td class="p-4 text-on-surface font-medium">{{ customer.email || '—' }}</td>
-                <td class="p-4 text-on-surface font-medium">{{ customer.phone || '—' }}</td>
-                <td class="p-4 text-on-surface font-medium max-w-[140px] truncate">{{ customer.address || '—' }}</td>
-                <td class="p-4">
-                  <span
-                    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide"
-                    [ngClass]="customer.active ? 'border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/5' : 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant'"
-                  >
-                    <span class="h-1.5 w-1.5 rounded-full" [ngClass]="customer.active ? 'bg-primary animate-pulse' : 'bg-outline'"></span>
-                    {{ customer.active ? (locale() === 'es' ? 'ACTIVO' : 'ACTIVE') : (locale() === 'es' ? 'INACTIVO' : 'INACTIVE') }}
-                  </span>
-                </td>
-                <td class="p-4 pr-7 text-right">
-                  <div class="flex items-center justify-end gap-1.5">
-                    <!-- Info Button -->
-                    <button
-                      type="button"
-                      [title]="locale() === 'es' ? 'Ver Detalles' : 'View Details'"
-                      class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                      (click)="$event.stopPropagation(); showCustomerInfo(customer)"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">info</span>
-                    </button>
-
-                    <!-- Edit Button -->
-                    <button
-                      type="button"
-                      [title]="copy().edit"
-                      class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                      (click)="$event.stopPropagation(); openEditModal(customer)"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">edit</span>
-                    </button>
-
-                    <!-- Deactivate / Activate Button -->
-                    <button
-                      type="button"
-                      [title]="customer.active ? copy().deactivate : copy().activate"
-                      class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                      [ngClass]="customer.active ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'"
-                      (click)="$event.stopPropagation(); void toggleActive(customer)"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">{{ customer.active ? 'close' : 'check' }}</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-
-              <tr *ngIf="paginatedCustomers().length === 0">
-                <td colspan="7" class="p-8">
-                  <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                    <span class="material-symbols-outlined dashboard-table-card__empty-icon">groups</span>
-                    <p class="dashboard-table-card__empty-title">{{ copy().noCustomersTitle }}</p>
-                    <p class="dashboard-table-card__empty-text">{{ copy().noCustomersText }}</p>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
-          <div class="flex items-center gap-3 text-sm text-on-surface-variant">
-            <span>
-              {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredCustomers().length }}</span> {{ copy().entriesText }}
-            </span>
-            <select
-              class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
-              [value]="pageSize()"
-              (change)="onPageSizeChange($event)"
-            >
-              <option [value]="5">5</option>
-              <option [value]="10">10</option>
-              <option [value]="15">15</option>
-              <option [value]="20">20</option>
-              <option [value]="30">30</option>
-            </select>
-          </div>
-
-          <div class="flex items-center gap-2">
-            <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
-              <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-            </button>
-
-            <button *ngFor="let pageNumber of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
-              {{ pageNumber }}
-            </button>
-
-            <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === totalPages()" (click)="nextPage()">
-              <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </section>
+      <!-- Customer Table -->
+      <billflow-customer-table
+        [customers]="paginatedCustomers()"
+        [loading]="loading()"
+        [page]="page()"
+        [totalPages]="totalPages()"
+        [pageSize]="pageSize()"
+        [visiblePages]="visiblePages()"
+        [filteredCount]="filteredCustomers().length"
+        [rangeStart]="visibleRangeStart()"
+        [rangeEnd]="visibleRangeEnd()"
+        [searchQuery]="searchQuery()"
+        [searchField]="searchField()"
+        [statusFilter]="statusFilter()"
+        [statusFilterOptions]="statusFilterOptions()"
+        [searchFieldOptions]="searchFieldOptions()"
+        [pageSizeOptions]="pageSizeOptions"
+        (edit)="openEditModal($event)"
+        (toggleActive)="handleToggleActive($event)"
+        (pageChange)="page.set($event)"
+        (pageSizeChange)="onPageSizeCombo($event)"
+        (searchQueryChange)="setSearchQuery($event)"
+        (searchFieldChange)="setSearchField($event)"
+        (statusFilterChange)="setStatusFilter($event)"
+        (refresh)="reloadCustomers()"
+        (openCreate)="openCreateModal()">
+      </billflow-customer-table>
     </main>
 
-    <!-- ══ Create/Edit Customer Modal ══ -->
-    <billflow-modal-shell
-      *ngIf="customerModalOpen()"
-      title="{{ editingCustomer() ? copy().modalEditTitle : copy().modalCreateTitle }}"
-      subtitle="{{ editingCustomer() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}"
-      icon="person_add"
-      maxWidth="xl"
-      [hasFooter]="true"
-      (close)="closeCustomerModal()"
-    >
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <!-- First Name -->
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-          <div class="relative">
-            <input
-              type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="100"
-              placeholder="Ej: Carlos"
-              [ngModel]="formFirstName()"
-              (ngModelChange)="onNameInput($event, 'firstName')"
-            />
-            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formFirstName().length }}/100</span>
-          </div>
-          @if (nameFieldError() === 'firstName') {
-            <p class="mt-1 text-xs text-error">{{ copy().nameError }}</p>
-          }
-        </div>
+    <!-- Customer Form Modal -->
+    <billflow-customer-form-modal
+      [open]="customerModalOpen()"
+      [editing]="editingCustomer()"
+      [copy]="copy()"
+      (save)="handleSave($event)"
+      (close)="closeCustomerModal()">
+    </billflow-customer-form-modal>
 
-        <!-- Last Name -->
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-          <div class="relative">
-            <input
-              type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="100"
-              placeholder="Ej: Rodríguez"
-              [ngModel]="formLastName()"
-              (ngModelChange)="onNameInput($event, 'lastName')"
-            />
-            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formLastName().length }}/100</span>
-          </div>
-          @if (nameFieldError() === 'lastName') {
-            <p class="mt-1 text-xs text-error">{{ copy().nameError }}</p>
-          }
-        </div>
-
-        <!-- Document (Cédula) -->
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-          <div class="relative">
-            <input
-              type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [ngClass]="editingCustomer() ? 'cursor-not-allowed opacity-60' : ''"
-              [maxLength]="10"
-              [placeholder]="copy().cedulaPlaceholder"
-              [ngModel]="formCedula()"
-              [disabled]="editingCustomer() !== null"
-              (ngModelChange)="onNumericInput($event, 'cedula')"
-            />
-            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formCedula().length }}/10</span>
-          </div>
-        </div>
-
-        <!-- Phone -->
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().phoneLabel }}</label>
-          <div class="relative">
-            <input
-              type="tel"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="10"
-              [placeholder]="copy().phonePlaceholder"
-              [ngModel]="formPhone()"
-              (ngModelChange)="onNumericInput($event, 'phone')"
-            />
-            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formCedula().length }}/10</span>
-          </div>
-        </div>
-
-        <!-- Address -->
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Dirección' : 'Address' }}</label>
-          <div class="relative">
-            <input
-              type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="200"
-              placeholder="Ej: Av. Principal 123, Asunción"
-              [ngModel]="formAddress()"
-              (ngModelChange)="formAddress.set($event)"
-            />
-          </div>
-        </div>
-
-        <!-- Email -->
-        <div class="md:col-span-2">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }}</label>
-          <div class="relative">
-            <input
-              type="email"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [maxLength]="255"
-              [placeholder]="copy().emailPlaceholder"
-              [ngModel]="formEmail()"
-              (ngModelChange)="formEmail.set($event)"
-            />
-            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ formEmail().length }}/255</span>
-          </div>
-        </div>
-      </div>
-
-      <div footer class="flex w-full items-center justify-end gap-3">
-        <button
-          type="button"
-          class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-          (click)="closeCustomerModal()"
-        >
-          {{ copy().cancel }}
-        </button>
-        <button
-          type="button"
-          class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-          [disabled]="!formValid()"
-          (click)="saveCustomer()"
-        >
-          {{ editingCustomer() ? copy().saveEdit : copy().save }}
-        </button>
-      </div>
-    </billflow-modal-shell>
-    <!-- ══ /Create/Edit Customer Modal ══ -->
-
+    <!-- Mobile nav -->
     <nav class="md:hidden app-dashboard-mobile-nav">
       <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
         <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>

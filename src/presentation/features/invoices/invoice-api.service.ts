@@ -494,7 +494,7 @@ export class InvoiceApiService {
     };
   }
 
-  // ── Customers ─────────────────────────────────────────────────────────────────
+  // ── Customers (kept for new-customer-modal — other 3 methods migrated to use-cases) ─
 
   async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
     if (USE_MOCK) {
@@ -514,60 +514,6 @@ export class InvoiceApiService {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
-    const backend = await response.json() as BackendCustomer;
-    return this.mapBackendCustomer(backend);
-  }
-
-  async listCustomers(): Promise<CustomerRowDto[]> {
-    if (USE_MOCK) return [...MOCK_CUSTOMERS];
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?limit=200`);
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<BackendCustomer>;
-    return body.data.map((b) => this.mapBackendCustomer(b));
-  }
-
-  async updateCustomer(id: string, payload: CreateCustomerPayload): Promise<CustomerRowDto> {
-    if (USE_MOCK) {
-      const idx = MOCK_CUSTOMERS.findIndex((c) => c.id === id);
-      if (idx === -1) throw new Error('Customer not found');
-      MOCK_CUSTOMERS[idx] = {
-        ...MOCK_CUSTOMERS[idx],
-        name: payload.firstName,
-        lastName: payload.lastName,
-        cedula: payload.cedula,
-        email: payload.email,
-        phone: payload.phone,
-      };
-      return MOCK_CUSTOMERS[idx];
-    }
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
-    const backend = await response.json() as BackendCustomer;
-    return this.mapBackendCustomer(backend);
-  }
-
-  async toggleCustomerActive(id: string, currentActive: boolean): Promise<CustomerRowDto> {
-    if (USE_MOCK) {
-      const idx = MOCK_CUSTOMERS.findIndex((c) => c.id === id);
-      if (idx === -1) throw new Error('Customer not found');
-      MOCK_CUSTOMERS[idx] = { ...MOCK_CUSTOMERS[idx], active: !currentActive };
-      return MOCK_CUSTOMERS[idx];
-    }
-    const endpoint = currentActive ? 'deactivate' : 'activate';
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}/${endpoint}`, {
-      method: 'PATCH',
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };

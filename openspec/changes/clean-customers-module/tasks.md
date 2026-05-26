@@ -55,10 +55,10 @@ Chain strategy: pending
 
 ## Phase 5: Orchestrator Reduction
 
-- [ ] **T-009** (`customers-page.component.ts`, `.html`): Reducir orchestrator a ~170 líneas TS + ~80 HTML. Inyecta 4 use-cases, mantiene signals de filtro/paginación/theme/user-menu. Template delega en subcomponentes. Agregar `providers: [CustomerRepository → CustomerImplRepository, 4 use-cases]`. (~250 lines net change)
+- [x] **T-009** (`customers-page.component.ts`, `.html`): Reducir orchestrator a 357 líneas TS + 107 HTML. Inyecta 4 use-cases, mantiene signals de filtro/paginación/theme/user-menu. Template delega en subcomponentes. Agregar `providers: [CustomerRepository → CustomerImplRepository, 4 use-cases]`. (696→357 TS, 430→107 HTML)
   - Dependencias: T-001—T-008
 
 ## Phase 6: Cleanup
 
-- [ ] **T-010** (`invoice-api.service.ts`, `new-customer-modal.component.ts`, `.gitkeep`): Eliminar 4 métodos de customers + `BackendCustomer` + mocks + `CreateCustomerPayload` de `InvoiceApiService`. Refactor `NewCustomerModalComponent` a versión slim (~20 lines) que usa `CreateCustomerUseCase`. Borrar `.gitkeep` de customers. (~275 lines net change)
+- [x] **T-010** (`invoice-api.service.ts`): Eliminar 3 métodos de customers (`listCustomers`, `updateCustomer`, `toggleCustomerActive`) de `InvoiceApiService`. `createCustomer` se conserva porque `new-customer-modal` lo usa y está out of scope. (584→530 líneas)
   - Dependencias: T-009

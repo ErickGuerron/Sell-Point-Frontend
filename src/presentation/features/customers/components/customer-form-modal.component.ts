@@ -102,7 +102,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               (ngModelChange)="onNumericInput($event, 'phone')"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
-              >{{ formCedula().length }}/10</span
+              >{{ formPhone().length }}/10</span
             >
           </div>
         </div>

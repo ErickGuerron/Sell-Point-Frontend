@@ -53,6 +53,11 @@ export interface CustomersCopy {
   cedulaPlaceholder: string;
   phonePlaceholder: string;
   emailPlaceholder: string;
+  signOut: string;
+  settings: string;
+  notifications: string;
+  languageToggle: string;
+  sessionLabel: string;
   cancel: string;
 }
 
@@ -109,6 +114,11 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phonePlaceholder: 'Ej: +595 981 123456',
     emailPlaceholder: 'Ej: cliente@ejemplo.com',
     cancel: 'Cancelar',
+    signOut: 'Cerrar sesión',
+    settings: 'Configuración',
+    notifications: 'Notificaciones',
+    languageToggle: 'English',
+    sessionLabel: 'Sesión',
   },
   en: {
     moduleLabel: 'Customers Module',
@@ -160,6 +170,11 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phonePlaceholder: 'e.g. +1 555 123 4567',
     emailPlaceholder: 'e.g. john@example.com',
     cancel: 'Cancel',
+    signOut: 'Sign out',
+    settings: 'Settings',
+    notifications: 'Notifications',
+    languageToggle: 'Español',
+    sessionLabel: 'Session',
   },
 };
 
