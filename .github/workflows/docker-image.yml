@@ -1,0 +1,60 @@
+name: Docker Frontend CI
+
+on:
+  pull_request:
+    branches: [ "develop" ]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [ "develop" ] # Se dispara cuando el PR es aprobado y se fusiona en develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # 1. Configurar QEMU para emulación multiplataforma (AMD64/ARM64)
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
+    # 2. Configurar el builder de Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # 3. Autenticación segura en Docker Hub usando tus Secrets
+    # Recuerda agregar DOCKERHUB_USERNAME y DOCKERHUB_TOKEN en los Settings de este repo también
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+    # 4. Extracción inteligente de metadatos y tags para el Frontend
+    - name: Extract Docker metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: meliodasdev/sellpoint-frontend
+        tags: |
+          # Si es un Pull Request, genera un tag específico: pr-12
+          type=ref,event=pr,prefix=pr-
+          # Si se hace merge en develop, actualiza el tag: latest
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/develop' && github.event_name == 'push' }}
+          # Tag secundario opcional con el hash corto del commit para trazabilidad exacta
+          type=sha,format=short,prefix=commit-
+
+    # 5. Construcción y publicación multiplataforma optimizada
+    - name: Build and push Multi-platform Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        # Uso de caché nativa de GitHub Actions para acelerar las instalaciones de node_modules en el build del front
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

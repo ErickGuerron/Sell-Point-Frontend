@@ -62,8 +62,18 @@ export class DashboardApiService {
     return this.request<PaginatedResponse<InvoiceRowDto>>(`/invoices?page=1&limit=${limit}`);
   }
 
-  listProducts(limit = 6): Promise<PaginatedResponse<ProductRowDto>> {
-    return this.request<PaginatedResponse<ProductRowDto>>(`/products?page=1&limit=${limit}`);
+  async listProducts(limit = 6): Promise<PaginatedResponse<ProductRowDto>> {
+    const res = await this.request<PaginatedResponse<any>>(`/products?page=1&limit=${limit}`);
+    return {
+      ...res,
+      data: res.data.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        unitPrice: Number(p.salePrice),
+        availableQuantity: Number(p.currentStock),
+      })),
+    };
   }
 
   listCustomers(limit = 6): Promise<PaginatedResponse<CustomerRowDto>> {

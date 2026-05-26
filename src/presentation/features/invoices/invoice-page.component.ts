@@ -12,6 +12,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
+import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
 type InvoiceStatus = 'paid' | 'pending' | 'overdue';
 type InvoiceRange = '30d' | '90d' | 'year' | 'all';
@@ -213,9 +214,9 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 @Component({
   selector: 'billflow-invoice-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent],
+  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent, BillflowComboboxComponent],
   template: `
-    <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
+    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
@@ -307,19 +308,23 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
               <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div class="flex flex-wrap items-center gap-3">
-                  <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="statusFilter()" (change)="setStatusFilter(($any($event.target).value))">
-                    <option value="all">{{ copy().allStatuses }}</option>
-                    <option value="paid">{{ copy().paid }}</option>
-                    <option value="pending">{{ copy().pending }}</option>
-                    <option value="overdue">{{ copy().overdue }}</option>
-                  </select>
+                  <billflow-combobox
+                    [options]="statusFilterOptions()"
+                    [value]="statusFilter()"
+                    placeholder="{{ copy().allStatuses }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+                    [compact]="true"
+                    (valueChange)="setStatusFilter($event)"
+                  ></billflow-combobox>
 
-                  <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="rangeFilter()" (change)="setRangeFilter(($any($event.target).value))">
-                    <option value="30d">{{ copy().last30Days }}</option>
-                    <option value="90d">{{ copy().last90Days }}</option>
-                    <option value="year">{{ copy().thisYear }}</option>
-                    <option value="all">{{ copy().allTime }}</option>
-                  </select>
+                  <billflow-combobox
+                    [options]="rangeFilterOptions()"
+                    [value]="rangeFilter()"
+                    placeholder="{{ copy().allTime }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar período...' : 'Search period...' }}"
+                    [compact]="true"
+                    (valueChange)="setRangeFilter($event)"
+                  ></billflow-combobox>
 
                   <button
                     type="button"
@@ -345,16 +350,14 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 
                 <div class="flex items-center gap-3 w-full lg:w-auto">
                   <!-- Filter combobox -->
-                  <select
-                    class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm shrink-0"
+                  <billflow-combobox
+                    [options]="filterFieldOptions()"
                     [value]="invoiceFilterField()"
-                    (change)="setInvoiceFilterField(($any($event.target).value))"
-                  >
-                    <option value="all">{{ copy().filterAll }}</option>
-                    <option value="invoiceNumber">{{ copy().filterInvoiceNumber }}</option>
-                    <option value="customerName">{{ copy().filterCustomer }}</option>
-                    <option value="total">{{ copy().filterAmount }}</option>
-                  </select>
+                    placeholder="{{ copy().filterAll }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                    [compact]="true"
+                    (valueChange)="setInvoiceFilterField($event)"
+                  ></billflow-combobox>
 
                   <div class="relative flex-1 lg:w-72">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
@@ -627,6 +630,30 @@ export class InvoicePageComponent implements OnInit {
   page = signal(1);
   pageSize = signal(5);
   invoicePreview = signal<InvoiceViewModel | null>(null);
+
+  Math = Math;
+  String = String;
+
+  readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
+    { value: 'all', label: this.copy().allStatuses },
+    { value: 'paid', label: this.copy().paid },
+    { value: 'pending', label: this.copy().pending },
+    { value: 'overdue', label: this.copy().overdue },
+  ]);
+
+  readonly rangeFilterOptions = computed<ComboboxOption[]>(() => [
+    { value: '30d', label: this.copy().last30Days },
+    { value: '90d', label: this.copy().last90Days },
+    { value: 'year', label: this.copy().thisYear },
+    { value: 'all', label: this.copy().allTime },
+  ]);
+
+  readonly filterFieldOptions = computed<ComboboxOption[]>(() => [
+    { value: 'all', label: this.copy().filterAll },
+    { value: 'invoiceNumber', label: this.copy().filterInvoiceNumber },
+    { value: 'customerName', label: this.copy().filterCustomer },
+    { value: 'total', label: this.copy().filterAmount },
+  ]);
   displayName = 'Usuario';
   userInitials = 'US';
   userMenuVisible = signal(false);
@@ -806,9 +833,11 @@ export class InvoicePageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settings, this.locale() === 'es' ? 'Acá podés actualizar tu perfil y preferencias.' : 'You can update your profile and preferences here.');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {

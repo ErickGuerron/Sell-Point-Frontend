@@ -87,6 +87,7 @@ interface DashboardCopy {
   quickActionNewInvoice: string;
   quickActionAddCustomer: string;
   quickActionAddProduct: string;
+  quickActionEmployees: string;
   productsTitle: string;
   productsSubtitle: string;
   customersTitle: string;
@@ -148,6 +149,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionNewInvoice: 'Nueva Factura',
     quickActionAddCustomer: 'Añadir Cliente',
     quickActionAddProduct: 'Añadir Producto',
+    quickActionEmployees: 'Gestionar Empleados',
     productsTitle: 'Productos',
     productsSubtitle: '(inventario actual)',
     customersTitle: 'Clientes recientes',
@@ -207,6 +209,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionNewInvoice: 'New Invoice',
     quickActionAddCustomer: 'Add Customer',
     quickActionAddProduct: 'Add Product',
+    quickActionEmployees: 'Manage Employees',
     productsTitle: 'Products',
     productsSubtitle: '(current inventory)',
     customersTitle: 'Recent Customers',
@@ -551,6 +554,7 @@ export class DashboardPageComponent implements OnInit {
       { label: copy.quickActionNewInvoice, icon: 'post_add', tone: 'primary' },
       { label: copy.quickActionAddCustomer, icon: 'person_add', tone: 'secondary' },
       { label: copy.quickActionAddProduct, icon: 'add_box', tone: 'tertiary' },
+      { label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' },
     ];
   });
 
@@ -649,8 +653,10 @@ export class DashboardPageComponent implements OnInit {
     }
   }
 
-  async startNewSale() {
-    await this.feedback.toast('success', 'Nueva venta', 'La terminal POS está lista para operar.');
+  startNewSale() {
+    if (typeof window !== 'undefined') {
+      window.location.assign('/create-invoice');
+    }
   }
 
   toggleDashboardLocale() {
@@ -704,9 +710,11 @@ export class DashboardPageComponent implements OnInit {
     this.closeUserMenu();
   }
 
-  async openUserSettings() {
+  openUserSettings() {
     this.closeUserMenu();
-    await this.feedback.alert('info', this.copy().settingsTitle, this.copy().settingsText);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
   }
 
   async logout() {
@@ -758,6 +766,9 @@ export class DashboardPageComponent implements OnInit {
         break;
       case 'add_box':
         window.location.assign('/products');
+        break;
+      case 'badge':
+        window.location.assign('/employees');
         break;
     }
   }
@@ -994,10 +1005,5 @@ export class DashboardPageComponent implements OnInit {
       cedula: customer.cedula,
       email: customer.email,
     };
-  }
-  startNewSale() {
-    if (typeof window !== 'undefined') {
-      window.location.assign('/create-invoice');
-    }
   }
 }
