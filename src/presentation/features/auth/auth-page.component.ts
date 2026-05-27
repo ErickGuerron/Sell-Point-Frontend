@@ -5,6 +5,7 @@ import { AUTH_TEXT, detectAuthLocale } from './auth.dictionary';
 import type { AuthLoginPayload } from './auth.dictionary';
 import { LoginFormComponent } from './components/login-form.component';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { ThemeService } from '../../shared/services/theme.service';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -15,14 +16,27 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
   host: { class: 'w-full flex justify-center' },
   template: `
     <div class="app-auth-shell">
-      <button
-        type="button"
-        class="app-auth-theme-toggle"
-        (click)="toggleLocale()"
-      >
-        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">language</span>
-        <span>{{ copy().language }}</span>
-      </button>
+      <div class="app-auth-top-actions">
+        <button
+          type="button"
+          class="app-auth-theme-toggle"
+          (click)="toggleLocale()"
+        >
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">language</span>
+          <span>{{ copy().language }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="app-auth-theme-toggle app-auth-theme-toggle--secondary"
+          (click)="toggleTheme()"
+        >
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">
+            {{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
+          </span>
+          <span>{{ themeToggleLabel() }}</span>
+        </button>
+      </div>
 
       <main class="app-auth-card">
       <section class="app-auth-login-panel">
@@ -161,9 +175,11 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 })
 export class AuthPageComponent implements OnInit, OnDestroy {
   private readonly feedback = inject(UiFeedbackService);
+  private readonly themeService = inject(ThemeService);
 
   locale = signal(detectAuthLocale());
   activeSlide = signal(0);
+  theme = this.themeService.theme;
   copy = computed(() => AUTH_TEXT[this.locale()]);
   loginStatusMessage = signal<string | null>(null);
   loginStatusTone = signal<'idle' | 'success' | 'error'>('idle');
@@ -191,6 +207,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   private supportCloseTimeout: number | undefined;
 
   ngOnInit() {
+    this.themeService.init();
     if (typeof window !== 'undefined' && this.slides.length > 1) {
       this.intervalId = window.setInterval(() => this.nextSlide(), 5000);
     }
@@ -236,6 +253,14 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     this.supportSelectedIssues.set(
       current.includes(issue) ? current.filter((item) => item !== issue) : [...current, issue],
     );
+  }
+
+  toggleTheme() {
+    this.themeService.toggle();
+  }
+
+  themeToggleLabel() {
+    return this.themeService.themeToggleLabel(this.locale());
   }
 
   openMailService(service: 'gmail' | 'outlook' | 'yahoo') {

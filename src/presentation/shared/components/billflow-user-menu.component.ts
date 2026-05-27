@@ -1,5 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, signal } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, signal, inject } from '@angular/core';
+import { LocaleService } from '../services/locale.service';
+import { ThemeService } from '../services/theme.service';
 
 @Component({
   selector: 'billflow-user-menu',
@@ -27,6 +29,11 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
             <span>{{ languageLabel }}</span>
           </button>
 
+          <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="toggleTheme()">
+            <span class="material-symbols-outlined">{{ themeIcon() }}</span>
+            <span>{{ themeToggleLabel() }}</span>
+          </button>
+
           <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="settings.emit()">
             <span class="material-symbols-outlined">settings</span>
             <span>{{ settingsLabel }}</span>
@@ -41,6 +48,9 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
   `,
 })
 export class BillflowUserMenuComponent {
+  private readonly localeService = inject(LocaleService);
+  private readonly themeService = inject(ThemeService);
+
   @Input() displayName = 'Usuario';
   @Input() initials = 'US';
   @Input() showLanguageToggle = false;
@@ -56,6 +66,9 @@ export class BillflowUserMenuComponent {
   private closing = signal(false);
   protected open = signal(false);
   private closeTimeout: number | undefined;
+
+  protected readonly locale = this.localeService.locale;
+  protected readonly theme = this.themeService.theme;
 
   @ViewChild('host') private host?: ElementRef<HTMLElement>;
 
@@ -81,6 +94,18 @@ export class BillflowUserMenuComponent {
       this.closing.set(false);
       this.closeTimeout = undefined;
     }, 180);
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggle();
+  }
+
+  themeToggleLabel(): string {
+    return this.themeService.themeToggleLabel(this.locale());
+  }
+
+  themeIcon(): string {
+    return this.theme() === 'dark' ? 'light_mode' : 'dark_mode';
   }
 
   @HostListener('document:click', ['$event'])
