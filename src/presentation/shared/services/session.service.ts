@@ -1,13 +1,41 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { UiFeedbackService } from './ui-feedback.service';
 import { LocaleService } from './locale.service';
+import { AuthHttpService } from './auth-http.service';
+
+const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
 interface BillflowSession {
   id?: string;
+  username?: string;
   employeeId?: string;
   email?: string;
   role?: string;
-  user?: { name?: string; firstName?: string; fullName?: string };
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  user?: { name?: string; firstName?: string; lastName?: string; fullName?: string };
+}
+
+interface AuthMeResponse {
+  id?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  fullName?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+    user?: {
+      id?: string;
+      username?: string;
+      firstName?: string;
+      lastName?: string;
+      fullName?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -16,6 +44,8 @@ export class SessionService {
   readonly userInitials = signal('US');
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
+  private readonly authHttp = inject(AuthHttpService);
+  private hydratePromise: Promise<void> | null = null;
 
   init(): void {
     if (typeof window === 'undefined') return;
@@ -23,28 +53,100 @@ export class SessionService {
       const raw = window.localStorage.getItem('billflow-session');
       if (!raw) return;
       const session = JSON.parse(raw) as BillflowSession;
-      const candidate = session.employeeId
-        || session.id
-        || session.email?.split('@')[0]
-        || session.user?.fullName
-        || session.user?.name
-        || session.user?.firstName
-        || 'Usuario';
-      this.displayName.set(candidate === 'Usuario' ? candidate : candidate.toUpperCase());
-      if (candidate !== 'Usuario') {
-        this.userInitials.set(
-          candidate
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((part) => part[0]?.toUpperCase() ?? '')
-            .join(''),
-        );
-      } else {
-        this.userInitials.set('US');
+
+      this.applyIdentity(session);
+
+      if (!this.hasReadableIdentity(session)) {
+        void this.hydrateUserProfile();
       }
     } catch {
       this.displayName.set('Usuario');
+      this.userInitials.set('US');
+    }
+  }
+
+  async hydrateUserProfile(): Promise<void> {
+    if (typeof window === 'undefined') return;
+    if (this.hydratePromise) return this.hydratePromise;
+
+    this.hydratePromise = (async () => {
+      try {
+        const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/auth/me`);
+        if (!response.ok) return;
+
+        const profile = await response.json() as AuthMeResponse;
+        const raw = window.localStorage.getItem('billflow-session');
+        const current = raw ? JSON.parse(raw) as BillflowSession : {};
+        const merged: BillflowSession = {
+          ...current,
+          id: profile.id ?? current.id,
+          username: profile.username ?? profile.user?.username ?? current.username,
+          email: profile.email ?? current.email,
+          role: profile.role ?? current.role,
+          firstName: profile.firstName ?? profile.user?.firstName ?? current.firstName,
+          lastName: profile.lastName ?? profile.user?.lastName ?? current.lastName,
+          fullName: profile.fullName ?? profile.user?.fullName ?? current.fullName,
+          user: {
+            ...current.user,
+            username: profile.username ?? profile.user?.username ?? current.user?.username,
+            firstName: profile.firstName ?? profile.user?.firstName ?? current.user?.firstName,
+            lastName: profile.lastName ?? profile.user?.lastName ?? current.user?.lastName,
+            fullName: profile.fullName ?? profile.user?.fullName ?? current.user?.fullName,
+            name: profile.name ?? profile.user?.name ?? current.user?.name,
+          },
+        };
+
+        window.localStorage.setItem('billflow-session', JSON.stringify(merged));
+        this.applyIdentity(merged);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[SessionService.hydrateUserProfile]', err);
+      } finally {
+        this.hydratePromise = null;
+      }
+    })();
+
+    return this.hydratePromise;
+  }
+
+  private hasReadableIdentity(session: BillflowSession): boolean {
+    return Boolean(
+      session.employeeId
+        || session.fullName
+        || session.username
+        || session.firstName
+        || session.lastName
+        || session.email
+        || session.user?.fullName
+        || session.user?.name
+        || session.user?.username
+        || session.user?.firstName,
+    );
+  }
+
+  private applyIdentity(session: BillflowSession): void {
+    const candidate = session.employeeId
+      || session.fullName
+      || session.username
+      || session.user?.fullName
+      || [session.firstName, session.lastName].filter(Boolean).join(' ').trim()
+      || session.user?.name
+      || session.user?.username
+      || session.user?.firstName
+      || session.email?.split('@')[0]
+      || 'Usuario';
+
+    this.displayName.set(candidate || 'Usuario');
+    if (candidate !== 'Usuario') {
+      this.userInitials.set(
+        candidate
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase() ?? '')
+          .join(''),
+      );
+    } else {
       this.userInitials.set('US');
     }
   }
@@ -86,13 +188,7 @@ export class SessionService {
   }
 
   async openUserSettings(): Promise<void> {
-    const locale = this.localeService.locale();
-    await this.feedback.alert(
-      'info',
-      locale === 'es' ? 'Configuración' : 'Settings',
-      locale === 'es'
-        ? 'Acá podés actualizar tu perfil y preferencias.'
-        : 'You can update your profile and preferences here.',
-    );
+    if (typeof window === 'undefined') return;
+    window.location.replace('/profile');
   }
 }

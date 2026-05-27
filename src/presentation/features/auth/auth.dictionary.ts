@@ -47,6 +47,12 @@ export interface AuthText {
     blockedTitle: string;
     blockedMessage: string;
     blockedContact: string;
+    googleVerificationFailed: string;
+    googleEmailNotVerified: string;
+    googleEmailMismatch: string;
+    googleDuplicateLink: string;
+    googleNoAccount: string;
+    googleNetworkError: string;
   };
   panel: {
     title: string;
@@ -107,6 +113,12 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       blockedTitle: 'Account Locked',
       blockedMessage: 'Your account has been locked due to multiple failed login attempts.',
       blockedContact: 'Please contact your administrator to restore access.',
+      googleVerificationFailed: 'Google verification failed. Please try again.',
+      googleEmailNotVerified: 'Your Google account email must be verified.',
+      googleEmailMismatch: 'Google email does not match your account email.',
+      googleDuplicateLink: 'This Google account is already linked to another user.',
+      googleNoAccount: 'No account found for this Google user. Please register first.',
+      googleNetworkError: 'Connection error. Please check your internet.',
     },
     panel: {
       title: 'Welcome to<br/>BillFlow POS',
@@ -160,6 +172,12 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
       blockedTitle: 'Cuenta Bloqueada',
       blockedMessage: 'Tu cuenta ha sido bloqueada por múltiples intentos de inicio de sesión fallidos.',
       blockedContact: 'Contactá a tu administrador para restablecer el acceso.',
+      googleVerificationFailed: 'La verificación de Google falló. Intentá de nuevo.',
+      googleEmailNotVerified: 'El correo de tu cuenta de Google debe estar verificado.',
+      googleEmailMismatch: 'El correo de Google no coincide con el de tu cuenta.',
+      googleDuplicateLink: 'Esta cuenta de Google ya está vinculada a otro usuario.',
+      googleNoAccount: 'No se encontró cuenta para este usuario de Google. Registrate primero.',
+      googleNetworkError: 'Error de conexión. Verificá tu internet.',
     },
     panel: {
       title: 'Bienvenido a<br/>BillFlow POS',

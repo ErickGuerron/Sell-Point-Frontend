@@ -6,6 +6,7 @@ import type { AuthLoginPayload } from './auth.dictionary';
 import { LoginFormComponent } from './components/login-form.component';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { SessionService } from '../../shared/services/session.service';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -46,6 +47,7 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
           [statusTone]="loginStatusTone()"
           (requestSupport)="openSupportModal()"
           (submitLogin)="handleLogin($event)"
+          (googleLogin)="handleGoogleLogin($event.googleToken)"
         />
       </section>
 
@@ -176,6 +178,7 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 export class AuthPageComponent implements OnInit, OnDestroy {
   private readonly feedback = inject(UiFeedbackService);
   private readonly themeService = inject(ThemeService);
+  private readonly session = inject(SessionService);
 
   locale = signal(detectAuthLocale());
   activeSlide = signal(0);
@@ -285,6 +288,59 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     this.closeSupportModal();
   }
 
+  async handleGoogleLogin(token: string) {
+    this.loginStatusMessage.set(null);
+    this.loginStatusTone.set('idle');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login-google`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken: token }),
+      });
+
+      if (!response.ok) {
+        let body: Record<string, unknown> | null = null;
+        try {
+          body = (await response.json()) as Record<string, unknown>;
+        } catch {
+          // non-JSON error body
+        }
+        const errorCode = body?.error as string | undefined;
+        const message =
+          errorCode === 'GOOGLE_EMAIL_NOT_VERIFIED'
+            ? this.copy().feedback.googleEmailNotVerified
+            : errorCode === 'GOOGLE_EMAIL_MISMATCH'
+              ? this.copy().feedback.googleEmailMismatch
+              : errorCode === 'GOOGLE_DUPLICATE_LINK'
+                ? this.copy().feedback.googleDuplicateLink
+                : errorCode === 'GOOGLE_NO_ACCOUNT'
+                  ? this.copy().feedback.googleNoAccount
+                  : this.copy().feedback.googleVerificationFailed;
+
+        this.loginStatusTone.set('error');
+        this.loginStatusMessage.set(message);
+        await this.feedback.toast('error', message);
+        return;
+      }
+
+      const session = await response.json();
+      window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      await this.session.hydrateUserProfile();
+      this.loginStatusTone.set('success');
+      this.loginStatusMessage.set(this.copy().feedback.success);
+      void this.feedback.toast('success', this.copy().feedback.success);
+      window.setTimeout(() => {
+        window.location.replace('/dashboard');
+      }, 180);
+    } catch {
+      const message = this.copy().feedback.googleNetworkError;
+      this.loginStatusTone.set('error');
+      this.loginStatusMessage.set(message);
+      await this.feedback.toast('error', message);
+    }
+  }
+
   async handleLogin(payload: AuthLoginPayload) {
     this.loginStatusMessage.set(null);
     this.loginStatusTone.set('idle');
@@ -335,6 +391,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
 
       const session = await response.json();
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      await this.session.hydrateUserProfile();
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
