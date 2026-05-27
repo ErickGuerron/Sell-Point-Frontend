@@ -4,6 +4,7 @@ import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type CustomerRowDto, type ProductRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -37,7 +38,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
       [items]="sidebarItems()"
       [locale]="locale()"
       (settings)="openUserSettings()"
-      (logout)="logout()"
+      (logout)="session.logout()"
     >
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
@@ -64,8 +65,8 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
               <div class="flex items-center gap-2 shrink-0 relative z-40" #userMenuPanel>
                 <billflow-notification-button (clicked)="void 0"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="displayName"
-                  [initials]="userInitials"
+                   [displayName]="session.displayName()"
+                   [initials]="session.userInitials()"
                   [open]="userMenuVisible()"
                   [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
@@ -77,7 +78,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
                   (close)="closeUserMenu()"
                   (languageToggle)="toggleLocale()"
                   (settings)="openUserSettings()"
-                  (logout)="logout()"
+                   (logout)="session.logout()"
                 ></billflow-user-menu>
               </div>
             </div>
@@ -256,6 +257,7 @@ export class CreateInvoicePageComponent implements OnInit {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
+  protected readonly session = inject(SessionService);
 
   @ViewChild(InvoiceLineItemsComponent) lineItemsComp!: InvoiceLineItemsComponent;
 
@@ -263,8 +265,6 @@ export class CreateInvoicePageComponent implements OnInit {
   readonly locale = this.localeService.locale;
 
   // ── Auth / user ──────────────────────────────────────────────────────────
-  displayName = 'Usuario';
-  userInitials = 'US';
   userMenuVisible = signal(false);
   userMenuClosing = signal(false);
   private userMenuCloseTimeout: number | undefined;
@@ -333,7 +333,7 @@ export class CreateInvoicePageComponent implements OnInit {
   // ─────────────────────────────────────────────────────────────────────────
 
   ngOnInit() {
-    this.applyStoredUser();
+    this.session.init();
     this.applyStoredTheme();
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
@@ -436,19 +436,6 @@ export class CreateInvoicePageComponent implements OnInit {
     }
   }
 
-  async logout() {
-    this.closeUserMenu();
-    const ok = await this.feedback.confirm(
-      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?',
-      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.locale() === 'es' ? 'Cancelar' : 'Cancel',
-    );
-    if (!ok || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
-  }
-
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   formatMoney(value: number) {
@@ -464,21 +451,6 @@ export class CreateInvoicePageComponent implements OnInit {
 
   customerFullName(c: { name: string; lastName?: string }): string {
     return c.lastName?.trim() ? `${c.name} ${c.lastName}` : c.name;
-  }
-
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; user?: { name?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.name || 'Usuario';
-      this.displayName = candidate;
-      this.userInitials = candidate.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'US';
-    } catch {
-      this.displayName = 'Usuario';
-      this.userInitials = 'US';
-    }
   }
 
   private applyStoredTheme() {

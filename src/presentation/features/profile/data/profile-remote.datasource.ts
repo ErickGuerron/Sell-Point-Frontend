@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { AuthHttpService } from '../../../shared/services/auth-http.service';
 import type { ProfileRawDto } from './profile.dto';
 
 const API_BASE =
@@ -7,27 +8,10 @@ const API_BASE =
 
 @Injectable()
 export class ProfileRemoteDataSource {
+  private readonly authHttp = inject(AuthHttpService);
+
   async fetchProfile(): Promise<ProfileRawDto> {
-    const raw =
-      localStorage.getItem('billflow-session');
-
-    if (!raw) {
-      throw new Error('No session');
-    }
-
-    const session = JSON.parse(raw);
-
-    const token =
-      session.token ?? session.accessToken;
-
-    const response = await fetch(
-      `${API_BASE}/auth/me`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/auth/me`);
 
     if (!response.ok) {
       throw new Error(

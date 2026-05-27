@@ -49,6 +49,16 @@ export class SessionService {
     }
   }
 
+  hasStoredSession(): boolean {
+    if (typeof window === 'undefined') return false;
+
+    try {
+      return Boolean(window.localStorage.getItem('billflow-session'));
+    } catch {
+      return false;
+    }
+  }
+
   async logout(): Promise<void> {
     const locale = this.localeService.locale();
     const confirmed = await this.feedback.confirm(

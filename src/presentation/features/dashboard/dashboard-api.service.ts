@@ -1,4 +1,5 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { AuthHttpService } from '../../shared/services/auth-http.service';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
 
@@ -45,8 +46,10 @@ interface PaginatedResponse<T> {
 
 @Injectable({ providedIn: 'root' })
 export class DashboardApiService {
+  private readonly authHttp = inject(AuthHttpService);
+
   private async request<T>(path: string): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${path}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}${path}`);
     if (!response.ok) {
       throw new Error(`Request failed: ${response.status}`);
     }

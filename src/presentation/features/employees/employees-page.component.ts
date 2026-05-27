@@ -6,6 +6,7 @@ import { EmployeeApiService, type EmployeeRowDto, type CreateUserPayload, type U
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -251,8 +252,8 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
         <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
           <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
           <billflow-user-menu
-            [displayName]="displayName"
-            [initials]="userInitials"
+            [displayName]="session.displayName()"
+            [initials]="session.userInitials()"
             [open]="userMenuVisible()"
             [closing]="userMenuClosing()"
             [showLanguageToggle]="true"
@@ -597,6 +598,7 @@ export class EmployeesPageComponent implements OnInit {
   private readonly roleApi = inject(RoleApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
+  protected readonly session = inject(SessionService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
 
   locale = this.localeService.locale;
@@ -673,8 +675,6 @@ export class EmployeesPageComponent implements OnInit {
   searchFieldValue = signal('all');
 
   // ── User menu ──
-  displayName = 'Usuario';
-  userInitials = 'US';
   theme = signal<'light' | 'dark'>('light');
   userMenuVisible = signal(false);
   userMenuClosing = signal(false);
@@ -710,8 +710,10 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Lifecycle ──
   async ngOnInit() {
+    if (typeof window === 'undefined') return;
+
+    this.session.init();
     this.applyStoredTheme();
-    this.applyStoredUser();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
     // Load roles and employees in parallel
@@ -870,12 +872,7 @@ export class EmployeesPageComponent implements OnInit {
 
   async logout() {
     this.closeUserMenu();
-    const confirmed = await this.feedback.confirm(this.copy().signOut,
-      this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?',
-      this.copy().signOut, this.copy().cancelBtn);
-    if (!confirmed || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
+    void this.session.logout();
   }
 
   // ── KPIs ──
@@ -1113,20 +1110,6 @@ export class EmployeesPageComponent implements OnInit {
 
   toggleLocale() {
     this.localeService.toggle();
-  }
-
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
-      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
-      if (candidate !== 'Usuario') {
-        this.userInitials = candidate.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
-      } else { this.userInitials = 'US'; }
-    } catch { this.displayName = 'Usuario'; this.userInitials = 'US'; }
   }
 
   private applyStoredTheme() {
