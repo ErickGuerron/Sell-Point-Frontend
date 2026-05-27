@@ -40,6 +40,13 @@ export interface PaginatedProducts {
   limit: number;
 }
 
+export interface PaginatedMovements {
+  data: ProductMovementEntity[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 export interface ProductAggregates {
   totalProducts: number;
   activeCount: number;

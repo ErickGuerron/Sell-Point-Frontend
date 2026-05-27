@@ -5,6 +5,7 @@ import type {
   ProductMovementEntity,
   ProductFilters,
   PaginatedProducts,
+  PaginatedMovements,
   ProductAggregates,
   StockAdjustmentPayload,
   CreateProductPayload,
@@ -58,17 +59,14 @@ export class ProductImplRepository extends ProductRepository {
     productId: string,
     page: number,
     limit: number,
-  ): Promise<PaginatedProducts & { data: ProductMovementEntity[] }> {
+  ): Promise<PaginatedMovements> {
     const result = await this.ds.fetchProductMovements(productId, page, limit);
-    // NOTE: the domain's intersection type `PaginatedProducts & { data: ProductMovementEntity[] }`
-    // creates `data: ProductEntity[] & ProductMovementEntity[]` which is unsatisfiable.
-    // Cast works around this — the runtime shape is correct ({data, total, page, limit}).
     return {
       data: result.data.map(toMovementEntity),
       total: result.total,
       page: result.page,
       limit: result.limit,
-    } as PaginatedProducts & { data: ProductMovementEntity[] };
+    };
   }
 
   async adjustStock(productId: string, payload: StockAdjustmentPayload): Promise<ProductMovementEntity> {

@@ -3,6 +3,7 @@ import type {
   ProductMovementEntity,
   ProductFilters,
   PaginatedProducts,
+  PaginatedMovements,
   ProductAggregates,
   StockAdjustmentPayload,
   CreateProductPayload,
@@ -38,7 +39,7 @@ export abstract class ProductRepository {
     productId: string,
     page: number,
     limit: number,
-  ): Promise<PaginatedProducts & { data: ProductMovementEntity[] }>;
+  ): Promise<PaginatedMovements>;
 
   abstract adjustStock(
     productId: string,
