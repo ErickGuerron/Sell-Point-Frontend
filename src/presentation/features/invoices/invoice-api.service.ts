@@ -311,47 +311,13 @@ export class InvoiceApiService {
     };
   }
 
-  // ── Customers ─────────────────────────────────────────────────────────────────
+  // ── Customers (kept for new-customer-modal — other 3 methods migrated to use-cases) ─
 
   async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
     const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
-    const backend = await response.json() as BackendCustomer;
-    return this.mapBackendCustomer(backend);
-  }
-
-  async listCustomers(): Promise<CustomerRowDto[]> {
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?limit=200`);
-    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<BackendCustomer>;
-    return body.data.map((b) => this.mapBackendCustomer(b));
-  }
-
-  async updateCustomer(id: string, payload: CreateCustomerPayload): Promise<CustomerRowDto> {
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
-    const backend = await response.json() as BackendCustomer;
-    return this.mapBackendCustomer(backend);
-  }
-
-  async toggleCustomerActive(id: string, currentActive: boolean): Promise<CustomerRowDto> {
-    const endpoint = currentActive ? 'deactivate' : 'activate';
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers/${id}/${endpoint}`, {
-      method: 'PATCH',
     });
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };

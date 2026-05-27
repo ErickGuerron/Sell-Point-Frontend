@@ -1,0 +1,321 @@
+import { Injectable } from '@angular/core';
+
+const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const AUTH_KEY = 'billflow-session';
+
+// ─── Internal DTOs (raw backend shapes, no domain mapping) ──────────────────
+
+/** Raw product from the backend — mirrors JSON response before domain mapping. */
+interface ProductRawDto {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  salePrice: number;
+  costPrice: number;
+  currentStock: number;
+  categoryId: string;
+  categoryName: string;
+  isActive: boolean | number;
+}
+
+/** Raw stock movement from the backend. */
+interface MovementRawDto {
+  id: number | string;
+  productId: string;
+  type: string;
+  quantity: number;
+  description?: string;
+  reason?: string;
+  previousStock: number;
+  newStock: number;
+  createdAt: string;
+}
+
+/** Raw category from the backend. */
+export interface CategoryRawDto {
+  id: string;
+  name: string;
+  description?: string;
+  isActive: boolean;
+}
+
+/** Generic paginated response from the backend. */
+interface PaginatedRawDto<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export { type ProductRawDto, type MovementRawDto, type CategoryRawDto, type PaginatedRawDto };
+
+// ─── Auth Error ──────────────────────────────────────────────────────────────
+
+export class AuthError extends Error {
+  override name = 'AuthError' as const;
+}
+
+// ─── DataSource ──────────────────────────────────────────────────────────────
+
+@Injectable({ providedIn: 'root' })
+export class ProductRemoteDataSource {
+  // ─── Products ────────────────────────────────────────────────────────────────
+
+  async fetchProductsPage(
+    q: string,
+    categoryId: string,
+    isActive: string,
+    page: number,
+    limit = 10,
+    signal?: AbortSignal,
+  ): Promise<PaginatedRawDto<ProductRawDto>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+
+    if (q.trim()) params.set('q', q.trim());
+    if (categoryId && categoryId !== 'all') params.set('categoryId', categoryId);
+    if (isActive && isActive !== 'all') params.set('isActive', isActive === 'active' ? 'true' : 'false');
+
+    const init: RequestInit = {};
+    if (signal) init.signal = signal;
+
+    const response = await this.fetchWithAuth(`${API_BASE}/products?${params.toString()}`, init);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+    const body = (await response.json()) as any;
+    const rawItems: ProductRawDto[] = (body.data || []).map((p: any) => ({
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      description: p.description ?? null,
+      salePrice: Number(p.salePrice ?? 0),
+      costPrice: Number(p.costPrice ?? 0),
+      currentStock: Number(p.currentStock ?? p.availableQuantity ?? 0),
+      categoryId: p.categoryId,
+      categoryName: p.categoryName || '',
+      isActive: p.isActive,
+    }));
+
+    return {
+      data: rawItems,
+      total: body.pagination?.total ?? body.total ?? rawItems.length,
+      page: body.pagination?.page ?? body.page ?? page,
+      limit: body.pagination?.limit ?? body.limit ?? limit,
+    };
+  }
+
+  async createProduct(payload: {
+    code: string;
+    name: string;
+    description?: string;
+    salePrice: number;
+    costPrice: number;
+    initialStock?: number;
+    categoryId: string;
+  }): Promise<ProductRawDto> {
+    const response = await this.fetchWithAuth(`${API_BASE}/products`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    return this.toProductRaw(body);
+  }
+
+  async updateProduct(
+    id: string,
+    payload: {
+      name?: string;
+      description?: string;
+      salePrice?: number;
+      costPrice?: number;
+      categoryId?: string;
+    },
+  ): Promise<ProductRawDto> {
+    const response = await this.fetchWithAuth(`${API_BASE}/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    return this.toProductRaw(body);
+  }
+
+  async toggleProductActive(id: string, currentActive: boolean): Promise<ProductRawDto> {
+    const endpoint = currentActive ? 'deactivate' : 'activate';
+    const response = await this.fetchWithAuth(`${API_BASE}/products/${id}/${endpoint}`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) {
+      const error = await response
+        .json()
+        .catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const body = await response.json();
+    return this.toProductRaw(body);
+  }
+
+  // ─── Stock Movements ─────────────────────────────────────────────────────────
+
+  async fetchProductMovements(
+    productId: string,
+    page: number,
+    limit = 10,
+  ): Promise<PaginatedRawDto<MovementRawDto>> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    const response = await this.fetchWithAuth(
+      `${API_BASE}/products/${productId}/movements?${params.toString()}`,
+    );
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+    const body = (await response.json()) as any;
+    return {
+      data: (body.data || []).map((m: any) => ({
+        id: m.id,
+        productId: m.productId,
+        type: m.type,
+        quantity: Number(m.quantity ?? 0),
+        description: m.description,
+        reason: m.reason,
+        previousStock: Number(m.previousStock ?? 0),
+        newStock: Number(m.newStock ?? 0),
+        createdAt: m.createdAt ?? '',
+      })),
+      total: body.total ?? (body.data || []).length,
+      page: body.page ?? page,
+      limit: body.limit ?? limit,
+    };
+  }
+
+  async adjustStock(
+    productId: string,
+    payload: {
+      type: 'IN' | 'OUT' | 'ADJUST';
+      quantity: number;
+      description: string;
+    },
+  ): Promise<MovementRawDto> {
+    const response = await this.fetchWithAuth(`${API_BASE}/products/${productId}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const err = await response
+        .json()
+        .catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(err.message ?? `Request failed: ${response.status}`);
+    }
+    const body = (await response.json()) as any;
+    return {
+      id: body.id,
+      productId: body.productId,
+      type: body.type,
+      quantity: Number(body.quantity ?? 0),
+      description: body.description,
+      reason: body.reason,
+      previousStock: Number(body.previousStock ?? 0),
+      newStock: Number(body.newStock ?? 0),
+      createdAt: body.createdAt ?? '',
+    };
+  }
+
+  // ─── Categories ──────────────────────────────────────────────────────────────
+
+  async listCategories(): Promise<CategoryRawDto[]> {
+    const response = await this.fetchWithAuth(`${API_BASE}/categories?limit=200&isActive=true`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    const body = (await response.json()) as { data: CategoryRawDto[] };
+    return body.data;
+  }
+
+  // ─── Mapper helper ───────────────────────────────────────────────────────────
+
+  /** Normalise a raw `any` backend response into a typed ProductRawDto. */
+  private toProductRaw(p: any): ProductRawDto {
+    return {
+      id: p.id,
+      code: p.code,
+      name: p.name,
+      description: p.description ?? null,
+      salePrice: Number(p.salePrice ?? 0),
+      costPrice: Number(p.costPrice ?? 0),
+      currentStock: Number(p.currentStock ?? p.availableQuantity ?? 0),
+      categoryId: p.categoryId,
+      categoryName: p.categoryName || '',
+      isActive: p.isActive,
+    };
+  }
+
+  // ─── Auth-aware fetch (replicated from legacy ProductApiService) ──────────
+
+  private async fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+    const session = this.getStoredSession();
+    const headers: Record<string, string> = {
+      ...((init?.headers as Record<string, string>) ?? {}),
+    };
+    if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
+    if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
+
+    let response = await fetch(input, { ...init, headers });
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshAccessToken();
+      if (refreshed) {
+        const newSession = this.getStoredSession();
+        if (newSession?.accessToken) {
+          headers['Authorization'] = `Bearer ${newSession.accessToken}`;
+        }
+        response = await fetch(input, { ...init, headers });
+      } else {
+        throw new AuthError('Session expired — redirecting to login');
+      }
+    }
+
+    return response;
+  }
+
+  private getStoredSession(): { accessToken?: string; refreshToken?: string } | null {
+    try {
+      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
+      return raw ? (JSON.parse(raw) as { accessToken?: string; refreshToken?: string }) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private async refreshAccessToken(): Promise<boolean> {
+    const session = this.getStoredSession();
+    if (!session?.refreshToken) return false;
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: session.refreshToken }),
+      });
+      if (!response.ok) return false;
+      const newSession = (await response.json()) as {
+        accessToken: string;
+        refreshToken?: string;
+        expiresIn?: number;
+      };
+      const merged = { ...session, ...newSession };
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
