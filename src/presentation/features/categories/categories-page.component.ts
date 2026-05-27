@@ -203,9 +203,9 @@ const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
-      [actionLabel]="copy().newCategory"
-      actionIcon="add"
-      (actionClick)="openCreateModal()"
+      [locale]="locale()"
+      (settings)="openUserSettings()"
+      (logout)="logout()"
     >
       <billflow-dashboard-particles-background
         class="app-invoice-bg"
@@ -281,6 +281,41 @@ const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
                 class="rounded-full border border-outline-variant/60 px-3 py-1"
                 >{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span
               >
+            </div>
+          </section>
+
+          <!-- KPIs: total from server; active from /categories/aggregates (TODO(backend)) -->
+          <section class="grid grid-cols-2 gap-4 mb-6">
+            <!-- Total Categories -->
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
+              <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                <span class="material-symbols-outlined text-[96px] font-light">category</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">category</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total Categorías' : 'Total Categories' }}</p>
+                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalCategories() }}</h3>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Categories — backend-driven (pending /categories/aggregates) -->
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
+              <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
+                <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
+              </div>
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
+                  <span class="material-symbols-outlined text-[24px]">check_circle</span>
+                </div>
+                <div>
+                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activas' : 'Active' }}</p>
+                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeCategoriesCount() }}</h3>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -713,6 +748,8 @@ export class CategoriesPageComponent implements OnInit {
   page = signal(1);
   pageSize = signal(5); // default 5 as requested
   totalCategoriesCount = signal(0);
+  // TODO(backend): fetch from /categories/aggregates endpoint
+  activeCategoriesCount = signal(0);
 
   readonly pageSizeOptions: ComboboxOption[] = [
     { value: '5', label: '5' },
@@ -771,6 +808,9 @@ export class CategoriesPageComponent implements OnInit {
       );
       this.categories.set(res.data);
       this.totalCategoriesCount.set(res.total);
+
+      // TODO(backend): once /categories/aggregates endpoint exists, call it here and set:
+      //   this.activeCategoriesCount.set(agg.active);
     } catch (err) {
       console.error('[reload categories]', err);
       await this.feedback.alert(

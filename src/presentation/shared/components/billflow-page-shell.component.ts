@@ -9,7 +9,12 @@ import { BillflowSidebarComponent, type BillflowSidebarItem } from './billflow-s
   template: `
     <div class="app-dashboard-shell min-h-screen bg-background text-on-background transition-colors duration-300">
       <div class="flex min-h-screen">
-        <billflow-sidebar [items]="items" [actionLabel]="actionLabel" [actionIcon]="actionIcon" (actionClick)="actionClick.emit()"></billflow-sidebar>
+        <billflow-sidebar
+          [items]="items"
+          [locale]="locale"
+          (settingsClicked)="settings.emit()"
+          (logoutClicked)="logout.emit()"
+        ></billflow-sidebar>
         <ng-content></ng-content>
       </div>
     </div>
@@ -17,7 +22,7 @@ import { BillflowSidebarComponent, type BillflowSidebarItem } from './billflow-s
 })
 export class BillflowPageShellComponent {
   @Input({ required: true }) items: BillflowSidebarItem[] = [];
-  @Input({ required: true }) actionLabel = '';
-  @Input() actionIcon = 'add';
-  @Output() actionClick = new EventEmitter<void>();
+  @Input() locale = 'en';
+  @Output() settings = new EventEmitter<void>();
+  @Output() logout = new EventEmitter<void>();
 }

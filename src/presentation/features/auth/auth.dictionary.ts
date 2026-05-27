@@ -44,6 +44,9 @@ export interface AuthText {
   feedback: {
     success: string;
     invalid: string;
+    blockedTitle: string;
+    blockedMessage: string;
+    blockedContact: string;
   };
   panel: {
     title: string;
@@ -100,7 +103,10 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     feedback: {
       success: 'Login successful.',
-      invalid: 'Invalid email or password.'
+      invalid: 'Invalid email or password.',
+      blockedTitle: 'Account Locked',
+      blockedMessage: 'Your account has been locked due to multiple failed login attempts.',
+      blockedContact: 'Please contact your administrator to restore access.',
     },
     panel: {
       title: 'Welcome to<br/>BillFlow POS',
@@ -150,7 +156,10 @@ export const AUTH_TEXT: Record<AuthLocale, AuthText> = {
     },
     feedback: {
       success: 'Inicio de sesión correcto.',
-      invalid: 'Correo o contraseña inválidos.'
+      invalid: 'Correo o contraseña inválidos.',
+      blockedTitle: 'Cuenta Bloqueada',
+      blockedMessage: 'Tu cuenta ha sido bloqueada por múltiples intentos de inicio de sesión fallidos.',
+      blockedContact: 'Contactá a tu administrador para restablecer el acceso.',
     },
     panel: {
       title: 'Bienvenido a<br/>BillFlow POS',

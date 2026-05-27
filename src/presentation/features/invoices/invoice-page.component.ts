@@ -218,7 +218,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
   standalone: true,
   imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent, BillflowComboboxComponent],
   template: `
-    <billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().createInvoice" actionIcon="add" (actionClick)="startNewInvoice()">
+    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">

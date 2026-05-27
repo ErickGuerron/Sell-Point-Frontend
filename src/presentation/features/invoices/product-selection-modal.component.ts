@@ -76,7 +76,7 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
             </tr>
           </ng-container>
           <tr
-            *ngFor="let p of visibleProductModalResults()"
+            *ngFor="let p of visibleProductModalResults(); trackBy: productTrackBy"
             class="border-b border-outline-variant/20 hover:bg-primary/5 cursor-pointer transition-colors"
             (click)="selectProduct(p)"
           >
@@ -158,7 +158,7 @@ export class ProductSelectionModalComponent {
   productModalTotal = signal(0);
   productQuery = signal('');
   productModalPage = signal(1);
-  productModalPageSize = signal(5);
+  productModalPageSize = signal(20);
   productFilterField = signal<'all' | 'name' | 'code' | 'description'>('all');
   readonly productFilterOptions = computed<ComboboxOption[]>(() => {
     const es = this.locale === 'es';
@@ -169,7 +169,7 @@ export class ProductSelectionModalComponent {
       { value: 'description', label: es ? 'Descripción'   : 'Description' },
     ];
   });
-  readonly skeletonRows = [1, 2, 3, 4, 5];
+  readonly skeletonRows = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   private productModalSearchTimeout: number | undefined;
   private productModalRequestId = 0;
@@ -193,6 +193,10 @@ export class ProductSelectionModalComponent {
     for (let i = start; i <= end; i++) pages.push(i);
     return pages;
   });
+
+  productTrackBy(_index: number, product: ProductRowDto): string {
+    return product.id;
+  }
 
   formatMoney(value: number) {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(

@@ -72,8 +72,6 @@ export interface PaginatedResponse<T> {
 export class ProductApiService {
   private mapBackendProduct(p: any): ProductWithStockDto {
     const stock = Number(p.currentStock ?? p.availableQuantity ?? 0);
-    // eslint-disable-next-line no-console
-    console.log('[mapBackendProduct]', p.code, 'currentStock raw:', p.currentStock, '→ mapped:', stock);
     return {
       id: p.id,
       code: p.code,
@@ -95,7 +93,8 @@ export class ProductApiService {
     categoryId: string,
     isActive: string,
     page: number,
-    limit = 10
+    limit = 10,
+    signal?: AbortSignal
   ): Promise<PaginatedResponse<ProductWithStockDto>> {
     const params = new URLSearchParams({
       page: String(page),
@@ -112,14 +111,24 @@ export class ProductApiService {
       params.set('isActive', isActive === 'active' ? 'true' : 'false');
     }
 
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
+    const init: RequestInit = {};
+    if (signal) init.signal = signal;
+
+    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`, init);
     if (!response.ok) {
       throw new Error(`Request failed: ${response.status}`);
     }
     const body = await response.json() as any;
+    const rawItems: any[] = body.data || [];
+    // Safety cap: if the backend ignores pagination and returns more items than
+    // requested, truncate to avoid processing thousands of items client-side.
+    if (rawItems.length > limit) {
+      // eslint-disable-next-line no-console
+      console.warn(`[fetchProductsPage] Backend returned ${rawItems.length} items but limit=${limit}. Truncating — check backend pagination.`);
+    }
     return {
-      data: (body.data || []).map((p: any) => this.mapBackendProduct(p)),
-      total: body.pagination?.total ?? body.total ?? (body.data || []).length,
+      data: rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p)),
+      total: body.pagination?.total ?? body.total ?? rawItems.length,
       page: body.pagination?.page ?? body.page ?? page,
       limit: body.pagination?.limit ?? body.limit ?? limit,
     };

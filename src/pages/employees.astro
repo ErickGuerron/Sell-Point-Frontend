@@ -1,0 +1,12 @@
+---
+import MainLayout from '../presentation/layouts/MainLayout.astro';
+import { EmployeesPageComponent } from '../presentation/features/employees/employees-page.component';
+---
+
+<MainLayout title="BillFlow - Employee Management" lang="en">
+  <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
+    <div class="relative z-10">
+      <EmployeesPageComponent client:load />
+    </div>
+  </div>
+</MainLayout>

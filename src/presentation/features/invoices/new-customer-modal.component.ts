@@ -98,6 +98,21 @@ import { BillflowModalShellComponent } from '../../shared/components/billflow-mo
               [ngModel]="newCustomerPhone()"
               (ngModelChange)="onNumericInput($event, 'phone')"
             />
+              <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerPhone().length }}/10</span>
+          </div>
+        </div>
+        
+         <div class="md:col-span-2">
+           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale === 'es' ? 'Dirección' : 'Address' }}</label>
+          <div class="relative">
+            <input
+              type="text"
+              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              [maxLength]="200"
+              placeholder="Ej: Av. Principal 123, Asunción"
+              [ngModel]="formAddress()"
+              (ngModelChange)="formAddress.set($event)"
+            />
           </div>
         </div>
 
@@ -156,6 +171,7 @@ export class NewCustomerModalComponent {
   newCustomerEmail = signal('');
   newCustomerPhone = signal('');
   nameFieldError = signal<'firstName' | 'lastName' | null>(null);
+  formAddress = signal('');
 
   readonly newCustomerFormValid = computed(() =>
     this.newCustomerFirstName().trim().length > 0

@@ -89,6 +89,7 @@ interface DashboardCopy {
   quickActionNewInvoice: string;
   quickActionAddCustomer: string;
   quickActionAddProduct: string;
+  quickActionEmployees: string;
   productsTitle: string;
   productsSubtitle: string;
   customersTitle: string;
@@ -150,6 +151,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionNewInvoice: 'Nueva Factura',
     quickActionAddCustomer: 'Añadir Cliente',
     quickActionAddProduct: 'Añadir Producto',
+    quickActionEmployees: 'Gestionar Empleados',
     productsTitle: 'Productos',
     productsSubtitle: '(inventario actual)',
     customersTitle: 'Clientes recientes',
@@ -209,6 +211,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionNewInvoice: 'New Invoice',
     quickActionAddCustomer: 'Add Customer',
     quickActionAddProduct: 'Add Product',
+    quickActionEmployees: 'Manage Employees',
     productsTitle: 'Products',
     productsSubtitle: '(current inventory)',
     customersTitle: 'Recent Customers',
@@ -544,6 +547,7 @@ export class DashboardPageComponent implements OnInit {
       { label: copy.quickActionNewInvoice, icon: 'post_add', tone: 'primary' },
       { label: copy.quickActionAddCustomer, icon: 'person_add', tone: 'secondary' },
       { label: copy.quickActionAddProduct, icon: 'add_box', tone: 'tertiary' },
+      { label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' },
     ];
   });
 
@@ -682,6 +686,9 @@ export class DashboardPageComponent implements OnInit {
         break;
       case 'add_box':
         window.location.assign('/products');
+        break;
+      case 'badge':
+        window.location.assign('/employees');
         break;
     }
   }
