@@ -1,21 +1,133 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
-import { SessionService } from '../../shared/services/session.service';
-import { ThemeService } from '../../shared/services/theme.service';
+import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import type { BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
-import { ProfileStore } from './profile-store';
-import { ProfileRemoteDataSource } from './data/profile-remote.datasource';
-import { ProfileImplRepository } from './data/profile.impl.repository';
-import { ProfileRepository } from './domain/profile.repository';
-import type { ProfileCopy } from './i18n/profile.translations';
-import { PROFILE_TEXT } from './i18n/profile.translations';
+
+const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+
+interface MeResponse {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  isActive?: boolean;
+  failedLoginAttempts?: number;
+  /** Some backends nest user info */
+  user?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    isActive?: boolean;
+    failedLoginAttempts?: number;
+  };
+}
+
+interface ProfileCopy {
+  moduleLabel: string;
+  title: string;
+  description: string;
+  userInfo: string;
+  sessionInfo: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  active: string;
+  blocked: string;
+  failedAttempts: string;
+  failedAttemptsDesc: string;
+  accountCreated: string;
+  lastLogin: string;
+  loading: string;
+  errorTitle: string;
+  errorText: string;
+  retry: string;
+  // Sidebar
+  sidebarDashboard: string;
+  sidebarInvoices: string;
+  sidebarProducts: string;
+  sidebarCustomers: string;
+  sidebarEmployees: string;
+  // User menu
+  signOut: string;
+  settings: string;
+  notifications: string;
+  languageToggle: string;
+  sessionLabel: string;
+}
+
+const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
+  es: {
+    moduleLabel: 'Mi Cuenta',
+    title: 'Perfil de Usuario',
+    description: 'Información personal y estado de tu cuenta en el sistema.',
+    userInfo: 'Datos Personales',
+    sessionInfo: 'Información de la Sesión',
+    name: 'Nombre Completo',
+    email: 'Correo Electrónico',
+    role: 'Rol en el Sistema',
+    status: 'Estado de la Cuenta',
+    active: 'Activa',
+    blocked: 'Bloqueada',
+    failedAttempts: 'Intentos Fallidos de Inicio de Sesión',
+    failedAttemptsDesc: 'intento(s) fallido(s) desde el último inicio de sesión exitoso',
+    accountCreated: 'Cuenta Creada',
+    lastLogin: 'Último Acceso',
+    loading: 'Cargando perfil…',
+    errorTitle: 'Error al cargar el perfil',
+    errorText: 'No se pudo obtener la información del usuario. Verificá la conexión con el backend e intentá de nuevo.',
+    retry: 'Reintentar',
+    sidebarDashboard: 'Panel',
+    sidebarInvoices: 'Facturas',
+    sidebarProducts: 'Productos',
+    sidebarCustomers: 'Clientes',
+    sidebarEmployees: 'Empleados',
+    signOut: 'Cerrar sesión',
+    settings: 'Configuración',
+    notifications: 'Notificaciones',
+    languageToggle: 'English',
+    sessionLabel: 'Sesión',
+  },
+  en: {
+    moduleLabel: 'My Account',
+    title: 'User Profile',
+    description: 'Personal information and account status in the system.',
+    userInfo: 'Personal Details',
+    sessionInfo: 'Session Information',
+    name: 'Full Name',
+    email: 'Email Address',
+    role: 'System Role',
+    status: 'Account Status',
+    active: 'Active',
+    blocked: 'Blocked',
+    failedAttempts: 'Failed Login Attempts',
+    failedAttemptsDesc: 'failed attempt(s) since last successful login',
+    accountCreated: 'Account Created',
+    lastLogin: 'Last Access',
+    loading: 'Loading profile…',
+    errorTitle: 'Could not load profile',
+    errorText: 'Failed to fetch user information. Please check the backend connection and try again.',
+    retry: 'Retry',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Invoices',
+    sidebarProducts: 'Products',
+    sidebarCustomers: 'Customers',
+    sidebarEmployees: 'Employees',
+    signOut: 'Sign out',
+    settings: 'Settings',
+    notifications: 'Notifications',
+    languageToggle: 'Español',
+    sessionLabel: 'Session',
+  },
+};
 
 @Component({
   selector: 'billflow-profile-page',
@@ -27,22 +139,15 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
   ],
-  providers: [
-    ProfileRemoteDataSource,
-    ProfileImplRepository,
-    { provide: ProfileRepository, useClass: ProfileImplRepository },
-    ProfileStore,
-  ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
       [locale]="localeService.locale()"
       (settings)="goToProfile()"
-      (logout)="session.logout()"
+      (logout)="logout()"
     >
       <div class="flex-1 min-w-0 app-dashboard-main">
-        <!-- ══ Top bar ══ -->
+        <!-- ══ Top bar (same as other pages) ══ -->
         <header
           class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl"
         >
@@ -57,19 +162,23 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
 
-            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
-              <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
+            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
+              <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
               <billflow-user-menu
-                [displayName]="session.displayName()"
-                [initials]="session.userInitials()"
+                [displayName]="displayName"
+                [initials]="userInitials"
+                [open]="userMenuVisible()"
+                [closing]="userMenuClosing()"
                 [showLanguageToggle]="true"
                 [languageLabel]="copy().languageToggle"
                 [settingsLabel]="copy().settings"
                 [logoutLabel]="copy().signOut"
                 [sessionLabel]="copy().sessionLabel"
+                (toggle)="toggleUserMenu($event)"
+                (close)="closeUserMenu()"
                 (languageToggle)="toggleLocale()"
                 (settings)="goToProfile()"
-                (logout)="session.logout()"
+                (logout)="logout()"
               ></billflow-user-menu>
             </div>
           </div>
@@ -90,7 +199,7 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
 
           <!-- Loading state -->
           <div
-            *ngIf="store.loading()"
+            *ngIf="loading()"
             class="flex flex-col items-center justify-center py-24 gap-4"
           >
             <span class="material-symbols-outlined text-[48px] text-outline animate-spin">progress_activity</span>
@@ -99,7 +208,7 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
 
           <!-- Error state -->
           <div
-            *ngIf="store.error() && !store.loading()"
+            *ngIf="error() && !loading()"
             class="flex flex-col items-center justify-center py-24 gap-4"
           >
             <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
@@ -108,14 +217,15 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
             <button
               type="button"
               class="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all"
-              (click)="store.loadProfile()"
+              (click)="loadProfile()"
             >
               {{ copy().retry }}
             </button>
           </div>
 
           <!-- ══ Profile content ══ -->
-          <div *ngIf="store.profile() && !store.loading() && !store.error()" class="space-y-6">
+          <div *ngIf="me() && !loading() && !error()" class="space-y-6">
+
             <!-- Avatar + name header card -->
             <div class="dashboard-glass-card rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl p-6 md:p-8 relative overflow-hidden">
               <div class="absolute -right-8 -bottom-8 text-primary/5 dark:text-primary/10 pointer-events-none">
@@ -125,29 +235,29 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
                 <div
                   class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-primary/15 text-primary flex items-center justify-center text-3xl md:text-4xl font-black shrink-0 shadow-sm border-2 border-primary/20"
                 >
-                  {{ store.initials() }}
+                  {{ initials() }}
                 </div>
                 <div class="min-w-0">
-                  <h2 class="font-h2 text-h2 text-on-surface truncate">{{ store.profile()?.name || '—' }}</h2>
-                  <p class="font-body-md text-body-md text-outline mt-1">{{ store.profile()?.email || '—' }}</p>
+                  <h2 class="font-h2 text-h2 text-on-surface truncate">{{ me()?.name || '—' }}</h2>
+                  <p class="font-body-md text-body-md text-outline mt-1">{{ me()?.email || '—' }}</p>
                   <div class="flex items-center gap-3 mt-3">
                     <span
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                      [class.bg-primary/10]="store.isActive()"
-                      [class.text-primary]="store.isActive()"
-                      [class.bg-error/10]="!store.isActive()"
-                      [class.text-error]="!store.isActive()"
+                      [class.bg-primary/10]="isActive()"
+                      [class.text-primary]="isActive()"
+                      [class.bg-error/10]="!isActive()"
+                      [class.text-error]="!isActive()"
                     >
                       <span class="material-symbols-outlined text-[14px]">
-                        {{ store.isActive() ? 'check_circle' : 'block' }}
+                        {{ isActive() ? 'check_circle' : 'block' }}
                       </span>
-                      {{ store.isActive() ? copy().active : copy().blocked }}
+                      {{ isActive() ? copy().active : copy().blocked }}
                     </span>
                     <span
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary"
                     >
                       <span class="material-symbols-outlined text-[14px]">badge</span>
-                      {{ store.profile()?.role || '—' }}
+                      {{ me()?.role || '—' }}
                     </span>
                   </div>
                 </div>
@@ -167,44 +277,48 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
 
               <div class="p-6 md:p-7">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  <!-- Name -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().name }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">person</span>
-                      {{ store.profile()?.name || '—' }}
+                      {{ me()?.name || '—' }}
                     </p>
                   </div>
 
+                  <!-- Email -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().email }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium break-all flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">mail</span>
-                      {{ store.profile()?.email || '—' }}
+                      {{ me()?.email || '—' }}
                     </p>
                   </div>
 
+                  <!-- Role -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().role }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">manage_accounts</span>
-                      {{ store.profile()?.role || '—' }}
+                      {{ me()?.role || '—' }}
                     </p>
                   </div>
 
+                  <!-- Status -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().status }}</p>
                     <div class="flex items-center gap-2">
                       <span
                         class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                        [class.bg-success/10]="store.isActive()"
-                        [class.text-success]="store.isActive()"
-                        [class.bg-error/10]="!store.isActive()"
-                        [class.text-error]="!store.isActive()"
+                        [class.bg-success/10]="isActive()"
+                        [class.text-success]="isActive()"
+                        [class.bg-error/10]="!isActive()"
+                        [class.text-error]="!isActive()"
                       >
                         <span class="material-symbols-outlined text-[14px]">
-                          {{ store.isActive() ? 'check_circle' : 'block' }}
+                          {{ isActive() ? 'check_circle' : 'block' }}
                         </span>
-                        {{ store.isActive() ? copy().active : copy().blocked }}
+                        {{ isActive() ? copy().active : copy().blocked }}
                       </span>
                     </div>
                   </div>
@@ -214,7 +328,7 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
 
             <!-- Failed login attempts warning -->
             <div
-              *ngIf="(store.failedAttempts() ?? 0) > 0"
+              *ngIf="(failedAttempts() ?? 0) > 0"
               class="rounded-2xl border border-warning/30 bg-warning/5 p-5 md:p-6 relative overflow-hidden"
             >
               <div class="absolute -right-6 -bottom-6 text-warning/10 pointer-events-none">
@@ -227,7 +341,7 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
                 <div class="min-w-0">
                   <p class="font-label-bold text-label-bold text-on-surface">{{ copy().failedAttempts }}</p>
                   <p class="font-body-sm text-body-sm text-outline mt-0.5">
-                    <span class="font-bold text-warning">{{ store.failedAttempts() }}</span>
+                    <span class="font-bold text-warning">{{ failedAttempts() }}</span>
                     {{ copy().failedAttemptsDesc }}
                   </p>
                 </div>
@@ -240,10 +354,10 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
   `,
 })
 export class ProfilePageComponent implements OnInit {
+  private readonly feedback = inject(UiFeedbackService);
   readonly localeService = inject(LocaleService);
-  protected readonly session = inject(SessionService);
-  protected readonly themeService = inject(ThemeService);
-  protected readonly store = inject(ProfileStore);
+  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  private userMenuCloseTimeout: number | undefined;
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
 
@@ -260,17 +374,183 @@ export class ProfilePageComponent implements OnInit {
     ),
   );
 
+  // ── User menu state ──
+  displayName = 'Usuario';
+  userInitials = 'US';
+  userMenuVisible = signal(false);
+  userMenuClosing = signal(false);
+  userMenuOpen = signal(false);
+
+  // ── Profile data ──
+  me = signal<MeResponse | null>(null);
+  loading = signal(true);
+  error = signal(false);
+
+  initials = computed(() => {
+    const name = this.me()?.name ?? this.me()?.user?.name ?? '';
+    if (!name) return '?';
+    return name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0].toUpperCase())
+      .join('');
+  });
+
+  isActive = computed(() => {
+    const m = this.me();
+    return (m?.isActive ?? m?.user?.isActive ?? true);
+  });
+
+  failedAttempts = computed(() => {
+    const m = this.me();
+    return m?.failedLoginAttempts ?? m?.user?.failedLoginAttempts ?? 0;
+  });
+
   ngOnInit() {
-    this.themeService.init();
-    this.session.init();
-    this.store.loadProfile();
+    this.applyStoredUser();
+    this.loadProfile();
+  }
+
+  private applyStoredUser() {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) return;
+      const session = JSON.parse(raw) as {
+        id?: string;
+        employeeId?: string;
+        email?: string;
+        user?: { name?: string };
+      };
+      const candidate =
+        session.employeeId ||
+        session.id ||
+        session.email?.split('@')[0] ||
+        session.user?.name ||
+        'Usuario';
+      this.displayName = candidate;
+      this.userInitials =
+        candidate === 'Usuario'
+          ? 'US'
+          : candidate
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((p: string) => p[0]?.toUpperCase() ?? '')
+              .join('') || 'US';
+    } catch {
+      this.displayName = 'Usuario';
+      this.userInitials = 'US';
+    }
+  }
+
+  async loadProfile() {
+    this.loading.set(true);
+    this.error.set(false);
+
+    try {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) {
+        window.location.replace('/auth');
+        return;
+      }
+      const session = JSON.parse(raw) as { token?: string; accessToken?: string };
+      const token = session.token ?? session.accessToken ?? '';
+
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          window.location.replace('/auth');
+          return;
+        }
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = (await response.json()) as MeResponse;
+      this.me.set(data);
+
+      // Update displayName from /auth/me response
+      const name = data.name ?? data.user?.name;
+      if (name) {
+        this.displayName = name;
+        this.userInitials =
+          name
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((p: string) => p[0]?.toUpperCase() ?? '')
+            .join('') || 'US';
+      }
+    } catch {
+      this.error.set(true);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  // ── User menu handlers ──
+
+  toggleUserMenu(event?: MouseEvent) {
+    if (this.userMenuVisible()) {
+      this.closeUserMenu();
+      return;
+    }
+    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = undefined;
+    }
+    this.userMenuClosing.set(false);
+    this.userMenuVisible.set(true);
+    this.userMenuOpen.set(true);
+  }
+
+  closeUserMenu() {
+    if (!this.userMenuVisible() || this.userMenuClosing()) return;
+    this.userMenuClosing.set(true);
+    this.userMenuCloseTimeout = window.setTimeout(() => {
+      this.userMenuVisible.set(false);
+      this.userMenuOpen.set(false);
+      this.userMenuClosing.set(false);
+      this.userMenuCloseTimeout = undefined;
+    }, 180);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.userMenuOpen()) return;
+    const target = event.target as Node | null;
+    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
+    this.closeUserMenu();
   }
 
   toggleLocale() {
     this.localeService.toggle();
   }
 
+  openNotifications() {
+    // Placeholder — same as other pages
+  }
+
   goToProfile() {
     // Already on profile page
+  }
+
+  async logout() {
+    this.closeUserMenu();
+    const confirmed = await this.feedback.confirm(
+      this.localeService.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
+      this.localeService.locale() === 'es'
+        ? '¿Seguro que querés salir del panel?'
+        : 'Are you sure you want to leave the dashboard?',
+      this.localeService.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
+      this.localeService.locale() === 'es' ? 'Cancelar' : 'Cancel',
+    );
+    if (!confirmed || typeof window === 'undefined') return;
+    window.localStorage.removeItem('billflow-session');
+    window.location.replace('/auth');
   }
 }
