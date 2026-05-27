@@ -33,7 +33,7 @@ interface MovementRawDto {
 }
 
 /** Raw category from the backend. */
-interface CategoryRawDto {
+export interface CategoryRawDto {
   id: string;
   name: string;
   description?: string;

@@ -27,7 +27,7 @@ import type { ProductEntity, ProductMovementEntity, CreateProductPayload, Update
 import { ProductRepository } from './domain/product.repository';
 import { ProductRemoteDataSource } from './data/product-remote-datasource';
 import { ProductImplRepository } from './data/product-impl.repository';
-import type { CategoryDto } from './product-api.service';
+import type { CategoryRawDto } from './data/product-remote-datasource';
 import { PRODUCTS_TEXT } from './i18n/products.translations';
 import type { ProductsCopy } from './i18n/products.translations';
 
@@ -343,7 +343,7 @@ export class ProductsPageComponent implements OnInit {
   // ─── State signals ──────────────────────────────────────────────────────────
   loading = signal(true);
   products = signal<ProductEntity[]>([]);
-  categories = signal<CategoryDto[]>([]);
+  categories = signal<CategoryRawDto[]>([]);
 
   // Filters
   showFilters = signal(false);
