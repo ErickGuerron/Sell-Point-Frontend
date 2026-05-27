@@ -1,12 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import type { ChartData, ChartOptions, ChartType } from 'chart.js';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { SessionService } from '../../shared/services/session.service';
-import { ThemeService } from '../../shared/services/theme.service';
 import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -281,7 +279,7 @@ function detectDashboardLocale(): DashboardLocale {
 
           <div class="app-dashboard-tablet-drawer__nav space-y-1.5">
             <a *ngFor="let item of sidebarItems()" [href]="item.href" class="app-dashboard-tablet-drawer__link flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'" (click)="closeTabletSidebar()">
-              <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
+              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
               {{ item.label }}
             </a>
           </div>
@@ -305,7 +303,7 @@ function detectDashboardLocale(): DashboardLocale {
             </button>
 
             <div class="min-w-0">
-              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ copy().greeting }}, {{ session.displayName() }}</h2>
+              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ copy().greeting }}, {{ displayName }}</h2>
               <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
                 {{ copy().activitySummary }} · {{ stats()?.totalClientes ?? 0 }} {{ copy().activeClients }}
               </p>
@@ -319,18 +317,22 @@ function detectDashboardLocale(): DashboardLocale {
             </div>
 
               <div class="flex items-center justify-end gap-2 shrink-0 self-auto relative z-40">
-                <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
+                <billflow-notification-button (clicked)="showNotifications()"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="session.displayName()"
-                  [initials]="session.userInitials()"
+                  [displayName]="displayName"
+                  [initials]="userInitials"
+                  [open]="userMenuVisible()"
+                  [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
                   [languageLabel]="locale() === 'es' ? 'English' : 'Español'"
                   [settingsLabel]="copy().settingsLabel"
                   [logoutLabel]="copy().logoutConfirm"
                   [sessionLabel]="copy().settingsLabel"
+                  (toggle)="toggleUserMenu($event)"
+                  (close)="closeUserMenu()"
                   (languageToggle)="toggleDashboardLocale()"
-                  (settings)="session.openUserSettings()"
-                  (logout)="session.logout()"
+                  (settings)="openUserSettings()"
+                  (logout)="logout()"
                 ></billflow-user-menu>
               </div>
           </div>
@@ -481,7 +483,7 @@ function detectDashboardLocale(): DashboardLocale {
 
       <nav class="md:hidden app-dashboard-mobile-nav">
         <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-          <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
+          <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
           <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
         </a>
 
@@ -497,12 +499,17 @@ function detectDashboardLocale(): DashboardLocale {
 export class DashboardPageComponent implements OnInit {
   private readonly api = inject(DashboardApiService);
   private readonly feedback = inject(UiFeedbackService);
-  protected readonly session = inject(SessionService);
-  protected readonly themeService = inject(ThemeService);
+  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  private userMenuCloseTimeout?: number;
 
   locale = signal<DashboardLocale>(detectDashboardLocale());
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
+  displayName = 'Usuario';
+  userInitials = 'CA';
   tabletSidebarOpen = signal(false);
+  userMenuOpen = signal(false);
+  userMenuVisible = signal(false);
+  userMenuClosing = signal(false);
   chartReady = signal(false);
   loading = signal(true);
   stats = signal<DashboardStatsDto | null>(null);
@@ -582,16 +589,27 @@ export class DashboardPageComponent implements OnInit {
   ngOnInit() {
     if (typeof window === 'undefined') return;
 
-    this.themeService.init();
-    this.session.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
     this.chartReady.set(true);
 
     try {
-      if (!window.localStorage.getItem('billflow-session')) {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) {
         window.location.assign('/auth');
         return;
+      }
+
+      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
+      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || 'Usuario';
+      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
+      if (candidate !== 'Usuario') {
+        this.userInitials = candidate
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase() ?? '')
+          .join('');
       }
 
       void this.loadDashboardData();
@@ -644,10 +662,68 @@ export class DashboardPageComponent implements OnInit {
   toggleDashboardLocale() {
     const next: DashboardLocale = this.locale() === 'es' ? 'en' : 'es';
     this.locale.set(next);
+    this.closeUserMenu();
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('billflow-lang', next);
       document.documentElement.lang = next;
     }
+  }
+
+  toggleUserMenu(event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.userMenuVisible()) {
+      this.closeUserMenu();
+      return;
+    }
+
+    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = undefined;
+    }
+
+    this.userMenuClosing.set(false);
+    this.userMenuVisible.set(true);
+    this.userMenuOpen.set(true);
+  }
+
+  closeUserMenu() {
+    if (!this.userMenuVisible() || this.userMenuClosing()) return;
+
+    this.userMenuClosing.set(true);
+    if (typeof window === 'undefined') return;
+
+    this.userMenuCloseTimeout = window.setTimeout(() => {
+      this.userMenuVisible.set(false);
+      this.userMenuOpen.set(false);
+      this.userMenuClosing.set(false);
+      this.userMenuCloseTimeout = undefined;
+    }, 180);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.userMenuOpen()) return;
+
+    const target = event.target as Node | null;
+    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
+
+    this.closeUserMenu();
+  }
+
+  openUserSettings() {
+    this.closeUserMenu();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
+  }
+
+  async logout() {
+    this.closeUserMenu();
+    const confirmed = await this.feedback.confirm(this.copy().logoutTitle, this.copy().logoutText, this.copy().logoutConfirm, this.copy().logoutCancel);
+    if (!confirmed || typeof window === 'undefined') return;
+
+    window.localStorage.removeItem('billflow-session');
+    window.location.replace('/auth');
   }
 
   toggleTabletSidebar() {
@@ -656,6 +732,10 @@ export class DashboardPageComponent implements OnInit {
 
   closeTabletSidebar() {
     this.tabletSidebarOpen.set(false);
+  }
+
+  async showNotifications() {
+    await this.feedback.alert('info', this.copy().notificationsTitle, this.copy().notificationsText);
   }
 
   async showInvoiceOverview() {
@@ -751,6 +831,10 @@ export class DashboardPageComponent implements OnInit {
       'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20': tone === 'warning',
       'bg-error/10 text-error border border-error/20': tone === 'error',
     };
+  }
+
+  iconVariationSettings(active = false) {
+    return active ? "'FILL' 1" : "'FILL' 0";
   }
 
   formatMoney(value: number) {

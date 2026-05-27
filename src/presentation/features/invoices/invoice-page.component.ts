@@ -1,11 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
-import { SessionService } from '../../shared/services/session.service';
-import { ThemeService } from '../../shared/services/theme.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -232,19 +230,23 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
               </div>
 
-              <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
-                <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
+              <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
+                <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="session.displayName()"
-                  [initials]="session.userInitials()"
+                  [displayName]="displayName"
+                  [initials]="userInitials"
+                  [open]="userMenuVisible()"
+                  [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
                   [languageLabel]="copy().languageToggle"
                   [settingsLabel]="copy().settings"
                   [logoutLabel]="copy().signOut"
                   [sessionLabel]="copy().sessionLabel"
+                  (toggle)="toggleUserMenu($event)"
+                  (close)="closeUserMenu()"
                   (languageToggle)="toggleLocale()"
-                  (settings)="session.openUserSettings()"
-                  (logout)="session.logout()"
+                  (settings)="openUserSettings()"
+                  (logout)="logout()"
                 ></billflow-user-menu>
               </div>
             </div>
@@ -258,7 +260,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
               </div>
               <div class="flex items-center gap-2 text-sm text-on-surface-variant">
                 <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredInvoices().length }} {{ copy().resultsLabel }}</span>
-                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span>
               </div>
             </section>
 
@@ -580,7 +582,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 
           <nav class="md:hidden app-dashboard-mobile-nav">
             <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-              <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
+              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
               <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
             </a>
 
@@ -598,8 +600,7 @@ export class InvoicePageComponent implements OnInit {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
-  protected readonly session = inject(SessionService);
-  protected readonly themeService = inject(ThemeService);
+  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
 
   locale = this.localeService.locale;
   copy = computed(() => INVOICE_TEXT[this.locale()]);
@@ -619,6 +620,7 @@ export class InvoicePageComponent implements OnInit {
     { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
   ]);
 
+  theme = signal<'light' | 'dark'>('light');
   loading = signal(true);
   invoices = signal<InvoiceViewModel[]>([]);
   searchQuery = signal('');
@@ -652,6 +654,13 @@ export class InvoicePageComponent implements OnInit {
     { value: 'customerName', label: this.copy().filterCustomer },
     { value: 'total', label: this.copy().filterAmount },
   ]);
+  displayName = 'Usuario';
+  userInitials = 'US';
+  userMenuVisible = signal(false);
+  userMenuClosing = signal(false);
+  userMenuOpen = signal(false);
+  private userMenuCloseTimeout: number | undefined;
+
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const filterField = this.invoiceFilterField();
@@ -708,8 +717,8 @@ export class InvoicePageComponent implements OnInit {
   readonly paidCount30Days = computed(() => this.invoices().filter((invoice) => invoice.status === 'paid' && this.isWithinDays(invoice.invoiceDate, 30)).length);
 
   async ngOnInit() {
-    this.themeService.init();
-    this.session.init();
+    this.applyStoredTheme();
+    this.applyStoredUser();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
     await this.reloadInvoices();
   }
@@ -730,6 +739,12 @@ export class InvoicePageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  toggleTheme() {
+    const next = this.theme() === 'dark' ? 'light' : 'dark';
+    this.theme.set(next);
+    this.persistTheme(next);
   }
 
   toggleLocale() {
@@ -767,6 +782,71 @@ export class InvoicePageComponent implements OnInit {
     if (typeof window !== 'undefined') {
       window.location.assign('/create-invoice');
     }
+  }
+
+  iconVariationSettings(active = false) {
+    return active ? "'FILL' 1" : "'FILL' 0";
+  }
+
+  openNotifications() {
+    void this.feedback.toast('info', this.copy().notifications, this.locale() === 'es' ? 'Tenés 3 movimientos críticos esperando revisión.' : 'You have 3 critical movements waiting for review.');
+  }
+
+  toggleUserMenu(event?: MouseEvent) {
+    event?.stopPropagation();
+    if (this.userMenuVisible()) {
+      this.closeUserMenu();
+      return;
+    }
+
+    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.userMenuCloseTimeout);
+      this.userMenuCloseTimeout = undefined;
+    }
+
+    this.userMenuClosing.set(false);
+    this.userMenuVisible.set(true);
+    this.userMenuOpen.set(true);
+  }
+
+  closeUserMenu() {
+    if (!this.userMenuVisible() || this.userMenuClosing()) return;
+
+    this.userMenuClosing.set(true);
+    if (typeof window === 'undefined') return;
+
+    this.userMenuCloseTimeout = window.setTimeout(() => {
+      this.userMenuVisible.set(false);
+      this.userMenuOpen.set(false);
+      this.userMenuClosing.set(false);
+      this.userMenuCloseTimeout = undefined;
+    }, 180);
+  }
+
+  @HostListener('document:click', ['$event'])
+  handleDocumentClick(event: MouseEvent) {
+    if (!this.userMenuOpen()) return;
+
+    const target = event.target as Node | null;
+    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
+
+    this.closeUserMenu();
+  }
+
+  openUserSettings() {
+    this.closeUserMenu();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/profile';
+    }
+  }
+
+  async logout() {
+    this.closeUserMenu();
+    const confirmed = await this.feedback.confirm(this.copy().signOut, this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?', this.copy().signOut, this.locale() === 'es' ? 'Cancelar' : 'Cancel');
+    if (!confirmed || typeof window === 'undefined') return;
+
+    window.localStorage.removeItem('billflow-session');
+    window.location.replace('/auth');
   }
 
   nextPage() {
@@ -828,6 +908,12 @@ export class InvoicePageComponent implements OnInit {
     }
   }
 
+  currentThemeLabel() {
+    return this.locale() === 'es'
+      ? (this.theme() === 'dark' ? 'Modo oscuro' : 'Modo claro')
+      : (this.theme() === 'dark' ? 'Dark mode' : 'Light mode');
+  }
+
   visibleRangeStart() {
     if (this.filteredInvoices().length === 0) return 0;
     return (this.page() - 1) * this.pageSize() + 1;
@@ -871,11 +957,52 @@ export class InvoicePageComponent implements OnInit {
   }
 
 
+  private applyStoredUser() {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) return;
+
+      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
+      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
+      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
+      if (candidate !== 'Usuario') {
+        this.userInitials = candidate
+          .split(/\s+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part) => part[0]?.toUpperCase() ?? '')
+          .join('');
+      } else {
+        this.userInitials = 'US';
+      }
+    } catch {
+      this.displayName = 'Usuario';
+      this.userInitials = 'US';
+    }
+  }
+
   private daysBetween(start: Date, end: Date) {
     const a = new Date(start);
     const b = new Date(end);
     a.setHours(0, 0, 0, 0);
     b.setHours(0, 0, 0, 0);
     return Math.max(0, Math.floor((b.getTime() - a.getTime()) / 86400000));
+  }
+
+  private applyStoredTheme() {
+    if (typeof window === 'undefined') return;
+    const stored = window.localStorage.getItem('billflow-theme');
+    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    const next = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
+    this.theme.set(next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
+  }
+
+  private persistTheme(next: 'light' | 'dark') {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('billflow-theme', next);
+    document.documentElement.classList.toggle('dark', next === 'dark');
   }
 }
