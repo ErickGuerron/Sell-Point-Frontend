@@ -17,7 +17,7 @@ export function buildBillflowSidebarItems(labels: BillflowNavigationLabels, acti
     { label: labels.invoices, icon: 'receipt_long', href: '/invoices', active: active === 'invoices' },
     { label: labels.products, icon: 'inventory_2', href: '/products', active: active === 'products' },
     { label: labels.customers, icon: 'groups', href: '/customers', active: active === 'customers' },
-    { label: labels.employees, icon: 'badge', href: '/dashboard', active: active === 'employees' },
+    { label: labels.employees, icon: 'badge', href: '/employees', active: active === 'employees' },
   ];
 
   // Insert categories after products when label is provided
