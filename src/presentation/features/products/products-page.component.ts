@@ -104,7 +104,7 @@ import type { ProductsCopy } from './i18n/products.translations';
             </div>
           </section>
 
-          <product-kpi-cards
+          <billflow-product-kpi-cards
             [totalProducts]="totalProductsCount()"
             [activeCount]="activeCount()"
             [lowStockCount]="lowStockCount()"
@@ -205,8 +205,8 @@ import type { ProductsCopy } from './i18n/products.translations';
               </button>
             </div>
 
-            <product-table
-              [products]="products()"
+            <billflow-product-table
+              [products]="visibleProducts()"
               [loading]="loading()"
               [locale]="locale()"
               [copy]="copy()"
@@ -263,7 +263,7 @@ import type { ProductsCopy } from './i18n/products.translations';
           </section>
         </main>
 
-        <product-form-modal
+        <billflow-product-form-modal
           [open]="productModalOpen()"
           [editingProduct]="editingProduct()"
           [categories]="categories()"
@@ -273,7 +273,7 @@ import type { ProductsCopy } from './i18n/products.translations';
           (close)="closeProductModal()"
         />
 
-        <product-movements-modal
+        <billflow-product-movements-modal
           [open]="movementsModalOpen()"
           [product]="selectedProductForMovements()"
           [locale]="locale()"
@@ -388,6 +388,14 @@ export class ProductsPageComponent implements OnInit {
 
   readonly totalProducts = computed(() => this.totalProductsCount());
   readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize())));
+
+  readonly visibleProducts = computed(() => {
+    const products = this.products();
+    if (products.length <= this.pageSize()) return products;
+
+    const start = (this.page() - 1) * this.pageSize();
+    return products.slice(start, start + this.pageSize());
+  });
 
   readonly visiblePages = computed(() => {
     const total = this.totalPages();
