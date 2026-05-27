@@ -1,8 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, computed, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
-import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -15,103 +14,8 @@ import { ProfileStore } from './profile-store';
 import { ProfileRemoteDataSource } from './data/profile-remote.datasource';
 import { ProfileImplRepository } from './data/profile.impl.repository';
 import { ProfileRepository } from './domain/profile.repository';
-
-interface ProfileCopy {
-  moduleLabel: string;
-  title: string;
-  description: string;
-  userInfo: string;
-  sessionInfo: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  active: string;
-  blocked: string;
-  failedAttempts: string;
-  failedAttemptsDesc: string;
-  accountCreated: string;
-  lastLogin: string;
-  loading: string;
-  errorTitle: string;
-  errorText: string;
-  retry: string;
-  sidebarDashboard: string;
-  sidebarInvoices: string;
-  sidebarProducts: string;
-  sidebarCustomers: string;
-  sidebarEmployees: string;
-  signOut: string;
-  settings: string;
-  notifications: string;
-  languageToggle: string;
-  sessionLabel: string;
-}
-
-const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
-  es: {
-    moduleLabel: 'Mi Cuenta',
-    title: 'Perfil de Usuario',
-    description: 'Información personal y estado de tu cuenta en el sistema.',
-    userInfo: 'Datos Personales',
-    sessionInfo: 'Información de la Sesión',
-    name: 'Nombre Completo',
-    email: 'Correo Electrónico',
-    role: 'Rol en el Sistema',
-    status: 'Estado de la Cuenta',
-    active: 'Activa',
-    blocked: 'Bloqueada',
-    failedAttempts: 'Intentos Fallidos de Inicio de Sesión',
-    failedAttemptsDesc: 'intento(s) fallido(s) desde el último inicio de sesión exitoso',
-    accountCreated: 'Cuenta Creada',
-    lastLogin: 'Último Acceso',
-    loading: 'Cargando perfil…',
-    errorTitle: 'Error al cargar el perfil',
-    errorText: 'No se pudo obtener la información del usuario. Verificá la conexión con el backend e intentá de nuevo.',
-    retry: 'Reintentar',
-    sidebarDashboard: 'Panel',
-    sidebarInvoices: 'Facturas',
-    sidebarProducts: 'Productos',
-    sidebarCustomers: 'Clientes',
-    sidebarEmployees: 'Empleados',
-    signOut: 'Cerrar sesión',
-    settings: 'Configuración',
-    notifications: 'Notificaciones',
-    languageToggle: 'English',
-    sessionLabel: 'Sesión',
-  },
-  en: {
-    moduleLabel: 'My Account',
-    title: 'User Profile',
-    description: 'Personal information and account status in the system.',
-    userInfo: 'Personal Details',
-    sessionInfo: 'Session Information',
-    name: 'Full Name',
-    email: 'Email Address',
-    role: 'System Role',
-    status: 'Account Status',
-    active: 'Active',
-    blocked: 'Blocked',
-    failedAttempts: 'Failed Login Attempts',
-    failedAttemptsDesc: 'failed attempt(s) since last successful login',
-    accountCreated: 'Account Created',
-    lastLogin: 'Last Access',
-    loading: 'Loading profile…',
-    errorTitle: 'Could not load profile',
-    errorText: 'Failed to fetch user information. Please check the backend connection and try again.',
-    retry: 'Retry',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Invoices',
-    sidebarProducts: 'Products',
-    sidebarCustomers: 'Customers',
-    sidebarEmployees: 'Employees',
-    signOut: 'Sign out',
-    settings: 'Settings',
-    notifications: 'Notifications',
-    languageToggle: 'Español',
-    sessionLabel: 'Session',
-  },
-};
+import type { ProfileCopy } from './i18n/profile.translations';
+import { PROFILE_TEXT } from './i18n/profile.translations';
 
 @Component({
   selector: 'billflow-profile-page',
@@ -336,7 +240,6 @@ const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
   `,
 })
 export class ProfilePageComponent implements OnInit {
-  private readonly feedback = inject(UiFeedbackService);
   readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);

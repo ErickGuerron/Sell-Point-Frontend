@@ -5,9 +5,7 @@ const API_BASE =
   import.meta.env.PUBLIC_API_URL ||
   'http://localhost:3000';
 
-@Injectable({
-  providedIn: 'root',
-})
+@Injectable()
 export class ProfileRemoteDataSource {
   async fetchProfile(): Promise<ProfileRawDto> {
     const raw =
