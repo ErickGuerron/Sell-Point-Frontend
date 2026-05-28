@@ -502,7 +502,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().employeeIdLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-001" [ngModel]="formEmployeeId()" (ngModelChange)="formEmployeeId.set($event)" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-XXXXXXXXXXXXXXX" [ngModel]="formEmployeeId()" (ngModelChange)="formEmployeeId.set($event)" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>

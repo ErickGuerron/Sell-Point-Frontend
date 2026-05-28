@@ -44,7 +44,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
             type="text"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             maxlength="20"
-            placeholder="PROD-001"
+            placeholder="PROD-XXXXXXXXXXXXXXX"
             [ngModel]="formCode()"
             [readonly]="true"
             [disabled]="editingProduct !== null"
