@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { EmployeeApiService, type EmployeeRowDto, type CreateUserPayload, type UpdateUserPayload } from './employee-api.service';
+import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -86,6 +86,15 @@ interface EmployeesCopy {
   passwordLabel: string;
   roleLabel: string;
   employeeIdLabel: string;
+  // Validation messages
+  firstNameOnlyLetters: string;
+  lastNameOnlyLetters: string;
+  lastNameNoSpaces: string;
+  cedulaExact10: string;
+  emailInvalidFormat: string;
+  usernameNoSpaces: string;
+  passwordNoSpaces: string;
+  charCountLabel: string;
 }
 
 const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
@@ -155,6 +164,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     passwordLabel: 'Contraseña',
     roleLabel: 'Rol',
     employeeIdLabel: 'Código de Empleado',
+    // Validation messages
+    firstNameOnlyLetters: 'Solo letras permitidas',
+    lastNameOnlyLetters: 'Solo letras permitidas',
+    lastNameNoSpaces: 'No se permiten espacios',
+    cedulaExact10: 'Debe tener exactamente 10 dígitos',
+    emailInvalidFormat: 'Formato de email inválido',
+    usernameNoSpaces: 'No se permiten espacios',
+    passwordNoSpaces: 'No se permiten espacios',
+    charCountLabel: '',
   },
   en: {
     moduleLabel: 'Employees Module',
@@ -222,6 +240,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     passwordLabel: 'Password',
     roleLabel: 'Role',
     employeeIdLabel: 'Employee Code',
+    // Validation messages
+    firstNameOnlyLetters: 'Only letters allowed',
+    lastNameOnlyLetters: 'Only letters allowed',
+    lastNameNoSpaces: 'No spaces allowed',
+    cedulaExact10: 'Must be exactly 10 digits',
+    emailInvalidFormat: 'Invalid email format',
+    usernameNoSpaces: 'No spaces allowed',
+    passwordNoSpaces: 'No spaces allowed',
+    charCountLabel: '',
   },
 };
 
@@ -494,32 +521,52 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (ngModelChange)="formFirstName.set($event)" />
+          <input #firstNameInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formFirstNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (ngModelChange)="onFirstNameInput($event)" />
+          @if (formFirstNameError()) {
+            <span class="text-xs text-error mt-1 block">{{ formFirstNameError() }}</span>
+          }
+          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ firstNameCount() }}/100</span>
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (ngModelChange)="formLastName.set($event)" />
+          <input #lastNameInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formLastNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (ngModelChange)="onLastNameInput($event)" />
+          @if (formLastNameError()) {
+            <span class="text-xs text-error mt-1 block">{{ formLastNameError() }}</span>
+          }
+          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ lastNameCount() }}/100</span>
         </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().employeeIdLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-XXXXXXXXXXXXXXX" [ngModel]="formEmployeeId()" (ngModelChange)="formEmployeeId.set($event)" />
-        </div>
+        
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="Ej: 1234567890" [ngModel]="formCedula()" (ngModelChange)="onCedulaInput($event)" />
+          <input #cedulaInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formCedulaError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="10" placeholder="Ej: 1234567890" [ngModel]="formCedula()" (ngModelChange)="onCedulaInput($event)" />
+          @if (formCedulaError()) {
+            <span class="text-xs text-error mt-1 block">{{ formCedulaError() }}</span>
+          }
+          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ cedulaCount() }}/10</span>
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
-          <input type="email" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)" />
+          <input type="email" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formEmailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (ngModelChange)="onEmailInput($event)" />
+          @if (formEmailError()) {
+            <span class="text-xs text-error mt-1 block">{{ formEmailError() }}</span>
+          }
+          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ emailCount() }}/255</span>
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (ngModelChange)="formUsername.set($event)" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formUsernameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (ngModelChange)="onUsernameInput($event)" />
+          @if (formUsernameError()) {
+            <span class="text-xs text-error mt-1 block">{{ formUsernameError() }}</span>
+          }
+          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ usernameCount() }}/50</span>
         </div>
         @if (!editingEmployee()) {
           <div class="md:col-span-1">
             <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().passwordLabel }} <span class="text-error">*</span></label>
-            <input type="password" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="••••••••" [ngModel]="formPassword()" (ngModelChange)="formPassword.set($event)" />
+            <input type="password" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formPasswordError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="••••••••" [ngModel]="formPassword()" (ngModelChange)="onPasswordInput($event)" />
+            @if (formPasswordError()) {
+              <span class="text-xs text-error mt-1 block">{{ formPasswordError() }}</span>
+            }
           </div>
         }
         <div [ngClass]="editingEmployee() ? 'md:col-span-1' : 'md:col-span-1'">
@@ -600,6 +647,9 @@ export class EmployeesPageComponent implements OnInit {
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  private gradientCache = new Map<string, string>();
+  @ViewChild('firstNameInput') firstNameInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('lastNameInput') lastNameInput?: ElementRef<HTMLInputElement>;
 
   locale = this.localeService.locale;
   copy = computed(() => EMPLOYEES_TEXT[this.locale()]);
@@ -702,15 +752,34 @@ export class EmployeesPageComponent implements OnInit {
   formSubmitting = signal(false);
 
   readonly formValid = computed(() =>
-    this.formFirstName().trim().length > 0
-    && this.formLastName().trim().length > 0
-    && this.formEmployeeId().trim().length > 0
-    && this.formCedula().trim().length > 0
-    && this.formEmail().trim().length > 0
-    && this.formUsername().trim().length > 0
+    this.formFirstNameValid()
+    && this.formLastNameValid()
+    && this.formCedulaValid()
+    && this.formEmailValid()
+    && this.formUsernameValid()
     && this.formRole().trim().length > 0
-    && (this.editingEmployee() !== null || this.formPassword().trim().length >= 6)
+    && (!this.editingEmployee() || this.formPassword().trim().length >= 6)
   );
+
+  // ── Validation signals ──
+  formFirstNameError = signal('');
+  formLastNameError = signal('');
+  formCedulaError = signal('');
+  formEmailError = signal('');
+  formUsernameError = signal('');
+  formPasswordError = signal('');
+
+  readonly formFirstNameValid = computed(() => this.formFirstNameError() === '');
+  readonly formLastNameValid = computed(() => this.formLastNameError() === '');
+  readonly formCedulaValid = computed(() => this.formCedulaError() === '');
+  readonly formEmailValid = computed(() => this.formEmailError() === '');
+  readonly formUsernameValid = computed(() => this.formUsernameError() === '');
+
+  readonly firstNameCount = computed(() => this.formFirstName().length);
+  readonly lastNameCount = computed(() => this.formLastName().length);
+  readonly cedulaCount = computed(() => this.formCedula().length);
+  readonly emailCount = computed(() => this.formEmail().length);
+  readonly usernameCount = computed(() => this.formUsername().length);
 
   // ── Lifecycle ──
   async ngOnInit() {
@@ -745,6 +814,7 @@ export class EmployeesPageComponent implements OnInit {
   // ── Data loading ──
   async reloadEmployees() {
     this.loading.set(true);
+    this.gradientCache.clear();
     try {
       const result = await this.api.listUsers({
         page: this.page(),
@@ -921,6 +991,12 @@ export class EmployeesPageComponent implements OnInit {
     this.formRole.set(employee.role);
     this.formPassword.set('');
     this.formSubmitting.set(false);
+    this.formFirstNameError.set('');
+    this.formLastNameError.set('');
+    this.formCedulaError.set('');
+    this.formEmailError.set('');
+    this.formUsernameError.set('');
+    this.formPasswordError.set('');
     this.editingEmployee.set(employee);
     this.employeeModalOpen.set(true);
   }
@@ -929,10 +1005,6 @@ export class EmployeesPageComponent implements OnInit {
     this.employeeModalOpen.set(false);
     this.editingEmployee.set(null);
     this.resetForm();
-  }
-
-  onCedulaInput(value: string) {
-    this.formCedula.set(value.replace(/\D/g, '').slice(0, 10));
   }
 
   private resetForm() {
@@ -945,6 +1017,108 @@ export class EmployeesPageComponent implements OnInit {
     this.formPassword.set('');
     this.formRole.set('');
     this.formSubmitting.set(false);
+    this.formFirstNameError.set('');
+    this.formLastNameError.set('');
+    this.formCedulaError.set('');
+    this.formEmailError.set('');
+    this.formUsernameError.set('');
+    this.formPasswordError.set('');
+  }
+
+  // ── Input handlers ──
+  onFirstNameInput(value: string) {
+    const cleaned = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
+    this.formFirstName.set(cleaned);
+    this.validateFirstName(cleaned);
+    if (value.endsWith(' ')) {
+      this.lastNameInput?.nativeElement.focus();
+    }
+  }
+
+  onLastNameInput(value: string) {
+    const hadSpace = value.includes(' ');
+    const cleaned = value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, '');
+    this.formLastName.set(cleaned);
+    if (hadSpace && cleaned === this.formLastName()) {
+      this.formLastNameError.set(this.locale() === 'es' ? 'No se permiten espacios' : 'No spaces allowed');
+    } else {
+      this.validateLastName(cleaned);
+    }
+  }
+
+  onCedulaInput(value: string) {
+    const cleaned = value.replace(/\D/g, '').slice(0, 10);
+    this.formCedula.set(cleaned);
+    this.validateCedula(cleaned);
+  }
+
+  onEmailInput(value: string) {
+    const cleaned = value.replace(/\s/g, '');
+    this.formEmail.set(cleaned);
+    this.validateEmail(cleaned);
+  }
+
+  onUsernameInput(value: string) {
+    const cleaned = value.replace(/\s/g, '');
+    this.formUsername.set(cleaned);
+    this.validateUsername(cleaned);
+  }
+
+  onPasswordInput(value: string) {
+    const cleaned = value.replace(/\s/g, '');
+    this.formPassword.set(cleaned);
+    this.validatePassword(cleaned);
+  }
+
+  // ── Validation methods ──
+  private validateFirstName(value: string) {
+    if (value.length > 0 && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/.test(value) && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(value.replace(/\s/g, ''))) {
+      this.formFirstNameError.set(this.copy().firstNameOnlyLetters);
+    } else {
+      this.formFirstNameError.set('');
+    }
+  }
+
+  private validateLastName(value: string) {
+    if (value.includes(' ')) {
+      this.formLastNameError.set(this.copy().lastNameNoSpaces);
+    } else if (value.length > 0 && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/.test(value)) {
+      this.formLastNameError.set(this.copy().lastNameOnlyLetters);
+    } else {
+      this.formLastNameError.set('');
+    }
+  }
+
+  private validateCedula(value: string) {
+    if (value.length > 0 && value.length !== 10) {
+      this.formCedulaError.set(this.copy().cedulaExact10);
+    } else {
+      this.formCedulaError.set('');
+    }
+  }
+
+  private validateEmail(value: string) {
+    if (value.length > 0 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      this.formEmailError.set(this.copy().emailInvalidFormat);
+    } else {
+      this.formEmailError.set('');
+    }
+  }
+
+  private validateUsername(value: string) {
+    if (value.includes(' ')) {
+      this.formUsernameError.set(this.copy().usernameNoSpaces);
+    } else {
+      this.formUsernameError.set('');
+    }
+  }
+
+  private validatePassword(value: string) {
+    if (value.includes(' ')) {
+      this.formPasswordError.set(this.copy().passwordNoSpaces);
+    } else {
+      this.formPasswordError.set('');
+    }
   }
 
   async saveEmployee() {
@@ -965,15 +1139,14 @@ export class EmployeesPageComponent implements OnInit {
         await this.feedback.toast('success',
           this.locale() === 'es' ? 'Empleado actualizado correctamente' : 'Employee updated successfully');
       } else {
-        const created = await this.api.createUser({
-          employeeId: this.formEmployeeId().trim(),
-          username: this.formUsername().trim(),
+        const created = await this.api.registerUser({
           email: this.formEmail().trim(),
-          password: this.formPassword(),
-          role: this.formRole(),
           firstName: this.formFirstName().trim(),
           lastName: this.formLastName().trim(),
           cedula: this.formCedula().trim(),
+          role: this.formRole(),
+          username: this.formUsername().trim(),
+          defaultBranchId: '',
         });
         this.employees.update(emps => [created, ...emps]);
         this.totalCount.update(c => c + 1);
@@ -1086,7 +1259,10 @@ export class EmployeesPageComponent implements OnInit {
     return (first + last).toUpperCase() || e.username?.charAt(0)?.toUpperCase() || '?';
   }
 
-  getEmployeeGradient(_e: EmployeeRowDto): string {
+  getEmployeeGradient(e: EmployeeRowDto): string {
+    if (this.gradientCache.has(e.id)) {
+      return this.gradientCache.get(e.id)!;
+    }
     const gradients = [
       'from-[#4f46e5]/20 to-[#06b6d4]/20 text-[#4f46e5] dark:text-[#c3c0ff] border-[#4f46e5]/20',
       'from-[#ec4899]/20 to-[#f43f5e]/20 text-[#ec4899] dark:text-[#ffb2b7] border-[#ec4899]/20',
@@ -1094,7 +1270,9 @@ export class EmployeesPageComponent implements OnInit {
       'from-[#f59e0b]/20 to-[#ef4444]/20 text-[#f59e0b] dark:text-[#ffb2b7] border-[#f59e0b]/20',
       'from-[#8b5cf6]/20 to-[#d946ef]/20 text-[#8b5cf6] dark:text-[#c3c0ff] border-[#8b5cf6]/20',
     ];
-    return gradients[Math.floor(Math.random() * gradients.length)];
+    const gradient = gradients[Math.floor(Math.random() * gradients.length)];
+    this.gradientCache.set(e.id, gradient);
+    return gradient;
   }
 
   showEmployeeInfo(employee: EmployeeRowDto) {
