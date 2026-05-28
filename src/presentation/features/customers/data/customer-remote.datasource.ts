@@ -54,11 +54,30 @@ export class CustomerRemoteDataSource {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  async list(): Promise<BackendCustomer[]> {
-    if (USE_MOCK) return [...MOCK_CUSTOMERS];
-    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?limit=200`);
-    const body = await res.json() as PaginatedResponse<BackendCustomer>;
-    return body.data;
+  async list(params: { page: number; limit: number; q?: string; cedula?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
+    if (USE_MOCK) {
+      const start = (Math.max(1, params.page) - 1) * params.limit;
+      const data = MOCK_CUSTOMERS.slice(start, start + params.limit);
+      return {
+        data,
+        pagination: {
+          total: MOCK_CUSTOMERS.length,
+          page: Math.max(1, params.page),
+          limit: params.limit,
+          totalPages: Math.max(1, Math.ceil(MOCK_CUSTOMERS.length / params.limit)),
+        },
+      };
+    }
+    const searchParams = new URLSearchParams({
+      page: String(params.page),
+      limit: String(params.limit),
+    });
+
+    if (params.q) searchParams.set('q', params.q);
+    if (params.cedula) searchParams.set('cedula', params.cedula);
+
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?${searchParams.toString()}`);
+    return await res.json() as PaginatedResponse<BackendCustomer>;
   }
 
   async create(payload: {

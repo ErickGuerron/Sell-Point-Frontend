@@ -145,7 +145,7 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     languageToggle: 'English',
     sessionLabel: 'Sesión',
     modalCreateTitle: 'Nuevo Producto',
-    modalCreateSubtitle: 'Completá los datos del nuevo producto',
+    modalCreateSubtitle: 'Completa los datos del nuevo producto',
     modalEditTitle: 'Editar Producto',
     modalEditSubtitle: 'Actualizá los datos del producto',
     modalMovementsTitle: 'Movimientos de Stock',

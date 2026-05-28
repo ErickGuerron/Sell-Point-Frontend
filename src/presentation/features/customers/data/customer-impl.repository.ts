@@ -1,5 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { CustomerRepository } from '../domain/customer.repository';
+import {
+  CustomerRepository,
+  type CustomerListParams,
+  type CustomerListResult,
+} from '../domain/customer.repository';
 import type { CustomerEntity, CreateCustomerPayload } from '../domain/customer.entity';
 import { CustomerRemoteDataSource } from './customer-remote.datasource';
 import { mapBackendToEntity } from './customer.mapper';
@@ -8,9 +12,12 @@ import { mapBackendToEntity } from './customer.mapper';
 export class CustomerImplRepository extends CustomerRepository {
   private readonly ds = inject(CustomerRemoteDataSource);
 
-  async list(): Promise<CustomerEntity[]> {
-    const backends = await this.ds.list();
-    return backends.map(mapBackendToEntity);
+  async list(params: CustomerListParams): Promise<CustomerListResult> {
+    const result = await this.ds.list(params);
+    return {
+      data: result.data.map(mapBackendToEntity),
+      pagination: result.pagination,
+    };
   }
 
   async create(payload: CreateCustomerPayload): Promise<CustomerEntity> {

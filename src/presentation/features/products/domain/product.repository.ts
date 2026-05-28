@@ -21,6 +21,8 @@ export abstract class ProductRepository {
     signal?: AbortSignal,
   ): Promise<ProductAggregates>;
 
+  abstract getNextProductCode(signal?: AbortSignal): Promise<string>;
+
   abstract createProduct(
     payload: CreateProductPayload,
   ): Promise<ProductEntity>;

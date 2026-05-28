@@ -40,6 +40,10 @@ export class ProductImplRepository extends ProductRepository {
     return { totalProducts: 0, activeCount: 0, lowStockCount: 0 };
   }
 
+  async getNextProductCode(signal?: AbortSignal): Promise<string> {
+    return this.ds.fetchNextProductCode(signal);
+  }
+
   async createProduct(payload: CreateProductPayload): Promise<ProductEntity> {
     const dto = await this.ds.createProduct(payload);
     return toProductEntity(dto);

@@ -19,6 +19,7 @@ import { ProductFormModalComponent } from './components/product-form-modal.compo
 import { ProductMovementsModalComponent } from './components/product-movements-modal.component';
 import { GetProductsUseCase } from './domain/use-cases/get-products.use-case';
 import { CreateProductUseCase } from './domain/use-cases/create-product.use-case';
+import { GetNextProductCodeUseCase } from './domain/use-cases/get-next-product-code.use-case';
 import { UpdateProductUseCase } from './domain/use-cases/update-product.use-case';
 import { ToggleProductActiveUseCase } from './domain/use-cases/toggle-product-active.use-case';
 import { GetProductMovementsUseCase } from './domain/use-cases/get-product-movements.use-case';
@@ -53,6 +54,7 @@ import type { ProductsCopy } from './i18n/products.translations';
     { provide: ProductRepository, useClass: ProductImplRepository },
     GetProductsUseCase,
     CreateProductUseCase,
+    GetNextProductCodeUseCase,
     UpdateProductUseCase,
     ToggleProductActiveUseCase,
     GetProductMovementsUseCase,
@@ -269,6 +271,7 @@ import type { ProductsCopy } from './i18n/products.translations';
           [categories]="categories()"
           [locale]="locale()"
           [copy]="copy()"
+          [initialCode]="nextProductCode()"
           (save)="handleProductSave($event)"
           (close)="closeProductModal()"
         />
@@ -311,6 +314,7 @@ import type { ProductsCopy } from './i18n/products.translations';
 export class ProductsPageComponent implements OnInit {
   private readonly getProductsUseCase = inject(GetProductsUseCase);
   private readonly createProductUseCase = inject(CreateProductUseCase);
+  private readonly getNextProductCodeUseCase = inject(GetNextProductCodeUseCase);
   private readonly updateProductUseCase = inject(UpdateProductUseCase);
   private readonly toggleProductActiveUseCase = inject(ToggleProductActiveUseCase);
   private readonly getProductMovementsUseCase = inject(GetProductMovementsUseCase);
@@ -410,6 +414,7 @@ export class ProductsPageComponent implements OnInit {
   // Product modal state
   productModalOpen = signal(false);
   editingProduct = signal<ProductEntity | null>(null);
+  nextProductCode = signal('');
 
   // Movements modal state
   movementsModalOpen = signal(false);
@@ -555,19 +560,32 @@ export class ProductsPageComponent implements OnInit {
   }
 
   // ─── Product Modal ─────────────────────────────────────────────────────────
-  openCreateModal() {
+  async openCreateModal() {
     this.editingProduct.set(null);
+    try {
+      this.nextProductCode.set(await this.getNextProductCodeUseCase.execute());
+    } catch (err) {
+      console.error('[next product code]', err);
+      await this.feedback.alert(
+        'error',
+        this.locale() === 'es' ? 'No se pudo preparar el código del producto' : 'Could not prepare product code',
+        this.locale() === 'es' ? 'Intentá nuevamente.' : 'Please try again.',
+      );
+      return;
+    }
     this.productModalOpen.set(true);
   }
 
   openEditModal(product: ProductEntity) {
     this.editingProduct.set(product);
+    this.nextProductCode.set('');
     this.productModalOpen.set(true);
   }
 
   closeProductModal() {
     this.productModalOpen.set(false);
     this.editingProduct.set(null);
+    this.nextProductCode.set('');
   }
 
   async handleProductSave(payload: CreateProductPayload | UpdateProductPayload) {

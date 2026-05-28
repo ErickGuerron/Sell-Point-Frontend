@@ -6,13 +6,17 @@ import {
   Output,
   EventEmitter,
   computed,
-  effect,
+  type OnChanges,
+  type SimpleChanges,
+  HostListener,
   signal,
   ChangeDetectionStrategy,
   type Signal,
+  inject,
 } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../../shared/components/billflow-combobox.component';
+import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import type { ProductEntity, CreateProductPayload, UpdateProductPayload } from '../domain/product.entity';
 import type { CategoryDto } from '../product-api.service';
 import type { ProductsCopy } from '../i18n/products.translations';
@@ -30,7 +34,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
       icon="inventory"
       maxWidth="xl"
       [hasFooter]="true"
-      (close)="closeModal()"
+      (close)="requestClose()"
     >
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <!-- Code -->
@@ -39,12 +43,14 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <input
             type="text"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-            [maxLength]="50"
-            placeholder="Ej: BEB-001"
+            maxlength="20"
+            placeholder="PROD-001"
             [ngModel]="formCode()"
+            [readonly]="true"
             [disabled]="editingProduct !== null"
             (ngModelChange)="formCode.set($event.trim().toUpperCase())"
           />
+          <p class="mt-1 text-[11px] text-outline-variant">{{ locale === 'es' ? 'Se genera automáticamente' : 'Auto-generated' }}</p>
         </div>
 
         <!-- Category -->
@@ -65,11 +71,13 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <input
             type="text"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-            [maxLength]="255"
+            maxlength="20"
             placeholder="Ej: Coca Cola 1L"
             [ngModel]="formName()"
-            (ngModelChange)="formName.set($event)"
+            (ngModelChange)="formName.set(trimOuterSpaces($event))"
+            (blur)="formName.set(formName().trim())"
           />
+          <p *ngIf="formName().length > 20" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'Máximo 20 caracteres' : 'Maximum 20 characters' }}</p>
         </div>
 
         <!-- Description -->
@@ -79,7 +87,8 @@ import type { ProductsCopy } from '../i18n/products.translations';
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant resize-none h-20"
             placeholder="Ej: Bebida gaseosa refrescante sabor cola."
             [ngModel]="formDescription()"
-            (ngModelChange)="formDescription.set($event)"
+            (ngModelChange)="formDescription.set(trimOuterSpaces($event))"
+            (blur)="formDescription.set(formDescription().trim())"
           ></textarea>
         </div>
 
@@ -90,6 +99,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
             type="number"
             step="0.01"
             min="0.01"
+            max="99999999.99"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
             [ngModel]="formCostPrice()"
@@ -104,11 +114,13 @@ import type { ProductsCopy } from '../i18n/products.translations';
             type="number"
             step="0.01"
             min="0.01"
+            max="99999999.99"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
             [ngModel]="formSalePrice()"
             (ngModelChange)="formSalePrice.set($event)"
           />
+          <p *ngIf="priceMismatch()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El precio de costo no puede superar el precio de venta' : 'Cost price cannot exceed sale price' }}</p>
         </div>
 
         <!-- Initial Stock (Only for Creation) -->
@@ -117,11 +129,14 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <input
             type="number"
             min="0"
+            max="1000"
+            step="1"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0"
             [ngModel]="formInitialStock()"
-            (ngModelChange)="formInitialStock.set($event)"
+            (ngModelChange)="formInitialStock.set(normalizeInteger($event, 0, 1000))"
           />
+          <p *ngIf="stockOverflow()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El stock inicial no puede superar 1000' : 'Initial stock cannot exceed 1000' }}</p>
         </div>
       </div>
 
@@ -129,7 +144,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
         <button
           type="button"
           class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-          (click)="closeModal()"
+          (click)="requestClose()"
         >
           {{ copy.cancel }}
         </button>
@@ -145,13 +160,16 @@ import type { ProductsCopy } from '../i18n/products.translations';
     </billflow-modal-shell>
   `,
 })
-export class ProductFormModalComponent {
+export class ProductFormModalComponent implements OnChanges {
+  private readonly feedback = inject(UiFeedbackService);
+
   // ── Inputs ─────────────────────────────────────────────────────────────
   @Input({ required: true }) open = false;
   @Input() editingProduct: ProductEntity | null = null;
   @Input({ required: true }) categories: CategoryDto[] = [];
   @Input({ required: true }) locale = 'es';
   @Input({ required: true }) copy!: ProductsCopy;
+  @Input() initialCode = '';
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() save = new EventEmitter<CreateProductPayload | UpdateProductPayload>();
@@ -166,12 +184,40 @@ export class ProductFormModalComponent {
   formInitialStock = signal<number | null>(null);
   formCategoryId = signal('');
 
+  private readonly initialCodeSnapshot = signal('');
+  private readonly initialNameSnapshot = signal('');
+  private readonly initialDescriptionSnapshot = signal('');
+  private readonly initialSalePriceSnapshot = signal<number | null>(null);
+  private readonly initialCostPriceSnapshot = signal<number | null>(null);
+  private readonly initialStockSnapshot = signal<number | null>(null);
+  private readonly initialCategorySnapshot = signal('');
+
   readonly formValid = computed(() =>
     this.formCode().trim().length > 0 &&
-    this.formName().trim().length > 0 &&
+    this.formName().trim().length > 0 && this.formName().trim().length <= 20 &&
     this.formCategoryId().trim().length > 0 &&
     this.formSalePrice() !== null && this.formSalePrice()! > 0 &&
-    this.formCostPrice() !== null && this.formCostPrice()! > 0
+    this.formCostPrice() !== null && this.formCostPrice()! > 0 &&
+    this.formCostPrice()! <= this.formSalePrice()! &&
+    (this.formInitialStock() === null || (this.formInitialStock()! >= 0 && this.formInitialStock()! <= 1000 && Number.isInteger(this.formInitialStock())))
+  );
+
+  readonly priceMismatch = computed(() =>
+    this.formSalePrice() !== null && this.formCostPrice() !== null && this.formCostPrice()! > this.formSalePrice()!
+  );
+
+  readonly stockOverflow = computed(() =>
+    this.formInitialStock() !== null && this.formInitialStock()! > 1000
+  );
+
+  readonly hasUnsavedChanges = computed(() =>
+    this.formCode() !== this.initialCodeSnapshot()
+    || this.formName().trim() !== this.initialNameSnapshot()
+    || this.formDescription().trim() !== this.initialDescriptionSnapshot()
+    || this.formSalePrice() !== this.initialSalePriceSnapshot()
+    || this.formCostPrice() !== this.initialCostPriceSnapshot()
+    || this.formInitialStock() !== this.initialStockSnapshot()
+    || this.formCategoryId() !== this.initialCategorySnapshot()
   );
 
   readonly categorySelectOptions: Signal<ComboboxOption[]> = computed(() => [
@@ -179,27 +225,48 @@ export class ProductFormModalComponent {
     ...this.categories.map((c) => ({ value: c.id, label: c.name })),
   ]);
 
-  // ── Sync form fields when `editingProduct` input changes ──────────────
-  private readonly syncEffect = effect(() => {
-    const product = this.editingProduct;
-    if (product) {
-      this.formCode.set(product.code);
-      this.formName.set(product.name);
-      this.formDescription.set(product.description ?? '');
-      this.formSalePrice.set(product.salePrice);
-      this.formCostPrice.set(product.costPrice);
-      this.formInitialStock.set(null);
-      this.formCategoryId.set(product.categoryId);
-    } else if (this.open) {
-      this.resetForm();
+  // ── Sync form fields when modal inputs change ─────────────────────────
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['editingProduct']?.currentValue) {
+      const product = changes['editingProduct'].currentValue as ProductEntity;
+      this.syncEditState(product);
+      return;
     }
-  });
+
+    if (changes['open'] && this.open && !this.editingProduct) {
+      this.syncCreateState();
+      return;
+    }
+
+    if (changes['initialCode'] && this.open && !this.editingProduct) {
+      this.syncCreateState();
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  async onEscape(): Promise<void> {
+    if (!this.open) return;
+    await this.requestClose();
+  }
 
   // ── Modal control ──────────────────────────────────────────────────────
   closeModal(): void {
     this.close.emit();
     this.editingProduct = null;
     this.resetForm();
+  }
+
+  async requestClose(): Promise<void> {
+    if (this.hasUnsavedChanges()) {
+      const confirmed = await this.feedback.confirm(
+        this.locale === 'es' ? 'Se perderán los cambios' : 'Changes will be lost',
+        this.locale === 'es' ? '¿Salir sin guardar?' : 'Leave without saving?',
+        this.locale === 'es' ? 'Sí' : 'Yes',
+        this.locale === 'es' ? 'No' : 'No',
+      );
+      if (!confirmed) return;
+    }
+    this.closeModal();
   }
 
   // ── Save ───────────────────────────────────────────────────────────────
@@ -219,8 +286,8 @@ export class ProductFormModalComponent {
     } else {
       const payload: CreateProductPayload = {
         categoryId: this.formCategoryId(),
-        code: this.formCode(),
-        name: this.formName(),
+        code: this.formCode().trim().toUpperCase(),
+        name: this.formName().trim(),
         description: this.formDescription().trim() || undefined,
         salePrice: Number(this.formSalePrice()),
         costPrice: Number(this.formCostPrice()),
@@ -231,13 +298,80 @@ export class ProductFormModalComponent {
   }
 
   // ── Form helpers ──────────────────────────────────────────────────────
-  private resetForm(): void {
-    this.formCode.set('');
+  trimOuterSpaces(value: string): string {
+    return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : value;
+  }
+
+  normalizeInteger(value: string, min: number, max: number): number | null {
+    const cleaned = String(value).replace(/\D/g, '');
+    if (!cleaned) return null;
+    const parsed = Math.min(max, Math.max(min, Number.parseInt(cleaned, 10)));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  private syncEditState(product: ProductEntity): void {
+    this.formCode.set(product.code);
+    this.formName.set(product.name);
+    this.formDescription.set(product.description ?? '');
+    this.formSalePrice.set(product.salePrice);
+    this.formCostPrice.set(product.costPrice);
+    this.formInitialStock.set(null);
+    this.formCategoryId.set(product.categoryId);
+    this.setInitialSnapshot({
+      code: product.code,
+      name: product.name,
+      description: product.description ?? '',
+      salePrice: product.salePrice,
+      costPrice: product.costPrice,
+      initialStock: null,
+      categoryId: product.categoryId,
+    });
+  }
+
+  private syncCreateState(): void {
+    this.formCode.set(this.initialCode);
     this.formName.set('');
     this.formDescription.set('');
     this.formSalePrice.set(null);
     this.formCostPrice.set(null);
-    this.formInitialStock.set(null);
+    this.formInitialStock.set(0);
+    this.formCategoryId.set('');
+    this.setInitialSnapshot({
+      code: this.initialCode,
+      name: '',
+      description: '',
+      salePrice: null,
+      costPrice: null,
+      initialStock: 0,
+      categoryId: '',
+    });
+  }
+
+  private setInitialSnapshot(snapshot: {
+    code: string;
+    name: string;
+    description: string;
+    salePrice: number | null;
+    costPrice: number | null;
+    initialStock: number | null;
+    categoryId: string;
+  }): void {
+    this.initialCodeSnapshot.set(snapshot.code);
+    this.initialNameSnapshot.set(snapshot.name.trim());
+    this.initialDescriptionSnapshot.set(snapshot.description.trim());
+    this.initialSalePriceSnapshot.set(snapshot.salePrice);
+    this.initialCostPriceSnapshot.set(snapshot.costPrice);
+    this.initialStockSnapshot.set(snapshot.initialStock);
+    this.initialCategorySnapshot.set(snapshot.categoryId);
+  }
+
+  private resetForm(): void {
+    this.formCode.set(this.initialCode);
+    this.formName.set('');
+    this.formDescription.set('');
+    this.formSalePrice.set(null);
+    this.formCostPrice.set(null);
+    this.formInitialStock.set(0);
     this.formCategoryId.set('');
   }
 }

@@ -37,7 +37,7 @@
           <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
         </div>
         <div class="flex items-center gap-2 text-sm text-on-surface-variant">
-          <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredCustomers().length }} {{ copy().resultsLabel }}</span>
+          <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalCustomersCount() }} {{ copy().resultsLabel }}</span>
         </div>
       </section>
 
@@ -50,13 +50,13 @@
 
       <!-- Customer Table -->
       <billflow-customer-table
-        [customers]="paginatedCustomers()"
+        [customers]="filteredCustomers()"
         [loading]="loading()"
         [page]="page()"
         [totalPages]="totalPages()"
         [pageSize]="pageSize()"
         [visiblePages]="visiblePages()"
-        [filteredCount]="filteredCustomers().length"
+        [filteredCount]="totalCustomersCount()"
         [rangeStart]="visibleRangeStart()"
         [rangeEnd]="visibleRangeEnd()"
         [searchQuery]="searchQuery()"
@@ -67,7 +67,7 @@
         [pageSizeOptions]="pageSizeOptions"
         (edit)="openEditModal($event)"
         (toggleActive)="handleToggleActive($event)"
-        (pageChange)="page.set($event)"
+        (pageChange)="goToPage($event)"
         (pageSizeChange)="onPageSizeCombo($event)"
         (searchQueryChange)="setSearchQuery($event)"
         (searchFieldChange)="setSearchField($event)"

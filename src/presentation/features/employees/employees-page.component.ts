@@ -626,6 +626,10 @@ export class EmployeesPageComponent implements OnInit {
   loading = signal(true);
   employees = signal<EmployeeRowDto[]>([]);
   totalCount = signal(0);
+  totalEmployeesKpi = signal(0);
+  activeEmployeesKpi = signal(0);
+  inactiveEmployeesKpi = signal(0);
+  blockedEmployeesKpi = signal(0);
 
   // ── Filters ──
   searchQuery = signal('');
@@ -720,6 +724,7 @@ export class EmployeesPageComponent implements OnInit {
     await Promise.all([
       this.loadRoles(),
       this.reloadEmployees(),
+      this.reloadKpis(),
     ]);
   }
 
@@ -757,6 +762,24 @@ export class EmployeesPageComponent implements OnInit {
         this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async reloadKpis() {
+    try {
+      const [totalResult, activeResult, inactiveResult, blockedResult] = await Promise.all([
+        this.api.listUsers({ limit: 1 }),
+        this.api.listUsers({ limit: 1, status: 'ACTIVE' }),
+        this.api.listUsers({ limit: 1, status: 'INACTIVE' }),
+        this.api.listUsers({ limit: 1, status: 'BLOCKED' }),
+      ]);
+
+      this.totalEmployeesKpi.set(totalResult.total || 0);
+      this.activeEmployeesKpi.set(activeResult.total || 0);
+      this.inactiveEmployeesKpi.set(inactiveResult.total || 0);
+      this.blockedEmployeesKpi.set(blockedResult.total || 0);
+    } catch (err) {
+      console.error('[employees] kpis load error:', err);
     }
   }
 
@@ -876,10 +899,10 @@ export class EmployeesPageComponent implements OnInit {
   }
 
   // ── KPIs ──
-  readonly totalEmployeesCount = computed(() => this.employees().length);
-  readonly activeEmployeesCount = computed(() => this.employees().filter((e) => e.isActive).length);
-  readonly inactiveEmployeesCount = computed(() => this.employees().filter((e) => !e.isActive).length);
-  readonly blockedEmployeesCount = computed(() => this.employees().filter((e) => e.failedLoginAttempts >= 3).length);
+  readonly totalEmployeesCount = computed(() => this.totalEmployeesKpi());
+  readonly activeEmployeesCount = computed(() => this.activeEmployeesKpi());
+  readonly inactiveEmployeesCount = computed(() => this.inactiveEmployeesKpi());
+  readonly blockedEmployeesCount = computed(() => this.blockedEmployeesKpi());
 
   // ── Employee modals ──
   openCreateModal() {
@@ -954,6 +977,7 @@ export class EmployeesPageComponent implements OnInit {
         });
         this.employees.update(emps => [created, ...emps]);
         this.totalCount.update(c => c + 1);
+        void this.reloadKpis();
         await this.feedback.toast('success',
           this.locale() === 'es' ? 'Empleado creado correctamente' : 'Employee created successfully');
       }
@@ -1006,6 +1030,7 @@ export class EmployeesPageComponent implements OnInit {
       await this.api.unlockUser(employee.id);
       await this.feedback.toast('success', this.copy().unlockedToast);
       await this.reloadEmployees();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[unlock]', err);
       await this.feedback.alert('error',
@@ -1031,6 +1056,7 @@ export class EmployeesPageComponent implements OnInit {
       this.employees.update(emps =>
         emps.map(e => e.id === result.id ? result : e)
       );
+      void this.reloadKpis();
       await this.feedback.toast('success',
         isActive ? this.copy().toggledInactive : this.copy().toggledActive);
     } catch (err) {

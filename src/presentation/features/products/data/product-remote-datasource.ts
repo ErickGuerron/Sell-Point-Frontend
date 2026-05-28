@@ -58,6 +58,13 @@ export class ProductRemoteDataSource {
 
   // ─── Products ────────────────────────────────────────────────────────────────
 
+  async fetchNextProductCode(signal?: AbortSignal): Promise<string> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/next-code`, signal ? { signal } : undefined);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    const body = (await response.json()) as { code: string };
+    return body.code;
+  }
+
   async fetchProductsPage(
     q: string,
     categoryId: string,
