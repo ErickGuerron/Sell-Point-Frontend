@@ -73,10 +73,17 @@ export class ProfileStore {
       const profile =
         await this.repository.getProfile();
 
+      if (!profile) {
+        this.profile.set(null);
+        this.googleLinked.set(false);
+        this.googleEmail.set(null);
+        return;
+      }
+
       this.profile.set(profile);
-      const gmail = profile.googleEmail ?? null;
-      this.googleEmail.set(gmail);
-      this.googleLinked.set(gmail != null);
+      const linked = profile.googleId != null;
+      this.googleLinked.set(linked);
+      this.googleEmail.set(linked ? (profile.googleEmail ?? null) : null);
     } catch (err) {
       this.error.set(true);
       this.errorMessage.set(err instanceof Error ? err.message : 'Unknown profile error');
@@ -90,7 +97,7 @@ export class ProfileStore {
   async linkGoogle(): Promise<void> {
     this.googleLoading.set(true);
     try {
-      const { idToken } = await this.googleAuth.requestIdToken();
+      const { idToken, email } = await this.googleAuth.requestIdToken();
       const response = await this.authHttp.fetchWithRefresh(
         `${API_BASE}/auth/link-google`,
         {
@@ -105,7 +112,8 @@ export class ProfileStore {
         throw new Error(`link-google failed (${response.status}): ${body}`);
       }
 
-      await this.loadProfile();
+      this.googleLinked.set(true);
+      this.googleEmail.set(email ?? null);
     } catch (err) {
       if (err instanceof GoogleAuthError) throw err;
       // eslint-disable-next-line no-console
@@ -129,7 +137,8 @@ export class ProfileStore {
         throw new Error(`unlink-google failed (${response.status}): ${body}`);
       }
 
-      await this.loadProfile();
+      this.googleLinked.set(false);
+      this.googleEmail.set(null);
     } catch (err) {
       if (err instanceof GoogleAuthError) throw err;
       // eslint-disable-next-line no-console

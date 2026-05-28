@@ -49,11 +49,14 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
         >
           <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 shrink-0">
-              <span class="hidden md:inline-flex lg:hidden">
-                <billflow-mobile-sidebar
-                  [items]="sidebarItems()"
-                ></billflow-mobile-sidebar>
-              </span>
+                <span class="hidden md:inline-flex lg:hidden">
+                  <billflow-mobile-sidebar
+                    [items]="sidebarItems()"
+                    [actionLabel]="copy().sessionInfo"
+                    actionIcon="info"
+                    (actionClick)="goToProfile()"
+                  ></billflow-mobile-sidebar>
+                </span>
               <span class="material-symbols-outlined text-outline">person</span>
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>

@@ -27,5 +27,6 @@ export function toProfileEntity(
       dto.user?.failedLoginAttempts ??
       0,
     googleEmail: dto.googleEmail ?? dto.user?.googleEmail ?? undefined,
+    googleId: dto.googleId ?? dto.user?.googleId ?? undefined,
   };
 }

@@ -9,4 +9,5 @@ export interface ProfileEntity {
   isActive: boolean;
   failedLoginAttempts: number;
   googleEmail?: string;
+  googleId?: string;
 }

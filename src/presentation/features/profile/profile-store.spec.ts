@@ -19,6 +19,7 @@ describe('ProfileStore', () => {
     isActive: true,
     failedLoginAttempts: 0,
     googleEmail: undefined,
+    googleId: undefined,
   };
 
   beforeEach(() => {
@@ -53,14 +54,14 @@ describe('ProfileStore', () => {
   });
 
   describe('loadProfile', () => {
-    it('should set googleLinked true when profile has googleEmail', async () => {
-      mockRepository.getProfile.and.resolveTo({ ...mockProfile, googleEmail: 'google@test.com' });
+    it('should set googleLinked true when profile has googleId', async () => {
+      mockRepository.getProfile.and.resolveTo({ ...mockProfile, googleId: 'google-uid-123' });
       await store.loadProfile();
       expect(store.googleLinked()).toBeTrue();
-      expect(store.googleEmail()).toBe('google@test.com');
+      expect(store.googleEmail()).toBeNull();
     });
 
-    it('should keep googleLinked false when profile has no googleEmail', async () => {
+    it('should keep googleLinked false when profile has no googleId', async () => {
       mockRepository.getProfile.and.resolveTo(mockProfile);
       await store.loadProfile();
       expect(store.googleLinked()).toBeFalse();
