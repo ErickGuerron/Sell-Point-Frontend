@@ -99,14 +99,18 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.costPriceLabel }} <span class="text-error">*</span></label>
           <input
             type="number"
+            inputmode="decimal"
+            autocomplete="off"
+            min="0"
             step="0.01"
-            min="0.01"
-            max="99999999.99"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
             [ngModel]="formCostPrice()"
-            (ngModelChange)="formCostPrice.set($event)"
+            (keydown)="onMoneyKeyDown($event)"
+            (paste)="onMoneyPaste($event)"
+            (ngModelChange)="onMoneyInput($event, 'cost')"
           />
+          <p *ngIf="costPriceZero()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El precio de costo debe ser mayor que 0' : 'Cost price must be greater than 0' }}</p>
         </div>
 
         <!-- Sale Price -->
@@ -114,15 +118,18 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.salePriceLabel }} <span class="text-error">*</span></label>
           <input
             type="number"
+            inputmode="decimal"
+            autocomplete="off"
+            min="0"
             step="0.01"
-            min="0.01"
-            max="99999999.99"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
             [ngModel]="formSalePrice()"
-            (ngModelChange)="formSalePrice.set($event)"
+            (keydown)="onMoneyKeyDown($event)"
+            (paste)="onMoneyPaste($event)"
+            (ngModelChange)="onMoneyInput($event, 'sale')"
           />
-          <p *ngIf="priceMismatch()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El precio de costo no puede superar el precio de venta' : 'Cost price cannot exceed sale price' }}</p>
+          <p *ngIf="priceMismatch()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'La venta debe ser mayor al costo' : 'Sale price must be greater than cost price' }}</p>
         </div>
 
         <!-- Initial Stock (Only for Creation) -->
@@ -130,13 +137,17 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.initialStockLabel }}</label>
           <input
             type="number"
+            inputmode="numeric"
+            autocomplete="off"
             min="0"
             max="1000"
             step="1"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0"
             [ngModel]="formInitialStock()"
-            (ngModelChange)="formInitialStock.set(normalizeInteger($event, 0, 1000))"
+            (keydown)="onStockKeyDown($event)"
+            (paste)="onStockPaste($event)"
+            (ngModelChange)="onStockInput($event)"
           />
           <p *ngIf="stockOverflow()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El stock inicial no puede superar 1000' : 'Initial stock cannot exceed 1000' }}</p>
         </div>
@@ -200,12 +211,16 @@ export class ProductFormModalComponent implements OnChanges {
     this.formCategoryId().trim().length > 0 &&
     this.formSalePrice() !== null && this.formSalePrice()! > 0 &&
     this.formCostPrice() !== null && this.formCostPrice()! > 0 &&
-    this.formCostPrice()! <= this.formSalePrice()! &&
+    this.formSalePrice()! > this.formCostPrice()! &&
     (this.formInitialStock() === null || (this.formInitialStock()! >= 0 && this.formInitialStock()! <= 1000 && Number.isInteger(this.formInitialStock())))
   );
 
   readonly priceMismatch = computed(() =>
-    this.formSalePrice() !== null && this.formCostPrice() !== null && this.formCostPrice()! > this.formSalePrice()!
+    this.formSalePrice() !== null && this.formCostPrice() !== null && this.formSalePrice()! <= this.formCostPrice()!
+  );
+
+  readonly costPriceZero = computed(() =>
+    this.formCostPrice() !== null && this.formCostPrice()! <= 0
   );
 
   readonly stockOverflow = computed(() =>
@@ -328,6 +343,86 @@ export class ProductFormModalComponent implements OnChanges {
     if (!cleaned) return null;
     const parsed = Math.min(max, Math.max(min, Number.parseInt(cleaned, 10)));
     return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  onMoneyKeyDown(event: KeyboardEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (target && (event.key === '.' || event.key === ',')) {
+      const current = target.value ?? '';
+      const selectionStart = target.selectionStart ?? 0;
+      const selectionEnd = target.selectionEnd ?? 0;
+      const hasSelection = selectionStart !== selectionEnd;
+
+      if (current.trim().length === 0 || hasSelection) {
+        event.preventDefault();
+        target.value = '0.';
+        target.dispatchEvent(new Event('input', { bubbles: true }));
+        queueMicrotask(() => {
+          const caret = target.value.length;
+          try { target.setSelectionRange(caret, caret); } catch { /* ignore */ }
+        });
+        return;
+      }
+    }
+
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+
+    if (/^[0-9]$/.test(event.key)) return;
+    if (event.key === '.' || event.key === ',') return;
+
+    event.preventDefault();
+  }
+
+  onMoneyInput(value: string, field: 'sale' | 'cost'): void {
+    const normalized = this.normalizeDecimal(value);
+    const parsed = normalized === '' ? null : Number(normalized);
+    if (field === 'sale') this.formSalePrice.set(parsed);
+    else this.formCostPrice.set(parsed);
+  }
+
+  onMoneyPaste(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    if (!/^\s*[0-9.,]+\s*$/.test(text)) {
+      event.preventDefault();
+    }
+  }
+
+  onStockKeyDown(event: KeyboardEvent): void {
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+    if (/^[0-9]$/.test(event.key)) return;
+    event.preventDefault();
+  }
+
+  onStockInput(value: string): void {
+    const parsed = this.normalizeInteger(value, 0, 1000);
+    this.formInitialStock.set(parsed);
+  }
+
+  onStockPaste(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    if (!/^\s*\d+\s*$/.test(text)) {
+      event.preventDefault();
+    }
+  }
+
+  private normalizeDecimal(value: string): string {
+    const raw = String(value ?? '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+    if (!raw) return '';
+
+    const parts = raw.split('.');
+    const integer = parts[0] || '0';
+    const fraction = parts.slice(1).join('').slice(0, 2);
+    return fraction.length > 0 ? `${integer}.${fraction}` : integer;
   }
 
   private syncEditState(product: ProductEntity): void {
