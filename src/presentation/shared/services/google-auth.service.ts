@@ -102,6 +102,45 @@ const FIREBASE_CONFIG = {
   appId: import.meta.env.PUBLIC_FIREBASE_APP_ID,
 };
 
+type RuntimeFirebaseConfig = {
+  PUBLIC_FIREBASE_API_KEY?: string;
+  PUBLIC_FIREBASE_AUTH_DOMAIN?: string;
+  PUBLIC_FIREBASE_PROJECT_ID?: string;
+  PUBLIC_FIREBASE_STORAGE_BUCKET?: string;
+  PUBLIC_FIREBASE_MESSAGING_SENDER_ID?: string;
+  PUBLIC_FIREBASE_APP_ID?: string;
+};
+
+let runtimeFirebaseConfigPromise: Promise<RuntimeFirebaseConfig | null> | null = null;
+
+async function loadRuntimeFirebaseConfig(): Promise<RuntimeFirebaseConfig | null> {
+  if (typeof window === 'undefined') return null;
+
+  if (!runtimeFirebaseConfigPromise) {
+    runtimeFirebaseConfigPromise = fetch('/config.json', { cache: 'no-store' })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return response.json() as Promise<RuntimeFirebaseConfig>;
+      })
+      .catch(() => null);
+  }
+
+  return runtimeFirebaseConfigPromise;
+}
+
+async function resolveFirebaseConfig(): Promise<typeof FIREBASE_CONFIG> {
+  const runtime = await loadRuntimeFirebaseConfig();
+
+  return {
+    apiKey: runtime?.PUBLIC_FIREBASE_API_KEY ?? FIREBASE_CONFIG.apiKey,
+    authDomain: runtime?.PUBLIC_FIREBASE_AUTH_DOMAIN ?? FIREBASE_CONFIG.authDomain,
+    projectId: runtime?.PUBLIC_FIREBASE_PROJECT_ID ?? FIREBASE_CONFIG.projectId,
+    storageBucket: runtime?.PUBLIC_FIREBASE_STORAGE_BUCKET ?? FIREBASE_CONFIG.storageBucket,
+    messagingSenderId: runtime?.PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? FIREBASE_CONFIG.messagingSenderId,
+    appId: runtime?.PUBLIC_FIREBASE_APP_ID ?? FIREBASE_CONFIG.appId,
+  };
+}
+
 @Injectable({ providedIn: 'root' })
 export class GoogleAuthService {
   private firebaseApp: firebaseApp.FirebaseApp | null = null;
@@ -116,7 +155,7 @@ export class GoogleAuthService {
   }
 
   private async requestCredential(): Promise<GoogleSignInResult> {
-    const auth = this.getFirebaseAuth();
+    const auth = await this.getFirebaseAuth();
     const provider = new firebaseAuth.GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
@@ -133,10 +172,12 @@ export class GoogleAuthService {
     }
   }
 
-  private getFirebaseAuth(): firebaseAuth.Auth {
+  private async getFirebaseAuth(): Promise<firebaseAuth.Auth> {
     if (this.firebaseAuth) return this.firebaseAuth;
 
-    if (!this.isFirebaseConfigComplete()) {
+    const resolvedConfig = await resolveFirebaseConfig();
+
+    if (!this.isFirebaseConfigComplete(resolvedConfig)) {
       throw GoogleAuthError.authUnavailable(
         'Firebase Google auth is not configured. Missing PUBLIC_FIREBASE_* env vars.',
       );
@@ -144,20 +185,20 @@ export class GoogleAuthService {
 
     this.firebaseApp = firebaseApp.getApps().length
       ? firebaseApp.getApp()
-      : firebaseApp.initializeApp(FIREBASE_CONFIG);
+      : firebaseApp.initializeApp(resolvedConfig);
 
     this.firebaseAuth = firebaseAuth.getAuth(this.firebaseApp);
     return this.firebaseAuth;
   }
 
-  private isFirebaseConfigComplete(): boolean {
+  private isFirebaseConfigComplete(config: typeof FIREBASE_CONFIG): boolean {
     return Boolean(
-      FIREBASE_CONFIG.apiKey
-      && FIREBASE_CONFIG.authDomain
-      && FIREBASE_CONFIG.projectId
-      && FIREBASE_CONFIG.storageBucket
-      && FIREBASE_CONFIG.messagingSenderId
-      && FIREBASE_CONFIG.appId,
+      config.apiKey
+      && config.authDomain
+      && config.projectId
+      && config.storageBucket
+      && config.messagingSenderId
+      && config.appId,
     );
   }
 
