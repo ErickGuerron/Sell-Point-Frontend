@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { AuthHttpService } from '../../../shared/services/auth-http.service';
 
 const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
-const AUTH_KEY = 'billflow-session';
 
 // ─── Internal DTOs (raw backend shapes, no domain mapping) ──────────────────
 
@@ -50,17 +50,20 @@ interface PaginatedRawDto<T> {
 
 export { type ProductRawDto, type MovementRawDto, type CategoryRawDto, type PaginatedRawDto };
 
-// ─── Auth Error ──────────────────────────────────────────────────────────────
-
-export class AuthError extends Error {
-  override name = 'AuthError' as const;
-}
-
 // ─── DataSource ──────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class ProductRemoteDataSource {
+  private readonly authHttp = inject(AuthHttpService);
+
   // ─── Products ────────────────────────────────────────────────────────────────
+
+  async fetchNextProductCode(signal?: AbortSignal): Promise<string> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/next-code`, signal ? { signal } : undefined);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    const body = (await response.json()) as { code: string };
+    return body.code;
+  }
 
   async fetchProductsPage(
     q: string,
@@ -79,7 +82,7 @@ export class ProductRemoteDataSource {
     const init: RequestInit = {};
     if (signal) init.signal = signal;
 
-    const response = await this.fetchWithAuth(`${API_BASE}/products?${params.toString()}`, init);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products?${params.toString()}`, init);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
     const body = (await response.json()) as any;
@@ -113,7 +116,7 @@ export class ProductRemoteDataSource {
     initialStock?: number;
     categoryId: string;
   }): Promise<ProductRawDto> {
-    const response = await this.fetchWithAuth(`${API_BASE}/products`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -137,7 +140,7 @@ export class ProductRemoteDataSource {
       categoryId?: string;
     },
   ): Promise<ProductRawDto> {
-    const response = await this.fetchWithAuth(`${API_BASE}/products/${id}`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
@@ -153,7 +156,7 @@ export class ProductRemoteDataSource {
 
   async toggleProductActive(id: string, currentActive: boolean): Promise<ProductRawDto> {
     const endpoint = currentActive ? 'deactivate' : 'activate';
-    const response = await this.fetchWithAuth(`${API_BASE}/products/${id}/${endpoint}`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/${id}/${endpoint}`, {
       method: 'PATCH',
     });
     if (!response.ok) {
@@ -174,7 +177,7 @@ export class ProductRemoteDataSource {
     limit = 10,
   ): Promise<PaginatedRawDto<MovementRawDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    const response = await this.fetchWithAuth(
+    const response = await this.authHttp.fetchWithRefresh(
       `${API_BASE}/products/${productId}/movements?${params.toString()}`,
     );
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
@@ -206,7 +209,7 @@ export class ProductRemoteDataSource {
       description: string;
     },
   ): Promise<MovementRawDto> {
-    const response = await this.fetchWithAuth(`${API_BASE}/products/${productId}/stock`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/${productId}/stock`, {
       method: 'PATCH',
       body: JSON.stringify(payload),
     });
@@ -233,7 +236,7 @@ export class ProductRemoteDataSource {
   // ─── Categories ──────────────────────────────────────────────────────────────
 
   async listCategories(): Promise<CategoryRawDto[]> {
-    const response = await this.fetchWithAuth(`${API_BASE}/categories?limit=200&isActive=true`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE}/categories?limit=200&isActive=true`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = (await response.json()) as { data: CategoryRawDto[] };
     return body.data;
@@ -257,65 +260,4 @@ export class ProductRemoteDataSource {
     };
   }
 
-  // ─── Auth-aware fetch (replicated from legacy ProductApiService) ──────────
-
-  private async fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const session = this.getStoredSession();
-    const headers: Record<string, string> = {
-      ...((init?.headers as Record<string, string>) ?? {}),
-    };
-    if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
-
-    let response = await fetch(input, { ...init, headers });
-
-    if (response.status === 401) {
-      const refreshed = await this.refreshAccessToken();
-      if (refreshed) {
-        const newSession = this.getStoredSession();
-        if (newSession?.accessToken) {
-          headers['Authorization'] = `Bearer ${newSession.accessToken}`;
-        }
-        response = await fetch(input, { ...init, headers });
-      } else {
-        throw new AuthError('Session expired — redirecting to login');
-      }
-    }
-
-    return response;
-  }
-
-  private getStoredSession(): { accessToken?: string; refreshToken?: string } | null {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
-      return raw ? (JSON.parse(raw) as { accessToken?: string; refreshToken?: string }) : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private async refreshAccessToken(): Promise<boolean> {
-    const session = this.getStoredSession();
-    if (!session?.refreshToken) return false;
-    try {
-      const response = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: session.refreshToken }),
-      });
-      if (!response.ok) return false;
-      const newSession = (await response.json()) as {
-        accessToken: string;
-        refreshToken?: string;
-        expiresIn?: number;
-      };
-      const merged = { ...session, ...newSession };
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
-      }
-      return true;
-    } catch {
-      return false;
-    }
-  }
 }

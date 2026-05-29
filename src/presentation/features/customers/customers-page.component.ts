@@ -15,7 +15,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import type { CustomerEntity, CreateCustomerPayload } from './domain/customer.entity';
-import { CustomerRepository } from './domain/customer.repository';
+import { CustomerRepository, type CustomerListParams } from './domain/customer.repository';
 import { CustomerImplRepository } from './data/customer-impl.repository';
 import { ListCustomersUseCase } from './domain/use-cases/list-customers.use-case';
 import { CreateCustomerUseCase } from './domain/use-cases/create-customer.use-case';
@@ -58,11 +58,14 @@ export class CustomersPageComponent implements OnInit {
 
   loading = signal(true);
   customers = signal<CustomerEntity[]>([]);
+  totalCustomers = signal(0);
+  totalPages = signal(1);
   searchQuery = signal('');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   searchField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email' | 'phone'>('all');
   page = signal(1);
   pageSize = signal(5);
+  private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Computeds ──────────────────────────────────────────────────────────────
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
@@ -103,7 +106,7 @@ export class CustomersPageComponent implements OnInit {
     { value: 'phone', label: this.copy().phone },
   ]);
 
-  readonly totalCustomersCount = computed(() => this.customers().length);
+  readonly totalCustomersCount = computed(() => this.totalCustomers());
   readonly activeCustomersCount = computed(() => this.customers().filter((c) => c.isActive).length);
   readonly inactiveCustomersCount = computed(() => this.customers().filter((c) => !c.isActive).length);
 
@@ -112,35 +115,22 @@ export class CustomersPageComponent implements OnInit {
     const status = this.statusFilter();
     const field = this.searchField();
     return this.customers().filter((customer) => {
-      let matchesQuery = true;
-      if (query) {
-        if (field === 'all') {
-          matchesQuery = [customer.firstName, customer.lastName, customer.cedula, customer.email ?? '', customer.phone ?? '']
-            .some((f) => f.toLowerCase().includes(query));
-        } else if (field === 'name') {
-          matchesQuery = customer.firstName.toLowerCase().includes(query);
-        } else if (field === 'lastName') {
-          matchesQuery = customer.lastName.toLowerCase().includes(query);
-        } else if (field === 'cedula') {
-          matchesQuery = customer.cedula.toLowerCase().includes(query);
-        } else if (field === 'email') {
-          matchesQuery = (customer.email ?? '').toLowerCase().includes(query);
-        } else if (field === 'phone') {
-          matchesQuery = (customer.phone ?? '').toLowerCase().includes(query);
-        }
-      }
       const matchesStatus = status === 'all'
         || (status === 'active' && customer.isActive)
         || (status === 'inactive' && !customer.isActive);
-      return matchesQuery && matchesStatus;
+
+      if (!matchesStatus) return false;
+      if (!query) return true;
+
+      if (field === 'name') return customer.firstName.toLowerCase().includes(query);
+      if (field === 'lastName') return customer.lastName.toLowerCase().includes(query);
+      if (field === 'cedula') return customer.cedula.toLowerCase().includes(query);
+      if (field === 'email') return (customer.email ?? '').toLowerCase().includes(query);
+      if (field === 'phone') return (customer.phone ?? '').toLowerCase().includes(query);
+
+      return [customer.firstName, customer.lastName, customer.cedula, customer.email ?? '', customer.phone ?? '']
+        .some((value) => value.toLowerCase().includes(query));
     });
-  });
-
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.filteredCustomers().length / this.pageSize())));
-
-  readonly paginatedCustomers = computed(() => {
-    const start = (this.page() - 1) * this.pageSize();
-    return this.filteredCustomers().slice(start, start + this.pageSize());
   });
 
   readonly visiblePages = computed(() => {
@@ -164,11 +154,37 @@ export class CustomersPageComponent implements OnInit {
     await this.reloadCustomers();
   }
 
-  async reloadCustomers() {
+  private buildListParams(): CustomerListParams {
+    const query = this.searchQuery().trim();
+    const field = this.searchField();
+    const params: CustomerListParams = {
+      page: this.page(),
+      limit: this.pageSize(),
+    };
+
+    if (!query) return params;
+    if (field === 'cedula') {
+      params.cedula = query;
+      return params;
+    }
+
+    if (field === 'all' || field === 'name' || field === 'lastName') {
+      params.q = query;
+    }
+
+    return params;
+  }
+
+  async reloadCustomers(options: { resetPage?: boolean } = {}) {
+    if (options.resetPage) this.page.set(1);
     this.loading.set(true);
     try {
-      this.customers.set(await this.listCustomers.execute());
-      this.page.set(1);
+      const result = await this.listCustomers.execute(this.buildListParams());
+      this.customers.set(result.data);
+      this.totalCustomers.set(result.pagination.total);
+      this.totalPages.set(Math.max(1, result.pagination.totalPages));
+      this.page.set(result.pagination.page);
+      this.pageSize.set(result.pagination.limit);
     } catch {
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los clientes' : 'Could not load customers',
@@ -176,6 +192,16 @@ export class CustomersPageComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private scheduleReload(options: { resetPage?: boolean } = {}): void {
+    if (this.reloadTimer) {
+      clearTimeout(this.reloadTimer);
+    }
+
+    this.reloadTimer = setTimeout(() => {
+      void this.reloadCustomers(options);
+    }, 250);
   }
 
   toggleLocale() { this.localeService.toggle(); }
@@ -186,24 +212,38 @@ export class CustomersPageComponent implements OnInit {
   }
 
   visibleRangeEnd() {
-    return Math.min(this.filteredCustomers().length, this.page() * this.pageSize());
+    return Math.min(this.totalCustomers(), (this.page() - 1) * this.pageSize() + this.filteredCustomers().length);
   }
 
   // ── Search & filter ───────────────────────────────────────────────────────
-  setSearchQuery(value: string) { this.searchQuery.set(value); this.page.set(1); }
+  setSearchQuery(value: string) {
+    this.searchQuery.set(value);
+    this.scheduleReload({ resetPage: true });
+  }
 
-  setSearchField(value: string) { this.searchField.set(value as any); this.page.set(1); }
+  setSearchField(value: string) {
+    this.searchField.set(value as any);
+    this.scheduleReload({ resetPage: true });
+  }
 
   setStatusFilter(value: string) {
     this.statusFilter.set(value === 'active' || value === 'inactive' ? value : 'all');
-    this.page.set(1);
   }
 
-  onPageSizeCombo(value: string) {
-    const num = parseInt(value, 10);
-    if (!Number.isFinite(num) || num < 5) return;
-    this.pageSize.set(num);
+  goToPage(pageNumber: number) {
+    const nextPage = Math.max(1, Math.min(pageNumber, this.totalPages()));
+    if (nextPage === this.page()) return;
+    this.page.set(nextPage);
+    void this.reloadCustomers();
+  }
+
+  onPageSizeCombo(value: number) {
+    if (!Number.isFinite(value) || value < 5) return;
+    const nextSize = Math.min(value, 30);
+    if (nextSize === this.pageSize()) return;
+    this.pageSize.set(nextSize);
     this.page.set(1);
+    void this.reloadCustomers();
   }
 
   // ── Modal handlers ────────────────────────────────────────────────────────

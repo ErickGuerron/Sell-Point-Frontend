@@ -26,6 +26,23 @@ export interface ProfileCopy {
   notifications: string;
   languageToggle: string;
   sessionLabel: string;
+  googleLinkTitle: string;
+  googleLinkDesc: string;
+  googleLinkButton: string;
+  googleUnlinkButton: string;
+  googleLinkedLabel: string;
+  googleLinkedStatus: string;
+  googleLoading: string;
+  googleEmailMismatch: string;
+  googleDuplicateLink: string;
+  googleTokenInvalid: string;
+  googleEmailNotVerified: string;
+  googleNoAccount: string;
+  googleNetworkError: string;
+  googleUnlinkConfirmTitle: string;
+  googleUnlinkConfirmMessage: string;
+  googleUnlinkConfirmAction: string;
+  googleUnlinkConfirmCancel: string;
 }
 
 export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
@@ -57,6 +74,23 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     notifications: 'Notificaciones',
     languageToggle: 'English',
     sessionLabel: 'Sesión',
+    googleLinkTitle: 'Cuenta de Google',
+    googleLinkDesc: 'Vinculá tu cuenta de Google para iniciar sesión más rápido.',
+    googleLinkButton: 'Vincular Google',
+    googleUnlinkButton: 'Desvincular',
+    googleLinkedLabel: 'Google vinculado',
+    googleLinkedStatus: 'Cuenta de Google vinculada',
+    googleLoading: 'Cargando…',
+    googleEmailMismatch: 'El correo de Google no coincide con el de tu cuenta.',
+    googleDuplicateLink: 'Esta cuenta de Google ya está vinculada a otro usuario.',
+    googleTokenInvalid: 'La verificación de Google falló. Intentá de nuevo.',
+    googleEmailNotVerified: 'El correo de tu cuenta de Google debe estar verificado.',
+    googleNoAccount: 'No se encontró cuenta para este usuario de Google. Registrate primero.',
+    googleNetworkError: 'Error de conexión. Verificá tu internet.',
+    googleUnlinkConfirmTitle: 'Desvincular cuenta de Google',
+    googleUnlinkConfirmMessage: '¿Seguro que querés desvincular tu cuenta de Google?',
+    googleUnlinkConfirmAction: 'Desvincular',
+    googleUnlinkConfirmCancel: 'Cancelar',
   },
   en: {
     moduleLabel: 'My Account',
@@ -86,5 +120,22 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    googleLinkTitle: 'Google Account',
+    googleLinkDesc: 'Link your Google account for faster sign-in.',
+    googleLinkButton: 'Link Google',
+    googleUnlinkButton: 'Unlink',
+    googleLinkedLabel: 'Google linked',
+    googleLinkedStatus: 'Google account linked',
+    googleLoading: 'Loading…',
+    googleEmailMismatch: 'Google email does not match your account email.',
+    googleDuplicateLink: 'This Google account is already linked to another user.',
+    googleTokenInvalid: 'Google verification failed. Please try again.',
+    googleEmailNotVerified: 'Your Google account email must be verified.',
+    googleNoAccount: 'No account found for this Google user. Please register first.',
+    googleNetworkError: 'Connection error. Please check your internet.',
+    googleUnlinkConfirmTitle: 'Unlink Google account',
+    googleUnlinkConfirmMessage: 'Are you sure you want to unlink your Google account?',
+    googleUnlinkConfirmAction: 'Unlink',
+    googleUnlinkConfirmCancel: 'Cancel',
   },
 };

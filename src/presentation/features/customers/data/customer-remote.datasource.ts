@@ -1,7 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { AuthHttpService } from '../../../shared/services/auth-http.service';
 
 const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
-const AUTH_KEY = 'billflow-session';
 const USE_MOCK = false;
 
 // ─── Internal DTOs ───────────────────────────────────────────────────────────
@@ -31,12 +31,6 @@ interface PaginatedResponse<T> {
 
 export { type BackendCustomer, type PaginatedResponse };
 
-// ─── Auth Error ──────────────────────────────────────────────────────────────
-
-export class AuthError extends Error {
-  override name = 'AuthError' as const;
-}
-
 // ─── Mock data (migrated from InvoiceApiService) ─────────────────────────────
 
 const MOCK_CUSTOMERS: BackendCustomer[] = [
@@ -56,13 +50,34 @@ const MOCK_CUSTOMERS: BackendCustomer[] = [
 
 @Injectable({ providedIn: 'root' })
 export class CustomerRemoteDataSource {
+  private readonly authHttp = inject(AuthHttpService);
+
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  async list(): Promise<BackendCustomer[]> {
-    if (USE_MOCK) return [...MOCK_CUSTOMERS];
-    const res = await this.fetchWithAuth(`${API_BASE}/customers?limit=200`);
-    const body = await res.json() as PaginatedResponse<BackendCustomer>;
-    return body.data;
+  async list(params: { page: number; limit: number; q?: string; cedula?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
+    if (USE_MOCK) {
+      const start = (Math.max(1, params.page) - 1) * params.limit;
+      const data = MOCK_CUSTOMERS.slice(start, start + params.limit);
+      return {
+        data,
+        pagination: {
+          total: MOCK_CUSTOMERS.length,
+          page: Math.max(1, params.page),
+          limit: params.limit,
+          totalPages: Math.max(1, Math.ceil(MOCK_CUSTOMERS.length / params.limit)),
+        },
+      };
+    }
+    const searchParams = new URLSearchParams({
+      page: String(params.page),
+      limit: String(params.limit),
+    });
+
+    if (params.q) searchParams.set('q', params.q);
+    if (params.cedula) searchParams.set('cedula', params.cedula);
+
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?${searchParams.toString()}`);
+    return await res.json() as PaginatedResponse<BackendCustomer>;
   }
 
   async create(payload: {
@@ -89,7 +104,7 @@ export class CustomerRemoteDataSource {
       MOCK_CUSTOMERS.push(newCustomer);
       return newCustomer;
     }
-    const res = await this.fetchWithAuth(`${API_BASE}/customers`, {
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -122,7 +137,7 @@ export class CustomerRemoteDataSource {
       };
       return MOCK_CUSTOMERS[idx];
     }
-    const res = await this.fetchWithAuth(`${API_BASE}/customers/${id}`, {
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -141,71 +156,9 @@ export class CustomerRemoteDataSource {
       return MOCK_CUSTOMERS[idx];
     }
     const endpoint = currentActive ? 'deactivate' : 'activate';
-    const res = await this.fetchWithAuth(`${API_BASE}/customers/${id}/${endpoint}`, {
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers/${id}/${endpoint}`, {
       method: 'PATCH',
     });
     return res.json() as Promise<BackendCustomer>;
-  }
-
-  // ── Auth-aware fetch (replicates InvoiceApiService.fetchWithRefresh) ────
-
-  private async fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const session = this.getStoredSession();
-    const headers: Record<string, string> = {
-      ...(init?.headers as Record<string, string> | undefined) ?? {},
-    };
-    if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
-
-    let response = await fetch(input, { ...init, headers });
-
-    if (response.status === 401) {
-      const refreshed = await this.refreshAccessToken();
-      if (refreshed) {
-        const newSession = this.getStoredSession();
-        if (newSession?.accessToken) {
-          headers['Authorization'] = `Bearer ${newSession.accessToken}`;
-        }
-        response = await fetch(input, { ...init, headers });
-      } else {
-        throw new AuthError('Session expired — redirecting to login');
-      }
-    }
-
-    return response;
-  }
-
-  private getStoredSession(): { accessToken?: string; refreshToken?: string } | null {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
-      return raw ? JSON.parse(raw) as { accessToken?: string; refreshToken?: string } : null;
-    } catch {
-      return null;
-    }
-  }
-
-  private async refreshAccessToken(): Promise<boolean> {
-    const session = this.getStoredSession();
-    if (!session?.refreshToken) return false;
-    try {
-      const response = await fetch(`${API_BASE}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: session.refreshToken }),
-      });
-      if (!response.ok) return false;
-      const newSession = await response.json() as {
-        accessToken: string;
-        refreshToken?: string;
-        expiresIn?: number;
-      };
-      const merged = { ...session, ...newSession };
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
-      }
-      return true;
-    } catch {
-      return false;
-    }
   }
 }

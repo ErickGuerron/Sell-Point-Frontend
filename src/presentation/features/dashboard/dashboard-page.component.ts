@@ -589,7 +589,7 @@ export class DashboardPageComponent implements OnInit {
     this.chartReady.set(true);
 
     try {
-      if (!window.localStorage.getItem('billflow-session')) {
+      if (!this.session.hasStoredSession()) {
         window.location.assign('/auth');
         return;
       }
@@ -642,12 +642,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   toggleDashboardLocale() {
-    const next: DashboardLocale = this.locale() === 'es' ? 'en' : 'es';
-    this.locale.set(next);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('billflow-lang', next);
-      document.documentElement.lang = next;
-    }
+    this.localeService.toggle();
   }
 
   toggleTabletSidebar() {

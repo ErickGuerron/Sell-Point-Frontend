@@ -30,6 +30,7 @@
     "@tsparticles/slim": "^3.9.1",
     "astro": "^6.1.9",
     "chart.js": "^4.5.0",
+    "firebase": "^12.13.0",
     "ng2-charts": "^8.0.0",
     "rxjs": "^7.8.2",
     "sweetalert2": "^11.26.24",

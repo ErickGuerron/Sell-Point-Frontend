@@ -7,7 +7,7 @@ import {
   computed,
   signal,
   ChangeDetectionStrategy,
-  OnChanges,
+  type OnChanges,
   type SimpleChanges,
   type Signal,
 } from '@angular/core';

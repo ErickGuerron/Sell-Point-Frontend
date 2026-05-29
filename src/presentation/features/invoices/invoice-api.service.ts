@@ -1,8 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { AuthHttpService } from '../../shared/services/auth-http.service';
 
 const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
-
-const AUTH_KEY = 'billflow-session';
 
 export interface InvoiceItemRowDto {
   id: string;
@@ -144,8 +143,10 @@ function filterProducts(
 
 @Injectable({ providedIn: 'root' })
 export class InvoiceApiService {
+  private readonly authHttp = inject(AuthHttpService);
+
   async listInvoices(limit = 150): Promise<PaginatedResponse<InvoiceRowDto>> {
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     return response.json() as Promise<PaginatedResponse<InvoiceRowDto>>;
   }
@@ -153,7 +154,7 @@ export class InvoiceApiService {
   async searchCustomers(q: string, limit = 20): Promise<PaginatedResponse<CustomerRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as PaginatedResponse<any>;
     return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
@@ -162,7 +163,7 @@ export class InvoiceApiService {
   async fetchCustomersPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<CustomerRowDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as PaginatedResponse<any>;
     return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
@@ -171,7 +172,7 @@ export class InvoiceApiService {
   async searchProducts(q: string, limit = 20): Promise<PaginatedResponse<ProductRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
@@ -194,7 +195,7 @@ export class InvoiceApiService {
   async fetchProductsPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<ProductRowDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
@@ -215,7 +216,7 @@ export class InvoiceApiService {
   }
 
   async createInvoice(payload: CreateInvoicePayload): Promise<InvoiceRowDto> {
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/invoices`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -225,66 +226,6 @@ export class InvoiceApiService {
       throw new Error(error.message ?? `Request failed: ${response.status}`);
     }
     return response.json() as Promise<InvoiceRowDto>;
-  }
-
-  // ── Helpers ──────────────────────────────────────────────────────────────────
-
-  // ── Auth helpers ──────────────────────────────────────────────────────────────
-
-  private getStoredSession(): { accessToken?: string; refreshToken?: string } | null {
-    try {
-      const raw = typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_KEY) : null;
-      return raw ? JSON.parse(raw) as { accessToken?: string; refreshToken?: string } : null;
-    } catch { return null; }
-  }
-
-  private async refreshAccessToken(): Promise<boolean> {
-    const session = this.getStoredSession();
-    if (!session?.refreshToken) return false;
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: session.refreshToken }),
-      });
-      if (!response.ok) return false;
-      const newSession = await response.json() as { accessToken: string; refreshToken?: string; expiresIn?: number };
-      const merged = { ...session, ...newSession };
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
-      }
-      return true;
-    } catch { return false; }
-  }
-
-  private async fetchWithRefresh(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-    const session = this.getStoredSession();
-    const headers: Record<string, string> = { ...(init?.headers as Record<string, string> | undefined) ?? {} };
-    if (!headers['Content-Type']) headers['Content-Type'] = 'application/json';
-    if (session?.accessToken) headers['Authorization'] = `Bearer ${session.accessToken}`;
-
-    let response = await fetch(input, { ...init, headers });
-
-    if (response.status === 401) {
-      const refreshed = await this.refreshAccessToken();
-      if (refreshed) {
-        const newSession = this.getStoredSession();
-        if (newSession?.accessToken) {
-          headers['Authorization'] = `Bearer ${newSession.accessToken}`;
-        }
-        response = await fetch(input, { ...init, headers });
-      } else {
-        this.clearSessionAndRedirect();
-      }
-    }
-
-    return response;
-  }
-
-  private clearSessionAndRedirect(): void {
-    if (typeof window === 'undefined') return;
-    try { window.localStorage.removeItem(AUTH_KEY); } catch { /* ignore */ }
-    window.location.href = '/auth';
   }
 
   private mapBackendCustomer(b: BackendCustomer): CustomerRowDto {
@@ -314,7 +255,7 @@ export class InvoiceApiService {
   // ── Customers (kept for new-customer-modal — other 3 methods migrated to use-cases) ─
 
   async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
-    const response = await this.fetchWithRefresh(`${API_BASE_URL}/customers`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

@@ -4,6 +4,7 @@ import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -48,11 +49,14 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
         >
           <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 shrink-0">
-              <span class="hidden md:inline-flex lg:hidden">
-                <billflow-mobile-sidebar
-                  [items]="sidebarItems()"
-                ></billflow-mobile-sidebar>
-              </span>
+                <span class="hidden md:inline-flex lg:hidden">
+                  <billflow-mobile-sidebar
+                    [items]="sidebarItems()"
+                    [actionLabel]="copy().sessionInfo"
+                    actionIcon="info"
+                    (actionClick)="goToProfile()"
+                  ></billflow-mobile-sidebar>
+                </span>
               <span class="material-symbols-outlined text-outline">person</span>
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
@@ -104,7 +108,7 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
           >
             <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
             <p class="text-body-md text-on-surface font-semibold">{{ copy().errorTitle }}</p>
-            <p class="text-body-sm text-outline max-w-sm text-center">{{ copy().errorText }}</p>
+            <p class="text-body-sm text-outline max-w-sm text-center">{{ store.errorMessage() || copy().errorText }}</p>
             <button
               type="button"
               class="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all"
@@ -212,6 +216,77 @@ import { PROFILE_TEXT } from './i18n/profile.translations';
               </div>
             </div>
 
+            <!-- Google Account Linking card -->
+            <div class="dashboard-table-card rounded-2xl border border-outline-variant/40 overflow-hidden">
+              <div class="p-6 md:p-7 border-b border-outline-variant/20 bg-surface/60">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-outline text-[20px]">link</span>
+                  <h3 class="font-label-bold text-label-bold text-outline uppercase tracking-wider">
+                    {{ copy().googleLinkTitle }}
+                  </h3>
+                </div>
+              </div>
+
+              <div class="p-6 md:p-7">
+                <!-- Unlinked state -->
+                <div *ngIf="!store.googleLinked()" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-[#4285F4]/10 text-[#4285F4] flex items-center justify-center shrink-0">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-body-md text-body-md text-on-surface font-medium">{{ copy().googleLinkTitle }}</p>
+                      <p class="font-body-sm text-body-sm text-outline mt-0.5">{{ copy().googleLinkDesc }}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-xl bg-[#4285F4] text-white font-bold text-sm hover:bg-[#4285F4]/90 active:scale-95 transition-all shrink-0 flex items-center gap-2 disabled:opacity-50"
+                    [disabled]="store.googleLoading()"
+                    (click)="handleLinkGoogle()"
+                  >
+                    <span *ngIf="store.googleLoading()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <span *ngIf="!store.googleLoading()" class="material-symbols-outlined text-[18px]">link</span>
+                    {{ store.googleLoading() ? copy().googleLoading : copy().googleLinkButton }}
+                  </button>
+                </div>
+
+                <!-- Linked state -->
+                <div *ngIf="store.googleLinked()" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-[#34A853]/10 text-[#34A853] flex items-center justify-center shrink-0">
+                      <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-1.5">
+                        {{ copy().googleLinkedLabel }}
+                        <span class="text-xs font-normal text-outline">— {{ store.googleEmail() }}</span>
+                      </p>
+                      <p class="font-body-sm text-body-sm text-success mt-0.5 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px] text-success">check</span>
+                        {{ copy().googleLinkedStatus }}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-error/5 active:scale-95 transition-all shrink-0 flex items-center gap-2 disabled:opacity-50"
+                    [disabled]="store.googleLoading()"
+                    (click)="handleUnlinkGoogle()"
+                  >
+                    <span *ngIf="store.googleLoading()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <span *ngIf="!store.googleLoading()" class="material-symbols-outlined text-[18px]">link_off</span>
+                    {{ store.googleLoading() ? copy().googleLoading : copy().googleUnlinkButton }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Failed login attempts warning -->
             <div
               *ngIf="(store.failedAttempts() ?? 0) > 0"
@@ -244,6 +319,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   protected readonly store = inject(ProfileStore);
+  private readonly feedback = inject(UiFeedbackService);
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
 
@@ -272,5 +348,36 @@ export class ProfilePageComponent implements OnInit {
 
   goToProfile() {
     // Already on profile page
+  }
+
+  async handleLinkGoogle() {
+    try {
+      await this.store.linkGoogle();
+      await this.feedback.toast('success', this.copy().googleLinkedLabel);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().googleNetworkError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.handleLinkGoogle]', err);
+      await this.feedback.toast('error', message);
+    }
+  }
+
+  async handleUnlinkGoogle() {
+    const confirmed = await this.feedback.confirm(
+      this.copy().googleUnlinkConfirmTitle,
+      this.copy().googleUnlinkConfirmMessage,
+      this.copy().googleUnlinkConfirmAction,
+      this.copy().googleUnlinkConfirmCancel,
+    );
+    if (!confirmed) return;
+
+    try {
+      await this.store.unlinkGoogle();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().googleNetworkError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.handleUnlinkGoogle]', err);
+      await this.feedback.toast('error', message);
+    }
   }
 }

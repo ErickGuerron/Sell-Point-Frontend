@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
+import { GoogleAuthService } from '../../../shared/services/google-auth.service';
 import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 
 @Component({
@@ -142,11 +143,13 @@ import { UiFeedbackService } from '../../../shared/services/ui-feedback.service'
 })
 export class LoginFormComponent {
   private readonly feedback = inject(UiFeedbackService);
+  private readonly googleAuth = inject(GoogleAuthService);
 
   @Input({ required: true }) copy!: AuthText;
   @Input() statusMessage: string | null = null;
   @Input() statusTone: 'idle' | 'success' | 'error' = 'idle';
   @Output() submitLogin = new EventEmitter<AuthLoginPayload>();
+  @Output() googleLogin = new EventEmitter<{ googleToken: string }>();
   @Output() requestSupport = new EventEmitter<void>();
 
   email = '';
@@ -159,8 +162,13 @@ export class LoginFormComponent {
   }
 
   async handleGoogleLogin() {
-    // Placeholder — Google OAuth se conecta cuando el backend lo soporte
-    await this.feedback.toast('info', 'Google login coming soon');
+    try {
+      const result = await this.googleAuth.signIn();
+      this.googleLogin.emit({ googleToken: result.idToken });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Google login failed.';
+      await this.feedback.toast('error', message);
+    }
   }
 
   async handleSubmit(form: { valid: boolean }) {
