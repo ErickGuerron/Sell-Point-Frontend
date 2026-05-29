@@ -43,12 +43,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
                 {{ product.code }}
               </td>
               <td class="p-4 font-semibold text-on-background">
-                <div>
-                  <div class="font-semibold text-on-background">{{ product.name }}</div>
-                  <div class="text-[11px] text-outline mt-0.5 font-normal max-w-[250px] truncate" [title]="product.description ?? ''">
-                    {{ product.description || '—' }}
-                  </div>
-                </div>
+                <div class="font-semibold text-on-background">{{ product.name }}</div>
               </td>
               <td class="p-4">
                 <span class="rounded-full bg-surface-container-high px-2.5 py-1 text-xs text-on-surface font-medium border border-outline-variant/40">

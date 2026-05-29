@@ -34,7 +34,8 @@ import { Component, Input, Output, EventEmitter } from '@angular/core';
           </div>
           <button 
             type="button" 
-            class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface transition-all" 
+            class="w-8 h-8 flex items-center justify-center rounded-lg text-outline hover:bg-surface-container hover:text-on-surface transition-all disabled:opacity-40 disabled:cursor-not-allowed" 
+            [disabled]="disableClose"
             (click)="onClose()"
           >
             <span class="material-symbols-outlined text-[20px]">close</span>
@@ -61,6 +62,7 @@ export class BillflowModalShellComponent {
   @Input() icon = '';
   @Input() maxWidth: 'sm' | 'md' | 'lg' | 'xl' | '//' = 'md';
   @Input() hasFooter = false;
+  @Input() disableClose = false;
 
   @Output() close = new EventEmitter<void>();
 
@@ -76,10 +78,12 @@ export class BillflowModalShellComponent {
   }
 
   onBackdropClick() {
+    if (this.disableClose) return;
     this.close.emit();
   }
 
   onClose() {
+    if (this.disableClose) return;
     this.close.emit();
   }
 }

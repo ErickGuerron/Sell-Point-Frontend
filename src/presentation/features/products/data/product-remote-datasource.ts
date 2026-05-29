@@ -65,6 +65,17 @@ export class ProductRemoteDataSource {
     return body.code;
   }
 
+  async fetchProductById(id: string, signal?: AbortSignal): Promise<ProductRawDto> {
+    const response = await this.authHttp.fetchWithRefresh(
+      `${API_BASE}/products/${id}`,
+      signal ? { signal } : undefined,
+    );
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+
+    const body = (await response.json()) as any;
+    return this.toProductRaw(body);
+  }
+
   async fetchProductsPage(
     q: string,
     categoryId: string,

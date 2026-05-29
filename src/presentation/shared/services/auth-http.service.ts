@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+﻿import { Injectable } from '@angular/core';
 
 const AUTH_KEY = 'billflow-session';
 
@@ -14,7 +14,7 @@ interface StoredSession {
 
 @Injectable({ providedIn: 'root' })
 export class AuthHttpService {
-  private readonly apiBase = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+  private readonly apiBase = import.meta.env.PUBLIC_API_URL || import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
   async fetchWithRefresh(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
     const session = this.getStoredSession();

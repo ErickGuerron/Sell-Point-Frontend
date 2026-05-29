@@ -34,6 +34,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
       icon="inventory"
       maxWidth="xl"
       [hasFooter]="true"
+      [disableClose]="saving"
       (close)="requestClose()"
     >
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -71,14 +72,14 @@ import type { ProductsCopy } from '../i18n/products.translations';
           <input
             type="text"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-            maxlength="20"
+            maxlength="50"
             placeholder="Ej: Coca Cola 1L"
             [ngModel]="formName()"
-            (keydown.space)="blockOuterSpace($event, formName())"
+            (keydown.space)="blockOuterSpace($event)"
             (ngModelChange)="formName.set(trimOuterSpaces($event))"
             (blur)="formName.set(formName().trim())"
           />
-          <p *ngIf="formName().length > 20" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'Máximo 20 caracteres' : 'Maximum 20 characters' }}</p>
+          <p *ngIf="formName().length > 50" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'Máximo 50 caracteres' : 'Maximum 50 characters' }}</p>
         </div>
 
         <!-- Description -->
@@ -88,7 +89,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant resize-none h-20"
             placeholder="Ej: Bebida gaseosa refrescante sabor cola."
             [ngModel]="formDescription()"
-            (keydown.space)="blockOuterSpace($event, formDescription())"
+            (keydown.space)="blockOuterSpace($event)"
             (ngModelChange)="formDescription.set(trimOuterSpaces($event))"
             (blur)="formDescription.set(formDescription().trim())"
           ></textarea>
@@ -129,7 +130,11 @@ import type { ProductsCopy } from '../i18n/products.translations';
             (paste)="onMoneyPaste($event)"
             (ngModelChange)="onMoneyInput($event, 'sale')"
           />
-          <p *ngIf="priceMismatch()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'La venta debe ser mayor al costo' : 'Sale price must be greater than cost price' }}</p>
+          <p *ngIf="recommendedSaleRange()" class="mt-1 text-[11px] text-outline-variant">
+            {{ locale === 'es' ? 'Precio recomendado:' : 'Recommended price:' }}
+            {{ formatCurrency(recommendedSaleRange()!.min) }} - {{ formatCurrency(recommendedSaleRange()!.max) }}
+          </p>
+          <p *ngIf="priceMismatch()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'La venta debe estar dentro del precio recomendado' : 'Sale price must stay within the recommended range' }}</p>
         </div>
 
         <!-- Initial Stock (Only for Creation) -->
@@ -164,10 +169,11 @@ import type { ProductsCopy } from '../i18n/products.translations';
         <button
           type="button"
           class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-          [disabled]="!formValid()"
+          [disabled]="saving || !formValid() || !hasUnsavedChanges()"
           (click)="onSave()"
         >
-          {{ editingProduct ? copy.saveEdit : copy.save }}
+          <span class="material-symbols-outlined text-[18px] align-middle mr-1" [style.animation]="saving ? 'spin 0.7s linear infinite' : 'none'">{{ saving ? 'refresh' : 'save' }}</span>
+          {{ saving ? (locale === 'es' ? 'Guardando' : 'Saving') : (editingProduct ? copy.saveEdit : copy.save) }}
         </button>
       </div>
     </billflow-modal-shell>
@@ -183,6 +189,7 @@ export class ProductFormModalComponent implements OnChanges {
   @Input({ required: true }) locale = 'es';
   @Input({ required: true }) copy!: ProductsCopy;
   @Input() initialCode = '';
+  @Input() saving = false;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() save = new EventEmitter<CreateProductPayload | UpdateProductPayload>();
@@ -207,17 +214,35 @@ export class ProductFormModalComponent implements OnChanges {
 
   readonly formValid = computed(() =>
     this.formCode().trim().length > 0 &&
-    this.formName().trim().length > 0 && this.formName().trim().length <= 20 &&
+    this.formName().trim().length > 0 && this.formName().trim().length <= 50 &&
     this.formCategoryId().trim().length > 0 &&
     this.formSalePrice() !== null && this.formSalePrice()! > 0 &&
     this.formCostPrice() !== null && this.formCostPrice()! > 0 &&
-    this.formSalePrice()! > this.formCostPrice()! &&
+    this.salePriceWithinRecommendedRange() &&
     (this.formInitialStock() === null || (this.formInitialStock()! >= 0 && this.formInitialStock()! <= 1000 && Number.isInteger(this.formInitialStock())))
   );
 
   readonly priceMismatch = computed(() =>
-    this.formSalePrice() !== null && this.formCostPrice() !== null && this.formSalePrice()! <= this.formCostPrice()!
+    !this.salePriceWithinRecommendedRange() && this.formSalePrice() !== null && this.formCostPrice() !== null
   );
+
+  readonly recommendedSaleRange = computed(() => {
+    const cost = this.formCostPrice();
+    if (cost === null || !Number.isFinite(cost) || cost <= 0) return null;
+
+    return {
+      min: cost * 1.25,
+      max: cost * 1.5,
+    };
+  });
+
+  readonly salePriceWithinRecommendedRange = computed(() => {
+    const range = this.recommendedSaleRange();
+    const sale = this.formSalePrice();
+    if (!range || sale === null || !Number.isFinite(sale)) return false;
+
+    return sale >= range.min && sale <= range.max;
+  });
 
   readonly costPriceZero = computed(() =>
     this.formCostPrice() !== null && this.formCostPrice()! <= 0
@@ -274,6 +299,7 @@ export class ProductFormModalComponent implements OnChanges {
   }
 
   async requestClose(): Promise<void> {
+    if (this.saving) return;
     if (this.hasUnsavedChanges()) {
       const confirmed = await this.feedback.confirm(
         this.locale === 'es' ? 'Se perderán los cambios' : 'Changes will be lost',
@@ -288,7 +314,7 @@ export class ProductFormModalComponent implements OnChanges {
 
   // ── Save ───────────────────────────────────────────────────────────────
   onSave(): void {
-    if (!this.formValid()) return;
+    if (this.saving || !this.formValid() || !this.hasUnsavedChanges()) return;
 
     const editing = this.editingProduct;
     if (editing) {
@@ -319,21 +345,15 @@ export class ProductFormModalComponent implements OnChanges {
     return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : value;
   }
 
-  blockOuterSpace(event: KeyboardEvent, value: string): void {
+  blockOuterSpace(event: KeyboardEvent): void {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
     if (!target) return;
 
-    const current = value ?? '';
     const selectionStart = target.selectionStart ?? 0;
     const selectionEnd = target.selectionEnd ?? 0;
     const hasSelection = selectionStart !== selectionEnd;
 
-    if (!hasSelection && current.trim().length === 0) {
-      event.preventDefault();
-      return;
-    }
-
-    if (!hasSelection && selectionStart === 0 && current.length === 0) {
+    if (!hasSelection && selectionStart === 0) {
       event.preventDefault();
     }
   }
@@ -413,6 +433,11 @@ export class ProductFormModalComponent implements OnChanges {
     if (!/^\s*\d+\s*$/.test(text)) {
       event.preventDefault();
     }
+  }
+
+  formatCurrency(value: number): string {
+    const locale = this.locale === 'es' ? 'es-EC' : 'en-US';
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'USD' }).format(Number.isFinite(value) ? value : 0);
   }
 
   private normalizeDecimal(value: string): string {

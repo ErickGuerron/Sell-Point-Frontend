@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ViewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type CustomerRowDto, type ProductRowDto } from './invoice-api.service';
@@ -301,7 +301,7 @@ export class CreateInvoicePageComponent implements OnInit {
   // ── Submit state ─────────────────────────────────────────────────────────
   submitting = signal(false);
   readonly canSubmit = computed(
-    () => !!this.selectedCustomer() && this.lineItemsForSubmit().length > 0 && !this.submitting()
+    () => this.lineItemsForSubmit().length > 0 && !this.submitting()
   );
 
   readonly today = (() => {
@@ -374,12 +374,12 @@ export class CreateInvoicePageComponent implements OnInit {
   async submitInvoice() {
     const customer = this.selectedCustomer();
     const items = this.lineItemsForSubmit();
-    if (!customer || items.length === 0) return;
+    if (items.length === 0) return;
 
     this.submitting.set(true);
     try {
       const created = await this.api.createInvoice({
-        customerId: customer.id,
+        customerId: customer?.id,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
 
@@ -389,7 +389,17 @@ export class CreateInvoicePageComponent implements OnInit {
         `Factura ${created.invoiceNumber} creada por ${this.formatMoney(created.total)}.`
       );
 
-      if (typeof window !== 'undefined') window.location.replace('/invoices');
+      if (typeof window !== 'undefined') {
+        try {
+          const pdf = await this.api.fetchInvoicePdf(created.id);
+          const url = URL.createObjectURL(pdf);
+          window.open(url, '_blank', 'noopener');
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch {
+          // PDF no disponible, igual redirigimos
+        }
+        window.location.replace('/invoices');
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       await this.feedback.alert('error', 'No se pudo emitir la factura', msg);

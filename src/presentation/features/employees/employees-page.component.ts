@@ -83,7 +83,6 @@ interface EmployeesCopy {
   docLabel: string;
   emailLabel: string;
   usernameLabel: string;
-  passwordLabel: string;
   roleLabel: string;
   employeeIdLabel: string;
   // Validation messages
@@ -161,7 +160,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     docLabel: 'Cédula',
     emailLabel: 'Email',
     usernameLabel: 'Usuario',
-    passwordLabel: 'Contraseña',
     roleLabel: 'Rol',
     employeeIdLabel: 'Código de Empleado',
     // Validation messages
@@ -237,7 +235,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     docLabel: 'ID Number',
     emailLabel: 'Email',
     usernameLabel: 'Username',
-    passwordLabel: 'Password',
     roleLabel: 'Role',
     employeeIdLabel: 'Employee Code',
     // Validation messages
@@ -569,7 +566,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             }
           </div>
         }
-        <div [ngClass]="editingEmployee() ? 'md:col-span-1' : 'md:col-span-1'">
+        <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
           <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
             <option value="">-- {{ locale() === 'es' ? 'Seleccionar' : 'Select' }} --</option>
@@ -706,8 +703,12 @@ export class EmployeesPageComponent implements OnInit {
   // ── Roles (loaded dynamically from API) ──
   roles = signal<RoleDto[]>([]);
 
+  private readonly allowedRoleNames = new Set(['ADMIN', 'VENDEDOR']);
+
   readonly roleOptions = computed<ComboboxOption[]>(() =>
-    this.roles().map((r) => ({ value: r.name, label: r.name }))
+    this.roles()
+      .filter((r) => this.allowedRoleNames.has(String(r.name).trim().toUpperCase()))
+      .map((r) => ({ value: r.name, label: r.name }))
   );
 
   readonly roleFilterOptions = computed<ComboboxOption[]>(() => [
@@ -747,7 +748,6 @@ export class EmployeesPageComponent implements OnInit {
   formCedula = signal('');
   formEmail = signal('');
   formUsername = signal('');
-  formPassword = signal('');
   formRole = signal('');
   formSubmitting = signal(false);
 
@@ -985,11 +985,10 @@ export class EmployeesPageComponent implements OnInit {
     this.formFirstName.set(employee.firstName);
     this.formLastName.set(employee.lastName);
     this.formEmployeeId.set(employee.employeeId);
-    this.formCedula.set(employee.cedula);
+    this.formCedula.set('');
     this.formEmail.set(employee.email);
     this.formUsername.set(employee.username);
     this.formRole.set(employee.role);
-    this.formPassword.set('');
     this.formSubmitting.set(false);
     this.formFirstNameError.set('');
     this.formLastNameError.set('');
@@ -1014,7 +1013,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedula.set('');
     this.formEmail.set('');
     this.formUsername.set('');
-    this.formPassword.set('');
     this.formRole.set('');
     this.formSubmitting.set(false);
     this.formFirstNameError.set('');
@@ -1131,7 +1129,6 @@ export class EmployeesPageComponent implements OnInit {
           lastName: this.formLastName().trim(),
           email: this.formEmail().trim(),
           role: this.formRole(),
-          cedula: this.formCedula().trim(),
         });
         this.employees.update(emps =>
           emps.map(e => e.id === updated.id ? updated : e)
@@ -1152,7 +1149,7 @@ export class EmployeesPageComponent implements OnInit {
         this.totalCount.update(c => c + 1);
         void this.reloadKpis();
         await this.feedback.toast('success',
-          this.locale() === 'es' ? 'Empleado creado correctamente' : 'Employee created successfully');
+          this.locale() === 'es' ? 'Empleado creado y credenciales enviadas' : 'Employee created and credentials sent');
       }
       this.closeEmployeeModal();
     } catch (err) {
