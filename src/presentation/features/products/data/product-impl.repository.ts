@@ -44,6 +44,11 @@ export class ProductImplRepository extends ProductRepository {
     return this.ds.fetchNextProductCode(signal);
   }
 
+  async getProductById(id: string, signal?: AbortSignal): Promise<ProductEntity> {
+    const dto = await this.ds.fetchProductById(id, signal);
+    return toProductEntity(dto);
+  }
+
   async createProduct(payload: CreateProductPayload): Promise<ProductEntity> {
     const dto = await this.ds.createProduct(payload);
     return toProductEntity(dto);

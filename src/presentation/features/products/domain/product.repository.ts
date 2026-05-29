@@ -23,6 +23,8 @@ export abstract class ProductRepository {
 
   abstract getNextProductCode(signal?: AbortSignal): Promise<string>;
 
+  abstract getProductById(id: string, signal?: AbortSignal): Promise<ProductEntity>;
+
   abstract createProduct(
     payload: CreateProductPayload,
   ): Promise<ProductEntity>;

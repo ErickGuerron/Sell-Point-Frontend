@@ -73,7 +73,9 @@ import type { ProductsCopy } from '../i18n/products.translations';
                 class="w-full px-3 py-[5px] bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all"
                 [placeholder]="locale === 'es' ? 'Motivo del ajuste...' : 'Adjustment reason...'"
                 [value]="mvtFormDescription()"
-                (input)="mvtFormDescription.set($any($event.target).value)"
+                (keydown.space)="blockOuterSpace($event, mvtFormDescription())"
+                (input)="mvtFormDescription.set(trimOuterSpaces($any($event.target).value))"
+                (blur)="mvtFormDescription.set(mvtFormDescription().trim())"
               />
             </div>
 
@@ -251,6 +253,29 @@ export class ProductMovementsModalComponent implements OnChanges {
     };
 
     this.adjustStock.emit(payload);
+  }
+
+  trimOuterSpaces(value: string): string {
+    return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : value;
+  }
+
+  blockOuterSpace(event: KeyboardEvent, value: string): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+
+    const current = value ?? '';
+    const selectionStart = target.selectionStart ?? 0;
+    const selectionEnd = target.selectionEnd ?? 0;
+    const hasSelection = selectionStart !== selectionEnd;
+
+    if (!hasSelection && current.trim().length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    if (!hasSelection && selectionStart === 0 && current.length === 0) {
+      event.preventDefault();
+    }
   }
 
   private resetFormInternal(): void {
