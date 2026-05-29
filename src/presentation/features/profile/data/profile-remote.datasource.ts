@@ -1,10 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../../shared/services/auth-http.service';
 import type { ProfileRawDto } from './profile.dto';
+import { resolveApiBaseUrl } from '../../../shared/services/api-base';
 
-const API_BASE =
-  import.meta.env.PUBLIC_API_URL ||
-  'http://localhost:3000';
+const API_BASE = resolveApiBaseUrl();
 
 @Injectable()
 export class ProfileRemoteDataSource {

@@ -2,8 +2,9 @@ import { Injectable, inject, signal } from '@angular/core';
 import { UiFeedbackService } from './ui-feedback.service';
 import { LocaleService } from './locale.service';
 import { AuthHttpService } from './auth-http.service';
+import { resolveApiBaseUrl } from './api-base';
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = resolveApiBaseUrl();
 
 interface BillflowSession {
   id?: string;

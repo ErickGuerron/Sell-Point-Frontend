@@ -15,7 +15,7 @@ The frontend uses [Astro's public env vars](https://docs.astro.build/en/guides/e
 
 | Variable | Description |
 |----------|-----------|
-| `PUBLIC_API_BASE_URL` | Base URL for the backend API (e.g., `http://localhost:3000`) |
+| `PUBLIC_API_BASE_URL` | Base URL for the backend API (e.g., `http://localhost:3000`; Docker proxy can use `/api`) |
 
 ### Firebase Client SDK
  Used for Google Sign-In (Authentication).
@@ -57,6 +57,9 @@ PUBLIC_API_BASE_URL=http://localhost:3000
 
 # Production
 PUBLIC_API_BASE_URL=https://api.yourdomain.com
+
+# Docker (frontend container behind nginx proxy)
+PUBLIC_API_BASE_URL=/api
 ```
 
 ### CORS

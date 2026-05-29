@@ -7,8 +7,9 @@ import { LoginFormComponent } from './components/login-form.component';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { SessionService } from '../../shared/services/session.service';
+import { resolveApiBaseUrl } from '../../shared/services/api-base';
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = resolveApiBaseUrl();
 
 @Component({
   selector: 'billflow-auth-page',
