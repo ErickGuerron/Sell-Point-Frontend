@@ -1,7 +1,7 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { InvoiceApiService, type InvoiceRowDto } from './invoice-api.service';
+import { InvoiceApiService, type InvoiceKpisDto, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
@@ -16,7 +16,7 @@ import { BillflowUserMenuComponent } from '../../shared/components/billflow-user
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 
-type InvoiceStatus = 'paid' | 'pending' | 'overdue';
+type InvoiceStatus = 'issued' | 'cancelled';
 type InvoiceRange = '30d' | '90d' | 'year' | 'all';
 type InvoiceLocale = 'es' | 'en';
 
@@ -41,9 +41,8 @@ interface InvoiceCopy {
   overdueText: string;
   paidText: string;
   allStatuses: string;
-  paid: string;
-  pending: string;
-  overdue: string;
+  issued: string;
+  cancelled: string;
   last30Days: string;
   last90Days: string;
   thisYear: string;
@@ -66,6 +65,8 @@ interface InvoiceCopy {
   iva: string;
   invoicePreview: string;
   downloadPdf: string;
+  cancelInvoice: string;
+  resendEmail: string;
   close: string;
   sidebarDashboard: string;
   sidebarInvoices: string;
@@ -96,16 +97,15 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     historyDescription: 'Gestioná, seguí y revisá el ciclo de facturación.',
     resultsLabel: 'resultados',
     themeLabel: 'Tema',
-    totalOutstandingLabel: 'Total Pendiente',
-    overdueAmountsLabel: 'Montos Vencidos',
-    paid30Label: 'Pagado (Últimos 30 días)',
-    openInvoicesText: 'facturas abiertas',
-    overdueText: 'facturas requieren atención',
-    paidText: 'facturas registradas',
+    totalOutstandingLabel: 'Total Facturado',
+    overdueAmountsLabel: 'Facturas Canceladas',
+    paid30Label: 'Facturado (Últimos 30 días)',
+    openInvoicesText: 'facturas emitidas',
+    overdueText: 'facturas canceladas',
+    paidText: 'facturas emitidas',
     allStatuses: 'Todos los estados',
-    paid: 'Pagado',
-    pending: 'Pendiente',
-    overdue: 'Vencido',
+    issued: 'Emitida',
+    cancelled: 'Cancelada',
     last30Days: 'Últimos 30 días',
     last90Days: 'Últimos 90 días',
     thisYear: 'Este año',
@@ -128,6 +128,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     iva: 'IVA (15%)',
     invoicePreview: 'Vista previa de factura',
     downloadPdf: 'Imprimir / Descargar PDF',
+    cancelInvoice: 'Anular Factura',
+    resendEmail: 'Reenviar por Email',
     close: 'Cerrar',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Facturas',
@@ -156,16 +158,15 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     historyDescription: 'Manage, track, and review your billing lifecycle.',
     resultsLabel: 'results',
     themeLabel: 'Theme',
-    totalOutstandingLabel: 'Total Outstanding',
-    overdueAmountsLabel: 'Overdue Amounts',
-    paid30Label: 'Paid (Last 30 Days)',
-    openInvoicesText: 'open invoices',
-    overdueText: 'invoices need attention',
-    paidText: 'invoices registered',
+    totalOutstandingLabel: 'Total Invoiced',
+    overdueAmountsLabel: 'Cancelled Invoices',
+    paid30Label: 'Invoiced (Last 30 Days)',
+    openInvoicesText: 'issued invoices',
+    overdueText: 'cancelled invoices',
+    paidText: 'issued invoices',
     allStatuses: 'All Statuses',
-    paid: 'Paid',
-    pending: 'Pending',
-    overdue: 'Overdue',
+    issued: 'Issued',
+    cancelled: 'Cancelled',
     last30Days: 'Last 30 Days',
     last90Days: 'Last 90 Days',
     thisYear: 'This Year',
@@ -188,6 +189,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     iva: 'VAT (15%)',
     invoicePreview: 'Invoice Preview',
     downloadPdf: 'Print / Download PDF',
+    cancelInvoice: 'Cancel Invoice',
+    resendEmail: 'Resend by Email',
     close: 'Close',
     sidebarDashboard: 'Dashboard',
     sidebarInvoices: 'Invoices',
@@ -394,7 +397,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       <td class="p-4">
                         <span [ngClass]="statusClass(invoice.status)" class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide">
                           <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoice.status)"></span>
-                           {{ locale() === 'es' ? (invoice.status === 'paid' ? 'PAGADO' : invoice.status === 'pending' ? 'PENDIENTE' : 'VENCIDO') : invoice.statusLabel }}
+                           {{ invoice.statusLabel }}
                         </span>
                       </td>
                       <td class="p-4 pr-7 text-right">
@@ -405,6 +408,15 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                         >
                           <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
                           PDF
+                        </button>
+                        <button
+                          *ngIf="invoice.status === 'issued'"
+                          type="button"
+                          class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-error hover:text-error ml-2"
+                          (click)="$event.stopPropagation(); cancelInvoice(invoice)"
+                        >
+                          <span class="material-symbols-outlined text-[16px]">cancel</span>
+                          {{ copy().cancelInvoice }}
                         </button>
                       </td>
                     </tr>
@@ -480,10 +492,10 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 </div>
                 <div class="text-right">
                   <span
-                    [ngClass]="statusClass(invoicePreview()?.status ?? 'paid')"
+                    [ngClass]="statusClass(invoicePreview()?.status ?? 'issued')"
                     class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
                   >
-                    <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'paid')"></span>
+                    <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'issued')"></span>
                     {{ invoicePreview()?.statusLabel ?? '' }}
                   </span>
                 </div>
@@ -561,6 +573,14 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             <div footer class="flex w-full items-center justify-end gap-3">
               <button
                 type="button"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
+                (click)="resendInvoiceEmail(invoicePreview()?.id ?? '')"
+              >
+                <span class="material-symbols-outlined text-[16px]">mail</span>
+                {{ copy().resendEmail }}
+              </button>
+              <button
+                type="button"
                 class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
                 (click)="closeInvoicePreview()"
               >
@@ -621,6 +641,14 @@ export class InvoicePageComponent implements OnInit {
 
   loading = signal(true);
   invoices = signal<InvoiceViewModel[]>([]);
+  invoiceKpis = signal<InvoiceKpisDto>({
+    totalInvoiced: 0,
+    issuedCount: 0,
+    cancelledTotal: 0,
+    cancelledCount: 0,
+    last30DaysTotal: 0,
+    last30DaysCount: 0,
+  });
   searchQuery = signal('');
   invoiceFilterField = signal<'all' | 'invoiceNumber' | 'customerName' | 'total'>('all');
   statusFilter = signal<'all' | InvoiceStatus>('all');
@@ -634,9 +662,8 @@ export class InvoicePageComponent implements OnInit {
 
   readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
     { value: 'all', label: this.copy().allStatuses },
-    { value: 'paid', label: this.copy().paid },
-    { value: 'pending', label: this.copy().pending },
-    { value: 'overdue', label: this.copy().overdue },
+    { value: 'issued', label: this.copy().issued },
+    { value: 'cancelled', label: this.copy().cancelled },
   ]);
 
   readonly rangeFilterOptions = computed<ComboboxOption[]>(() => [
@@ -700,12 +727,12 @@ export class InvoicePageComponent implements OnInit {
     return pages;
   });
 
-  readonly outstandingTotal = computed(() => this.invoices().filter((invoice) => invoice.status !== 'paid').reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
-  readonly outstandingCount = computed(() => this.invoices().filter((invoice) => invoice.status !== 'paid').length);
-  readonly overdueTotal = computed(() => this.invoices().filter((invoice) => invoice.status === 'overdue').reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
-  readonly overdueCount = computed(() => this.invoices().filter((invoice) => invoice.status === 'overdue').length);
-  readonly paidLast30Days = computed(() => this.invoices().filter((invoice) => invoice.status === 'paid' && this.isWithinDays(invoice.invoiceDate, 30)).reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0));
-  readonly paidCount30Days = computed(() => this.invoices().filter((invoice) => invoice.status === 'paid' && this.isWithinDays(invoice.invoiceDate, 30)).length);
+  readonly outstandingTotal = computed(() => this.invoiceKpis().totalInvoiced);
+  readonly outstandingCount = computed(() => this.invoiceKpis().issuedCount);
+  readonly overdueTotal = computed(() => this.invoiceKpis().cancelledTotal);
+  readonly overdueCount = computed(() => this.invoiceKpis().cancelledCount);
+  readonly paidLast30Days = computed(() => this.invoiceKpis().last30DaysTotal);
+  readonly paidCount30Days = computed(() => this.invoiceKpis().last30DaysCount);
 
   async ngOnInit() {
     this.themeService.init();
@@ -717,13 +744,17 @@ export class InvoicePageComponent implements OnInit {
   async reloadInvoices() {
     this.loading.set(true);
     try {
-      const response = await this.api.listInvoices(150);
+      const [response, kpis] = await Promise.all([
+        this.api.listInvoices(150),
+        this.api.getInvoiceKpis(),
+      ]);
       const mapped = response.data
         .slice()
         .sort((left, right) => new Date(right.invoiceDate).getTime() - new Date(left.invoiceDate).getTime())
         .map((invoice) => this.mapInvoice(invoice));
 
       this.invoices.set(mapped);
+      this.invoiceKpis.set(kpis);
       this.page.set(1);
     } catch {
       await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudieron cargar las facturas' : 'Could not load invoices', this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
@@ -754,7 +785,7 @@ export class InvoicePageComponent implements OnInit {
   }
 
   setStatusFilter(value: string) {
-    this.statusFilter.set(value === 'paid' || value === 'pending' || value === 'overdue' ? value : 'all');
+    this.statusFilter.set(value === 'issued' || value === 'cancelled' ? value : 'all');
     this.page.set(1);
   }
 
@@ -789,17 +820,60 @@ export class InvoicePageComponent implements OnInit {
     return this.api.invoicePdfUrl(id);
   }
 
-  openInvoicePreview(invoice: InvoiceViewModel) {
+  async openInvoicePreview(invoice: InvoiceViewModel) {
     this.invoicePreview.set(invoice);
+    try {
+      const detail = await this.api.getInvoice(invoice.id);
+      this.invoicePreview.set(this.mapInvoice(detail));
+    } catch {
+      await this.feedback.toast('warning', this.locale() === 'es' ? 'No se pudo cargar el detalle completo' : 'Could not load full invoice details');
+    }
   }
 
   closeInvoicePreview() {
     this.invoicePreview.set(null);
   }
 
-  downloadInvoicePdf(id: string) {
-    if (typeof window !== 'undefined') {
-      window.open(this.invoicePdfUrl(id), '_blank', 'noopener');
+  async downloadInvoicePdf(id: string) {
+    if (typeof window === 'undefined' || !id) return;
+    try {
+      const pdf = await this.api.fetchInvoicePdf(id);
+      const url = URL.createObjectURL(pdf);
+      window.open(url, '_blank', 'noopener');
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudo descargar el PDF' : 'Could not download PDF', this.locale() === 'es' ? 'Verificá tu sesión y la conexión con el backend.' : 'Check your session and backend connection.');
+    }
+  }
+
+  async cancelInvoice(invoice: InvoiceViewModel) {
+    const confirmed = await this.feedback.confirm(
+      this.locale() === 'es' ? 'Anular Factura' : 'Cancel Invoice',
+      this.locale() === 'es'
+        ? `¿Estás seguro de anular la factura ${invoice.invoiceNumber}? Esta acción no se puede deshacer.`
+        : `Are you sure you want to cancel invoice ${invoice.invoiceNumber}? This action cannot be undone.`,
+      this.locale() === 'es' ? 'Sí, anular' : 'Yes, cancel',
+    );
+    if (!confirmed) return;
+
+    try {
+      await this.api.cancelInvoice(invoice.id);
+      await this.feedback.toast('success', this.locale() === 'es' ? 'Factura anulada' : 'Invoice cancelled', invoice.invoiceNumber);
+      await this.reloadInvoices();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : this.locale() === 'es' ? 'Error desconocido' : 'Unknown error';
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudo anular la factura' : 'Could not cancel invoice', msg);
+    }
+  }
+
+  async resendInvoiceEmail(id: string) {
+    if (!id) return;
+    try {
+      const result = await this.api.resendInvoiceEmail(id);
+      await this.feedback.toast('success', this.locale() === 'es' ? 'Email reenviado' : 'Email resent', result.email);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : this.locale() === 'es' ? 'Error desconocido' : 'Unknown error';
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudo reenviar el email' : 'Could not resend email', msg);
     }
   }
 
@@ -814,16 +888,14 @@ export class InvoicePageComponent implements OnInit {
 
   statusClass(status: InvoiceStatus) {
     switch (status) {
-      case 'overdue': return 'border-error/10 bg-error-container text-on-error-container';
-      case 'pending': return 'border-secondary/10 bg-secondary-container/25 text-on-secondary-container';
+      case 'cancelled': return 'border-error/10 bg-error-container text-on-error-container';
       default: return 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant';
     }
   }
 
   statusDotClass(status: InvoiceStatus) {
     switch (status) {
-      case 'overdue': return 'bg-error';
-      case 'pending': return 'bg-secondary';
+      case 'cancelled': return 'bg-error';
       default: return 'bg-primary';
     }
   }
@@ -839,20 +911,23 @@ export class InvoicePageComponent implements OnInit {
 
   private mapInvoice(invoice: InvoiceRowDto): InvoiceViewModel {
     const daysOld = this.daysBetween(new Date(invoice.invoiceDate), new Date());
-    const status = this.resolveStatus(daysOld);
+    const status = this.normalizeStatus(invoice.status);
     return {
       ...invoice,
       status,
       daysOld,
-      statusLabel: this.locale() === 'es' ? (status === 'paid' ? 'PAGADO' : status === 'pending' ? 'PENDIENTE' : 'VENCIDO') : (status === 'paid' ? 'PAID' : status === 'pending' ? 'PENDING' : 'OVERDUE'),
+      statusLabel: this.statusLabel(status),
       statusTone: status,
     };
   }
 
-  private resolveStatus(daysOld: number): InvoiceStatus {
-    if (daysOld <= 2) return 'paid';
-    if (daysOld <= 12) return 'pending';
-    return 'overdue';
+  private normalizeStatus(status?: string): InvoiceStatus {
+    return status?.toUpperCase() === 'CANCELLED' ? 'cancelled' : 'issued';
+  }
+
+  private statusLabel(status: InvoiceStatus): string {
+    if (this.locale() === 'es') return status === 'cancelled' ? 'CANCELADA' : 'EMITIDA';
+    return status === 'cancelled' ? 'CANCELLED' : 'ISSUED';
   }
 
   private matchesRange(value: string, range: InvoiceRange, now: Date) {
@@ -865,11 +940,6 @@ export class InvoicePageComponent implements OnInit {
     const days = this.daysBetween(date, now);
     return range === '30d' ? days <= 30 : days <= 90;
   }
-
-  private isWithinDays(value: string, days: number) {
-    return this.daysBetween(new Date(value), new Date()) <= days;
-  }
-
 
   private daysBetween(start: Date, end: Date) {
     const a = new Date(start);
