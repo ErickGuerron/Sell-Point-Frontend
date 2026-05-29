@@ -75,7 +75,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
             maxlength="50"
             placeholder="Ej: Coca Cola 1L"
             [ngModel]="formName()"
-            (keydown.space)="blockOuterSpace($event, formName())"
+            (keydown.space)="blockOuterSpace($event)"
             (ngModelChange)="formName.set(trimOuterSpaces($event))"
             (blur)="formName.set(formName().trim())"
           />
@@ -89,7 +89,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant resize-none h-20"
             placeholder="Ej: Bebida gaseosa refrescante sabor cola."
             [ngModel]="formDescription()"
-            (keydown.space)="blockOuterSpace($event, formDescription())"
+            (keydown.space)="blockOuterSpace($event)"
             (ngModelChange)="formDescription.set(trimOuterSpaces($event))"
             (blur)="formDescription.set(formDescription().trim())"
           ></textarea>
@@ -345,21 +345,15 @@ export class ProductFormModalComponent implements OnChanges {
     return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : value;
   }
 
-  blockOuterSpace(event: KeyboardEvent, value: string): void {
+  blockOuterSpace(event: KeyboardEvent): void {
     const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
     if (!target) return;
 
-    const current = value ?? '';
     const selectionStart = target.selectionStart ?? 0;
     const selectionEnd = target.selectionEnd ?? 0;
     const hasSelection = selectionStart !== selectionEnd;
 
-    if (!hasSelection && current.trim().length === 0) {
-      event.preventDefault();
-      return;
-    }
-
-    if (!hasSelection && selectionStart === 0 && current.length === 0) {
+    if (!hasSelection && selectionStart === 0) {
       event.preventDefault();
     }
   }

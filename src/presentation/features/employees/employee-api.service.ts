@@ -27,10 +27,8 @@ export interface EmployeeListResponse {
 }
 
 export interface CreateUserPayload {
-  employeeId: string;
   username: string;
   email: string;
-  password: string;
   role: string;
   firstName: string;
   lastName: string;
@@ -103,7 +101,7 @@ export class EmployeeApiService {
   // ─── Create user ───────────────────────────────────────────────────────────
 
   async createUser(payload: CreateUserPayload): Promise<EmployeeRowDto> {
-    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/users`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

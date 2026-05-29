@@ -83,7 +83,6 @@ interface EmployeesCopy {
   docLabel: string;
   emailLabel: string;
   usernameLabel: string;
-  passwordLabel: string;
   roleLabel: string;
   employeeIdLabel: string;
 }
@@ -152,7 +151,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     docLabel: 'Cédula',
     emailLabel: 'Email',
     usernameLabel: 'Usuario',
-    passwordLabel: 'Contraseña',
     roleLabel: 'Rol',
     employeeIdLabel: 'Código de Empleado',
   },
@@ -219,7 +217,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     docLabel: 'ID Number',
     emailLabel: 'Email',
     usernameLabel: 'Username',
-    passwordLabel: 'Password',
     roleLabel: 'Role',
     employeeIdLabel: 'Employee Code',
   },
@@ -494,35 +491,38 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (ngModelChange)="formFirstName.set($event)" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (keydown.space)="blockSpace($event)" (ngModelChange)="formFirstName.set(sanitizeNoWhitespace($event))" (blur)="formFirstName.set(sanitizeNoWhitespace(formFirstName()))" />
         </div>
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (ngModelChange)="formLastName.set($event)" />
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().employeeIdLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="20" [ngClass]="editingEmployee() ? 'cursor-not-allowed opacity-60' : ''" [disabled]="editingEmployee() !== null" placeholder="EMP-001" [ngModel]="formEmployeeId()" (ngModelChange)="formEmployeeId.set($event)" />
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="Ej: 1234567890" [ngModel]="formCedula()" (ngModelChange)="onCedulaInput($event)" />
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
-          <input type="email" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (ngModelChange)="formEmail.set($event)" />
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (ngModelChange)="formUsername.set($event)" />
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (keydown.space)="blockSpace($event)" (ngModelChange)="formLastName.set(sanitizeNoWhitespace($event))" (blur)="formLastName.set(sanitizeNoWhitespace(formLastName()))" />
         </div>
         @if (!editingEmployee()) {
           <div class="md:col-span-1">
-            <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().passwordLabel }} <span class="text-error">*</span></label>
-            <input type="password" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="100" placeholder="••••••••" [ngModel]="formPassword()" (ngModelChange)="formPassword.set($event)" />
+            <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
+            <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" placeholder="Ej: 1234567890" inputmode="numeric" maxlength="10" [ngModel]="formCedula()" (keydown.space)="blockSpace($event)" (keydown)="onCedulaKeyDown($event)" (ngModelChange)="onCedulaInput($event)" />
+            <p class="mt-1 text-[11px] text-outline-variant">{{ locale() === 'es' ? 'Debe tener exactamente 10 dígitos' : 'Must have exactly 10 digits' }}</p>
           </div>
         }
-        <div [ngClass]="editingEmployee() ? 'md:col-span-1' : 'md:col-span-1'">
+        <div class="md:col-span-1">
+          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
+          <input type="email" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (keydown.space)="blockSpace($event)" (ngModelChange)="formEmail.set(sanitizeEmail($event))" (blur)="formEmail.set(sanitizeEmail(formEmail()))" />
+        </div>
+        <div class="md:col-span-1">
+          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
+          <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (keydown.space)="blockSpace($event)" (ngModelChange)="formUsername.set(sanitizeNoWhitespace($event))" (blur)="formUsername.set(sanitizeNoWhitespace(formUsername()))" />
+        </div>
+        @if (editingEmployee()) {
+          <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().employeeIdLabel }}</label>
+            <input type="text" class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant cursor-not-allowed opacity-60" [maxLength]="20" [disabled]="true" [readonly]="true" [ngModel]="formEmployeeId()" />
+          </div>
+        } @else {
+          <div class="md:col-span-2 flex items-end">
+            <p class="text-[11px] text-outline-variant">{{ locale() === 'es' ? 'El código de empleado se generará automáticamente' : 'Employee code will be generated automatically' }}</p>
+          </div>
+        }
+        <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
           <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
             <option value="">-- {{ locale() === 'es' ? 'Seleccionar' : 'Select' }} --</option>
@@ -656,8 +656,12 @@ export class EmployeesPageComponent implements OnInit {
   // ── Roles (loaded dynamically from API) ──
   roles = signal<RoleDto[]>([]);
 
+  private readonly allowedRoleNames = new Set(['ADMIN', 'VENDEDOR']);
+
   readonly roleOptions = computed<ComboboxOption[]>(() =>
-    this.roles().map((r) => ({ value: r.name, label: r.name }))
+    this.roles()
+      .filter((r) => this.allowedRoleNames.has(String(r.name).trim().toUpperCase()))
+      .map((r) => ({ value: r.name, label: r.name }))
   );
 
   readonly roleFilterOptions = computed<ComboboxOption[]>(() => [
@@ -697,19 +701,16 @@ export class EmployeesPageComponent implements OnInit {
   formCedula = signal('');
   formEmail = signal('');
   formUsername = signal('');
-  formPassword = signal('');
   formRole = signal('');
   formSubmitting = signal(false);
 
   readonly formValid = computed(() =>
     this.formFirstName().trim().length > 0
     && this.formLastName().trim().length > 0
-    && this.formEmployeeId().trim().length > 0
-    && this.formCedula().trim().length > 0
     && this.formEmail().trim().length > 0
     && this.formUsername().trim().length > 0
     && this.formRole().trim().length > 0
-    && (this.editingEmployee() !== null || this.formPassword().trim().length >= 6)
+    && (this.editingEmployee() !== null || this.formCedula().trim().length === 10)
   );
 
   // ── Lifecycle ──
@@ -915,11 +916,10 @@ export class EmployeesPageComponent implements OnInit {
     this.formFirstName.set(employee.firstName);
     this.formLastName.set(employee.lastName);
     this.formEmployeeId.set(employee.employeeId);
-    this.formCedula.set(employee.cedula);
+    this.formCedula.set('');
     this.formEmail.set(employee.email);
     this.formUsername.set(employee.username);
     this.formRole.set(employee.role);
-    this.formPassword.set('');
     this.formSubmitting.set(false);
     this.editingEmployee.set(employee);
     this.employeeModalOpen.set(true);
@@ -935,6 +935,29 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedula.set(value.replace(/\D/g, '').slice(0, 10));
   }
 
+  onCedulaKeyDown(event: KeyboardEvent) {
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+    if (/^[0-9]$/.test(event.key)) return;
+    event.preventDefault();
+  }
+
+  blockSpace(event: KeyboardEvent) {
+    if (event.key === ' ') event.preventDefault();
+  }
+
+  sanitizeNoWhitespace(value: string): string {
+    return typeof value === 'string' ? value.replace(/\s+/g, '') : value;
+  }
+
+  sanitizeEmail(value: string): string {
+    return typeof value === 'string' ? value.replace(/\s+/g, '').trim().toLowerCase() : value;
+  }
+
   private resetForm() {
     this.formFirstName.set('');
     this.formLastName.set('');
@@ -942,7 +965,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedula.set('');
     this.formEmail.set('');
     this.formUsername.set('');
-    this.formPassword.set('');
     this.formRole.set('');
     this.formSubmitting.set(false);
   }
@@ -957,7 +979,6 @@ export class EmployeesPageComponent implements OnInit {
           lastName: this.formLastName().trim(),
           email: this.formEmail().trim(),
           role: this.formRole(),
-          cedula: this.formCedula().trim(),
         });
         this.employees.update(emps =>
           emps.map(e => e.id === updated.id ? updated : e)
@@ -966,10 +987,8 @@ export class EmployeesPageComponent implements OnInit {
           this.locale() === 'es' ? 'Empleado actualizado correctamente' : 'Employee updated successfully');
       } else {
         const created = await this.api.createUser({
-          employeeId: this.formEmployeeId().trim(),
           username: this.formUsername().trim(),
           email: this.formEmail().trim(),
-          password: this.formPassword(),
           role: this.formRole(),
           firstName: this.formFirstName().trim(),
           lastName: this.formLastName().trim(),
@@ -979,7 +998,7 @@ export class EmployeesPageComponent implements OnInit {
         this.totalCount.update(c => c + 1);
         void this.reloadKpis();
         await this.feedback.toast('success',
-          this.locale() === 'es' ? 'Empleado creado correctamente' : 'Employee created successfully');
+          this.locale() === 'es' ? 'Empleado creado y credenciales enviadas' : 'Employee created and credentials sent');
       }
       this.closeEmployeeModal();
     } catch (err) {
