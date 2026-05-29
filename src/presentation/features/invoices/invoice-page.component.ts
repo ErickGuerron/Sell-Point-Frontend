@@ -573,18 +573,19 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             <div footer class="flex w-full items-center justify-end gap-3">
               <button
                 type="button"
+                class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
+                (click)="closeInvoicePreview()"
+              >
+                {{ copy().close }}
+              </button>
+              <div class="flex-1"></div>
+              <button
+                type="button"
                 class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
                 (click)="resendInvoiceEmail(invoicePreview()?.id ?? '')"
               >
                 <span class="material-symbols-outlined text-[16px]">mail</span>
                 {{ copy().resendEmail }}
-              </button>
-              <button
-                type="button"
-                class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-                (click)="closeInvoicePreview()"
-              >
-                {{ copy().close }}
               </button>
               <button
                 type="button"
