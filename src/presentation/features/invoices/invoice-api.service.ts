@@ -1,27 +1,43 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../shared/services/auth-http.service';
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.PUBLIC_API_URL
+  || import.meta.env.PUBLIC_API_BASE_URL
+  || 'http://localhost:3000';
 
 export interface InvoiceItemRowDto {
   id: string;
   productId: string;
   quantity: number;
   unitPrice: number;
+  subtotal: number;
+  total: number;
   productName?: string;
   productCode?: string;
+  taxRateId?: string;
+  taxPercentage?: number;
+  taxAmount?: number;
 }
 
 export interface InvoiceRowDto {
   id: string;
+  saleId?: string;
+  seriesId?: string;
   invoiceNumber: string;
   invoiceDate: string;
-  customerId: string;
+  issueDate?: string;
+  status?: string;
+  customerId?: string;
   customerName?: string;
   customerCedula?: string;
   subtotal: number;
   iva: number;
   total: number;
+  saleNumber?: string;
+  authorizationNumber?: string | null;
+  cancelledAt?: string | null;
+  createdAt?: string;
+  pdfUrl?: string;
   items?: InvoiceItemRowDto[];
 }
 
@@ -46,7 +62,7 @@ export interface ProductRowDto {
 }
 
 export interface CreateInvoicePayload {
-  customerId: string;
+  customerId?: string | null;
   items: Array<{ productId: string; quantity: number }>;
 }
 
@@ -59,6 +75,36 @@ export interface CreateCustomerPayload {
   address?: string;
 }
 
+export interface InvoiceSeriesRowDto {
+  id: string;
+  branchId: string;
+  establishmentCode: string;
+  emissionPointCode: string;
+  currentSequence: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceKpisDto {
+  totalInvoiced: number;
+  issuedCount: number;
+  cancelledTotal: number;
+  cancelledCount: number;
+  last30DaysTotal: number;
+  last30DaysCount: number;
+}
+
+export interface CreateInvoiceSeriesPayload {
+  branchId: string;
+  establishmentCode: string;
+  emissionPointCode: string;
+  currentSequence?: number;
+  isActive?: boolean;
+}
+
+export type UpdateInvoiceSeriesPayload = Partial<CreateInvoiceSeriesPayload>;
+
 interface PaginatedResponse<T> {
   data: T[];
   pagination: {
@@ -69,7 +115,6 @@ interface PaginatedResponse<T> {
   };
 }
 
-/** Schema que devuelve el backend (el listado NO incluye lastName) */
 interface BackendCustomer {
   id: string;
   firstName: string;
@@ -83,63 +128,60 @@ interface BackendCustomer {
   updatedAt: string;
 }
 
+interface BackendInvoiceItem {
+  id: string;
+  productId: string;
+  productName?: string;
+  productCode?: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal?: number;
+  taxRateId?: string;
+  taxPercentage?: number;
+  taxAmount?: number;
+  total?: number;
+}
 
-function mockPaginated<T>(all: T[], page: number, limit: number): PaginatedResponse<T> {
-  const start = (page - 1) * limit;
-  const data = all.slice(start, start + limit);
-  return {
-    data,
-    pagination: { total: all.length, page, limit, totalPages: Math.ceil(all.length / limit) },
-  };
+interface BackendInvoice {
+  id: string;
+  saleId?: string;
+  seriesId?: string;
+  invoiceNumber: string;
+  authorizationNumber?: string | null;
+  issueDate?: string | Date;
+  invoiceDate?: string | Date;
+  status?: string;
+  cancelledAt?: string | Date | null;
+  createdAt?: string | Date;
+  subtotal?: number | string;
+  iva?: number | string;
+  total?: number | string;
+  saleNumber?: string;
+  customerId?: string;
+  customerName?: string;
+  customerCedula?: string;
+  pdfUrl?: string;
+  items?: BackendInvoiceItem[];
+}
+
+interface QuickConfirmSaleResponse {
+  id: string;
+  saleNumber: string;
+  subtotal: number;
+  taxAmount: number;
+  total: number;
+  status: string;
+  invoice: BackendInvoice;
 }
 
 function matchField(value: string | undefined | null, query: string): boolean {
   return (value ?? '').toLowerCase().includes(query);
 }
 
-function filterCustomers(
-  items: CustomerRowDto[],
-  q: string,
-  field: string,
-): CustomerRowDto[] {
-  if (!q.trim()) return items;
-  const lower = q.toLowerCase();
-  return items.filter((c) => {
-    switch (field) {
-      case 'name': return matchField(c.name, lower);
-      case 'lastName': return matchField(c.lastName, lower);
-      case 'cedula': return matchField(c.cedula, lower);
-      case 'email': return matchField(c.email, lower);
-      default: // 'all'
-        return matchField(c.name, lower)
-            || matchField(c.lastName, lower)
-            || matchField(c.cedula, lower)
-            || matchField(c.email, lower);
-    }
-  });
+function createIdempotencyKey(): string {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
-
-function filterProducts(
-  items: ProductRowDto[],
-  q: string,
-  field: string,
-): ProductRowDto[] {
-  if (!q.trim()) return items;
-  const lower = q.toLowerCase();
-  return items.filter((p) => {
-    switch (field) {
-      case 'name': return matchField(p.name, lower);
-      case 'code': return matchField(p.code, lower);
-      case 'description': return matchField(p.description, lower);
-      default: // 'all'
-        return matchField(p.name, lower)
-            || matchField(p.code, lower)
-            || matchField(p.description, lower);
-    }
-  });
-}
-
-// ─── Service ──────────────────────────────────────────────────────────────────
 
 @Injectable({ providedIn: 'root' })
 export class InvoiceApiService {
@@ -148,7 +190,113 @@ export class InvoiceApiService {
   async listInvoices(limit = 150): Promise<PaginatedResponse<InvoiceRowDto>> {
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return response.json() as Promise<PaginatedResponse<InvoiceRowDto>>;
+
+    const body = await response.json() as any;
+    return this.mapPaginated(body, (item: BackendInvoice) => this.mapBackendInvoice(item));
+  }
+
+  async getInvoiceKpis(): Promise<InvoiceKpisDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices/kpis`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return this.mapInvoiceKpis(await response.json() as Partial<InvoiceKpisDto>);
+  }
+
+  async getInvoice(id: string): Promise<InvoiceRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices/${id}`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return this.mapBackendInvoice(await response.json() as BackendInvoice);
+  }
+
+  async findInvoiceBySale(saleId: string): Promise<InvoiceRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/sales/${saleId}/invoice`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return this.mapBackendInvoice(await response.json() as BackendInvoice);
+  }
+
+  async retryInvoiceForSale(saleId: string): Promise<InvoiceRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/sales/${saleId}/invoice/retry`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return this.mapBackendInvoice(await response.json() as BackendInvoice);
+  }
+
+  async resendInvoiceEmail(id: string, email?: string): Promise<{ success: boolean; invoiceId: string; email: string }> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices/${id}/resend-email`, {
+      method: 'POST',
+      body: JSON.stringify(email ? { email } : {}),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    return response.json() as Promise<{ success: boolean; invoiceId: string; email: string }>;
+  }
+
+  async cancelInvoice(id: string): Promise<{ success: boolean; invoiceId: string }> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices/${id}/cancel`, {
+      method: 'POST',
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    return response.json() as Promise<{ success: boolean; invoiceId: string }>;
+  }
+
+  async fetchInvoicePdf(id: string): Promise<Blob> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices/${id}/pdf`, {
+      headers: { Accept: 'application/pdf' },
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.blob();
+  }
+
+  async listInvoiceSeries(params: { page?: number; limit?: number; branchId?: string; isActive?: boolean } = {}): Promise<PaginatedResponse<InvoiceSeriesRowDto>> {
+    const query = new URLSearchParams({
+      page: String(params.page ?? 1),
+      limit: String(params.limit ?? 20),
+    });
+    if (params.branchId) query.set('branchId', params.branchId);
+    if (params.isActive !== undefined) query.set('isActive', String(params.isActive));
+
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series?${query.toString()}`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return this.mapPaginated(await response.json() as any, (item: InvoiceSeriesRowDto) => item);
+  }
+
+  async createInvoiceSeries(payload: CreateInvoiceSeriesPayload): Promise<InvoiceSeriesRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<InvoiceSeriesRowDto>;
+  }
+
+  async updateInvoiceSeries(id: string, payload: UpdateInvoiceSeriesPayload): Promise<InvoiceSeriesRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<InvoiceSeriesRowDto>;
+  }
+
+  async activateInvoiceSeries(id: string): Promise<InvoiceSeriesRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series/${id}/activate`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<InvoiceSeriesRowDto>;
+  }
+
+  async deactivateInvoiceSeries(id: string): Promise<InvoiceSeriesRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series/${id}/deactivate`, {
+      method: 'PATCH',
+    });
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return response.json() as Promise<InvoiceSeriesRowDto>;
   }
 
   async searchCustomers(q: string, limit = 20): Promise<PaginatedResponse<CustomerRowDto>> {
@@ -156,8 +304,8 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<any>;
-    return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
+    const body = await response.json() as any;
+    return this.mapPaginated(body, (b: BackendCustomer) => this.mapBackendCustomer(b));
   }
 
   async fetchCustomersPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<CustomerRowDto>> {
@@ -165,8 +313,9 @@ export class InvoiceApiService {
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    const body = await response.json() as PaginatedResponse<any>;
-    return { ...body, data: body.data.map((b) => this.mapBackendCustomer(b)) };
+    const body = await response.json() as any;
+    const mapped = this.mapPaginated(body, (b: BackendCustomer) => this.mapBackendCustomer(b));
+    return { ...mapped, data: this.filterCustomers(mapped.data, q, filterField) };
   }
 
   async searchProducts(q: string, limit = 20): Promise<PaginatedResponse<ProductRowDto>> {
@@ -176,10 +325,6 @@ export class InvoiceApiService {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
-    // Safety cap: truncate if backend ignores pagination
-    if (rawItems.length > limit) {
-      console.warn(`[searchProducts] Backend returned ${rawItems.length} items but limit=${limit}. Truncating.`);
-    }
     const capped = rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p));
     return {
       data: capped,
@@ -187,7 +332,7 @@ export class InvoiceApiService {
         total: body.pagination?.total ?? body.total ?? capped.length,
         page: 1,
         limit,
-        totalPages: Math.ceil((body.pagination?.total ?? capped.length) / limit),
+        totalPages: Math.ceil((body.pagination?.total ?? body.total ?? capped.length) / limit),
       },
     };
   }
@@ -199,33 +344,139 @@ export class InvoiceApiService {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
-    // Safety cap: truncate if backend ignores pagination
-    if (rawItems.length > limit) {
-      console.warn(`[fetchProductsPage] Backend returned ${rawItems.length} items but limit=${limit}. Truncating.`);
-    }
-    const capped = rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p));
+    const capped = this.filterProducts(rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p)), q, filterField);
     return {
       data: capped,
       pagination: {
         total: body.pagination?.total ?? body.total ?? capped.length,
         page: body.pagination?.page ?? body.page ?? page,
         limit: body.pagination?.limit ?? body.limit ?? limit,
-        totalPages: body.pagination?.totalPages ?? body.totalPages ?? Math.ceil((body.pagination?.total ?? capped.length) / limit),
+        totalPages: body.pagination?.totalPages ?? body.totalPages ?? Math.ceil((body.pagination?.total ?? body.total ?? capped.length) / limit),
       },
     };
   }
 
   async createInvoice(payload: CreateInvoicePayload): Promise<InvoiceRowDto> {
-    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices`, {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/sales/confirm`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      headers: {
+        'Content-Type': 'application/json',
+        'x-idempotency-key': createIdempotencyKey(),
+      },
+      body: JSON.stringify({
+        customerId: payload.customerId || undefined,
+        details: payload.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      }),
     });
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Unknown error' })) as { message?: string };
       throw new Error(error.message ?? `Request failed: ${response.status}`);
     }
-    return response.json() as Promise<InvoiceRowDto>;
+
+    const result = await response.json() as QuickConfirmSaleResponse;
+    return this.mapBackendInvoice({
+      ...result.invoice,
+      saleId: result.invoice.saleId ?? result.id,
+      saleNumber: result.saleNumber,
+      pdfUrl: result.invoice.pdfUrl,
+    });
+  }
+
+  async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
+      throw new Error(error.message ?? `Request failed: ${response.status}`);
+    }
+    const backend = await response.json() as BackendCustomer;
+    return this.mapBackendCustomer(backend);
+  }
+
+  invoicePdfUrl(id: string): string {
+    return `${API_BASE_URL}/invoices/${id}/pdf`;
+  }
+
+  private mapPaginated<TInput, TOutput>(body: any, mapper: (item: TInput) => TOutput): PaginatedResponse<TOutput> {
+    const rawData = Array.isArray(body?.data) ? body.data : [];
+    const page = Number(body?.pagination?.page ?? body?.page ?? 1);
+    const limit = Number(body?.pagination?.limit ?? body?.limit ?? (rawData.length || 1));
+    const total = Number(body?.pagination?.total ?? body?.total ?? rawData.length);
+
+    return {
+      data: rawData.map((item: TInput) => mapper(item)),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Number(body?.pagination?.totalPages ?? body?.totalPages ?? Math.max(1, Math.ceil(total / Math.max(1, limit)))),
+      },
+    };
+  }
+
+  private mapBackendInvoice(invoice: BackendInvoice): InvoiceRowDto {
+    const subtotal = Number(invoice.subtotal ?? 0);
+    const iva = Number(invoice.iva ?? 0);
+    const total = Number(invoice.total ?? subtotal + iva);
+    const issueDate = invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt ?? new Date().toISOString();
+    const invoiceDate = typeof issueDate === 'string' ? issueDate : issueDate.toISOString();
+
+    return {
+      id: invoice.id,
+      saleId: invoice.saleId,
+      seriesId: invoice.seriesId,
+      invoiceNumber: invoice.invoiceNumber,
+      authorizationNumber: invoice.authorizationNumber,
+      invoiceDate,
+      issueDate: invoiceDate,
+      status: invoice.status,
+      cancelledAt: invoice.cancelledAt ? String(invoice.cancelledAt) : null,
+      createdAt: invoice.createdAt ? String(invoice.createdAt) : undefined,
+      subtotal,
+      iva,
+      total,
+      saleNumber: invoice.saleNumber,
+      customerId: invoice.customerId,
+      customerName: invoice.customerName,
+      customerCedula: invoice.customerCedula,
+      pdfUrl: invoice.pdfUrl ?? `/invoices/${invoice.id}/pdf`,
+      items: invoice.items?.map((item) => this.mapBackendInvoiceItem(item)),
+    };
+  }
+
+  private mapBackendInvoiceItem(item: BackendInvoiceItem): InvoiceItemRowDto {
+    const subtotal = Number(item.subtotal ?? Number(item.unitPrice) * Number(item.quantity));
+    const taxAmount = Number(item.taxAmount ?? 0);
+    return {
+      id: item.id,
+      productId: item.productId,
+      productName: item.productName,
+      productCode: item.productCode,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      subtotal,
+      taxRateId: item.taxRateId,
+      taxPercentage: Number(item.taxPercentage ?? 0),
+      taxAmount,
+      total: Number(item.total ?? subtotal + taxAmount),
+    };
+  }
+
+  private mapInvoiceKpis(kpis: Partial<InvoiceKpisDto>): InvoiceKpisDto {
+    return {
+      totalInvoiced: Number(kpis.totalInvoiced ?? 0),
+      issuedCount: Number(kpis.issuedCount ?? 0),
+      cancelledTotal: Number(kpis.cancelledTotal ?? 0),
+      cancelledCount: Number(kpis.cancelledCount ?? 0),
+      last30DaysTotal: Number(kpis.last30DaysTotal ?? 0),
+      last30DaysCount: Number(kpis.last30DaysCount ?? 0),
+    };
   }
 
   private mapBackendCustomer(b: BackendCustomer): CustomerRowDto {
@@ -252,24 +503,37 @@ export class InvoiceApiService {
     };
   }
 
-  // ── Customers (kept for new-customer-modal — other 3 methods migrated to use-cases) ─
-
-  async createCustomer(payload: CreateCustomerPayload): Promise<CustomerRowDto> {
-    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+  private filterCustomers(items: CustomerRowDto[], q: string, field: string): CustomerRowDto[] {
+    if (!q.trim()) return items;
+    const lower = q.toLowerCase();
+    return items.filter((c) => {
+      switch (field) {
+        case 'name': return matchField(c.name, lower);
+        case 'lastName': return matchField(c.lastName, lower);
+        case 'cedula': return matchField(c.cedula, lower);
+        case 'email': return matchField(c.email, lower);
+        default:
+          return matchField(c.name, lower)
+            || matchField(c.lastName, lower)
+            || matchField(c.cedula, lower)
+            || matchField(c.email, lower);
+      }
     });
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Request failed' })) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
-    const backend = await response.json() as BackendCustomer;
-    return this.mapBackendCustomer(backend);
   }
 
-  invoicePdfUrl(id: string): string {
-    if (USE_MOCK) return '#';
-    return `${API_BASE_URL}/invoices/${id}/pdf`;
+  private filterProducts(items: ProductRowDto[], q: string, field: string): ProductRowDto[] {
+    if (!q.trim()) return items;
+    const lower = q.toLowerCase();
+    return items.filter((p) => {
+      switch (field) {
+        case 'name': return matchField(p.name, lower);
+        case 'code': return matchField(p.code, lower);
+        case 'description': return matchField(p.description, lower);
+        default:
+          return matchField(p.name, lower)
+            || matchField(p.code, lower)
+            || matchField(p.description, lower);
+      }
+    });
   }
 }

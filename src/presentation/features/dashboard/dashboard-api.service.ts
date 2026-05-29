@@ -1,7 +1,7 @@
-import { Injectable, inject } from '@angular/core';
+﻿import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../shared/services/auth-http.service';
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = import.meta.env.PUBLIC_API_URL || import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:3000';
 
 export interface DashboardStatsDto {
   totalClientes: number;
@@ -61,8 +61,18 @@ export class DashboardApiService {
     return this.request<DashboardStatsDto>('/dashboard/estadisticas');
   }
 
-  listInvoices(limit = 6): Promise<PaginatedResponse<InvoiceRowDto>> {
-    return this.request<PaginatedResponse<InvoiceRowDto>>(`/invoices?page=1&limit=${limit}`);
+  async listInvoices(limit = 6): Promise<PaginatedResponse<InvoiceRowDto>> {
+    const res = await this.request<PaginatedResponse<any>>(`/invoices?page=1&limit=${limit}`);
+    return {
+      ...res,
+      data: res.data.map((invoice) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceDate: invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt,
+        customerName: invoice.customerName,
+        total: Number(invoice.total ?? 0),
+      })),
+    };
   }
 
   async listProducts(limit = 6): Promise<PaginatedResponse<ProductRowDto>> {
