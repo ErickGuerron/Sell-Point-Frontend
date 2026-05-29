@@ -24,7 +24,12 @@ FROM nginx:1.27-alpine AS production
 
 RUN rm /etc/nginx/conf.d/default.conf
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copiar el template de nginx (con variables sin substituir)
+COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
+
+# Copiar el entrypoint que substituye variables
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # chown only the files we actually need
 COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
@@ -34,4 +39,4 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
