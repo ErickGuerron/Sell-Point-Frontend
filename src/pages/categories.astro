@@ -1,15 +1,12 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { CategoriesPageComponent } from '../presentation/features/categories/categories-page.component';
-import { loadCategoriesInitialData } from '../presentation/shared/ssr-page-data';
-
-const initialData = await loadCategoriesInitialData(Astro);
 ---
 
 <MainLayout title="BillFlow - Category Management" lang="en">
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <CategoriesPageComponent client:load initialData={initialData} />
+      <CategoriesPageComponent client:load />
     </div>
   </div>
 </MainLayout>

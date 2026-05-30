@@ -254,351 +254,379 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
             </div>
           </header>
 
-          <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
-            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().historyTitle }}</h1>
-                <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().historyDescription }}</p>
-              </div>
-              <div class="flex items-center gap-2 text-sm text-on-surface-variant">
-                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredInvoices().length }} {{ copy().resultsLabel }}</span>
-                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
-              </div>
-            </section>
-
-            <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
-              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
-                <div class="mb-4 flex items-start justify-between">
-                  <div>
-                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().totalOutstandingLabel }}</p>
-                    <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(outstandingTotal()) }}</h2>
-                  </div>
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <span class="material-symbols-outlined">account_balance_wallet</span>
-                  </div>
+<main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
+            @defer (on timer(200ms)) {
+              <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().historyTitle }}</h1>
+                  <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().historyDescription }}</p>
                 </div>
-                <p class="text-sm text-on-surface-variant">{{ outstandingCount() }} {{ copy().openInvoicesText }}</p>
-              </article>
-
-              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
-                <div class="mb-4 flex items-start justify-between">
-                  <div>
-                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().overdueAmountsLabel }}</p>
-                    <h2 class="mt-2 text-4xl font-extrabold text-error">{{ formatMoney(overdueTotal()) }}</h2>
-                  </div>
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
-                    <span class="material-symbols-outlined">warning</span>
-                  </div>
+                <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+                  <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ filteredInvoices().length }} {{ copy().resultsLabel }}</span>
+                  <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
                 </div>
-                <p class="text-sm font-medium text-error">{{ overdueCount() }} {{ copy().overdueText }}</p>
-              </article>
+              </section>
 
-              <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
-                <div class="mb-4 flex items-start justify-between">
-                  <div>
-                    <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().paid30Label }}</p>
-                    <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(paidLast30Days()) }}</h2>
+              <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
+                <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
+                  <div class="mb-4 flex items-start justify-between">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().totalOutstandingLabel }}</p>
+                      <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(outstandingTotal()) }}</h2>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <span class="material-symbols-outlined">account_balance_wallet</span>
+                    </div>
                   </div>
-                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10 text-secondary">
-                    <span class="material-symbols-outlined">task_alt</span>
+                  <p class="text-sm text-on-surface-variant">{{ outstandingCount() }} {{ copy().openInvoicesText }}</p>
+                </article>
+
+                <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
+                  <div class="mb-4 flex items-start justify-between">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().overdueAmountsLabel }}</p>
+                      <h2 class="mt-2 text-4xl font-extrabold text-error">{{ formatMoney(overdueTotal()) }}</h2>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-error/10 text-error">
+                      <span class="material-symbols-outlined">warning</span>
+                    </div>
                   </div>
-                </div>
-                <p class="text-sm text-secondary">{{ paidCount30Days() }} {{ copy().paidText }}</p>
-              </article>
-            </section>
+                  <p class="text-sm font-medium text-error">{{ overdueCount() }} {{ copy().overdueText }}</p>
+                </article>
 
-            <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-              <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div class="flex flex-wrap items-center gap-3">
-                  <billflow-combobox
-                    [options]="statusFilterOptions()"
-                    [value]="statusFilter()"
-                    placeholder="{{ copy().allStatuses }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-                    [compact]="true"
-                    (valueChange)="setStatusFilter($event)"
-                  ></billflow-combobox>
-
-                  <billflow-combobox
-                    [options]="rangeFilterOptions()"
-                    [value]="rangeFilter()"
-                    placeholder="{{ copy().allTime }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar período...' : 'Search period...' }}"
-                    [compact]="true"
-                    (valueChange)="setRangeFilter($event)"
-                  ></billflow-combobox>
-
-                  <button
-                    type="button"
-                    [title]="copy().refresh"
-                    class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
-                    (click)="void reloadInvoices()"
-                  >
-                    <span
-                      class="material-symbols-outlined text-[20px] transition-transform"
-                      [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
-                    >refresh</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-                    (click)="startNewInvoice()"
-                  >
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                    {{ copy().emitInvoice }}
-                  </button>
-                </div>
-
-                <div class="flex items-center gap-3 w-full lg:w-auto">
-                  <!-- Filter combobox -->
-                  <billflow-combobox
-                    [options]="filterFieldOptions()"
-                    [value]="invoiceFilterField()"
-                    placeholder="{{ copy().filterAll }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-                    [compact]="true"
-                    (valueChange)="setInvoiceFilterField($event)"
-                  ></billflow-combobox>
-
-                  <div class="relative flex-1 lg:w-72">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-                    <input
-                      class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
-                      [placeholder]="copy().searchPlaceholder"
-                      [value]="searchQuery()"
-                      (input)="setSearchQuery(($any($event.target).value))"
-                    />
+                <article class="dashboard-glass-card group rounded-2xl p-7 relative overflow-hidden">
+                  <div class="mb-4 flex items-start justify-between">
+                    <div>
+                      <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-on-surface-variant">{{ copy().paid30Label }}</p>
+                      <h2 class="mt-2 text-4xl font-extrabold text-on-background">{{ formatMoney(paidLast30Days()) }}</h2>
+                    </div>
+                    <div class="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/10 text-secondary">
+                      <span class="material-symbols-outlined">task_alt</span>
+                    </div>
                   </div>
+                  <p class="text-sm text-secondary">{{ paidCount30Days() }} {{ copy().paidText }}</p>
+                </article>
+              </section>
+            } @placeholder {
+              <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <div class="h-8 w-48 rounded bg-surface-container-high animate-pulse"></div>
+                  <div class="h-4 w-64 rounded bg-surface-container-high mt-2 animate-pulse"></div>
                 </div>
-              </div>
-
-              <div class="overflow-x-auto">
-                <table class="w-full border-collapse text-left">
-                  <thead>
-                    <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().invoiceNumber }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().customer }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().dateIssued }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().amount }}</th>
-                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
-                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
-                    </tr>
-                  </thead>
-
-                  <tbody class="font-body-sm text-body-sm">
-                    <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
-                      <td class="p-4 pl-7 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
-                      <td class="p-4 text-on-surface-variant font-medium">
-                        <div class="font-semibold text-on-background">{{ invoice.customerName || (locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer') }}</div>
-                        <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
-                      </td>
-                      <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.invoiceDate) }}</td>
-                      <td class="p-4 font-semibold text-on-surface">{{ formatMoney(invoice.total) }}</td>
-                      <td class="p-4">
-                        <span [ngClass]="statusClass(invoice.status)" class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide">
-                          <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoice.status)"></span>
-                           {{ invoice.statusLabel }}
-                        </span>
-                      </td>
-                      <td class="p-4 pr-7 text-right">
-                        <button
-                          type="button"
-                          class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
-                          (click)="$event.stopPropagation(); openInvoicePreview(invoice)"
-                        >
-                          <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
-                          PDF
-                        </button>
-                        <button
-                          *ngIf="invoice.status === 'issued'"
-                          type="button"
-                          class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-error hover:text-error ml-2"
-                          (click)="$event.stopPropagation(); cancelInvoice(invoice)"
-                        >
-                          <span class="material-symbols-outlined text-[16px]">cancel</span>
-                          {{ copy().cancelInvoice }}
-                        </button>
-                      </td>
-                    </tr>
-
-                    <tr *ngIf="paginatedInvoices().length === 0">
-                      <td colspan="6" class="p-8">
-                        <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                          <span class="material-symbols-outlined dashboard-table-card__empty-icon">receipt_long</span>
-                          <p class="dashboard-table-card__empty-title">{{ copy().noInvoicesTitle }}</p>
-                          <p class="dashboard-table-card__empty-text">{{ copy().noInvoicesText }}</p>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
-                <div class="flex items-center gap-3 text-sm text-on-surface-variant">
-                  <span>
-                    {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
-                  </span>
-                  <!-- Page size selector -->
-                  <select
-                    class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
-                    [value]="pageSize()"
-                    (change)="onPageSizeChange($event)"
-                  >
-                    <option [value]="5">5</option>
-                    <option [value]="10">10</option>
-                    <option [value]="15">15</option>
-                    <option [value]="20">20</option>
-                    <option [value]="30">30</option>
-                  </select>
-                </div>
-
                 <div class="flex items-center gap-2">
-                  <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
-                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-                  </button>
-
-                  <button *ngFor="let pageNumber of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
-                    {{ pageNumber }}
-                  </button>
-
-                  <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === totalPages()" (click)="nextPage()">
-                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                  </button>
+                  <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
                 </div>
-              </div>
-            </section>
-          </main>
+              </section>
+              <section class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
+                @for (i of [1,2,3]; track i) {
+                  <div class="dashboard-glass-card p-7 rounded-2xl border border-outline-variant/40 animate-pulse">
+                    <div class="mb-4 flex items-start justify-between">
+                      <div class="space-y-2">
+                        <div class="h-3 w-32 rounded bg-surface-container-high"></div>
+                        <div class="h-8 w-24 rounded bg-surface-container-high"></div>
+                      </div>
+                      <div class="h-10 w-10 rounded-full bg-surface-container-high"></div>
+                    </div>
+                    <div class="h-4 w-28 rounded bg-surface-container-high"></div>
+                  </div>
+                }
+              </section>
+            }
 
-          <!-- ── Invoice Preview Modal ── -->
-          <billflow-modal-shell
-            *ngIf="invoicePreview()"
-            title="{{ invoicePreview()?.invoiceNumber ?? '' }}"
-            [subtitle]="copy().invoicePreview"
-            icon="receipt_long"
-            maxWidth="lg"
-            [hasFooter]="true"
-            (close)="closeInvoicePreview()"
-          >
-            <div class="p-6 space-y-6">
-              <!-- Invoice Header Banner -->
-              <div class="flex items-center justify-between bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/10">
-                <div class="flex items-center gap-2.5">
-                  <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
-                  <div>
-                    <h4 class="font-bold text-lg text-on-surface leading-tight">BillFlow Inc.</h4>
-                    <p class="text-xs text-on-surface-variant">{{ locale() === 'es' ? 'Comprobante Electrónico' : 'Electronic Invoice' }}</p>
+            @defer (on idle) {
+              <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+                <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div class="flex flex-wrap items-center gap-3">
+                    <billflow-combobox
+                      [options]="statusFilterOptions()"
+                      [value]="statusFilter()"
+                      placeholder="{{ copy().allStatuses }}"
+                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+                      [compact]="true"
+                      (valueChange)="setStatusFilter($event)"
+                    ></billflow-combobox>
+
+                    <billflow-combobox
+                      [options]="rangeFilterOptions()"
+                      [value]="rangeFilter()"
+                      placeholder="{{ copy().allTime }}"
+                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar período...' : 'Search period...' }}"
+                      [compact]="true"
+                      (valueChange)="setRangeFilter($event)"
+                    ></billflow-combobox>
+
+                    <button
+                      type="button"
+                      [title]="copy().refresh"
+                      class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
+                      (click)="void reloadInvoices()"
+                    >
+                      <span
+                        class="material-symbols-outlined text-[20px] transition-transform"
+                        [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                      >refresh</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                      (click)="startNewInvoice()"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">add</span>
+                      {{ copy().emitInvoice }}
+                    </button>
+                  </div>
+
+                  <div class="flex items-center gap-3 w-full lg:w-auto">
+                    <billflow-combobox
+                      [options]="filterFieldOptions()"
+                      [value]="invoiceFilterField()"
+                      placeholder="{{ copy().filterAll }}"
+                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                      [compact]="true"
+                      (valueChange)="setInvoiceFilterField($event)"
+                    ></billflow-combobox>
+
+                    <div class="relative flex-1 lg:w-72">
+                      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
+                      <input
+                        class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                        [placeholder]="copy().searchPlaceholder"
+                        [value]="searchQuery()"
+                        (input)="setSearchQuery(($any($event.target).value))"
+                      />
+                    </div>
                   </div>
                 </div>
-                <div class="text-right">
-                  <span
-                    [ngClass]="statusClass(invoicePreview()?.status ?? 'issued')"
-                    class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
-                  >
-                    <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'issued')"></span>
-                    {{ invoicePreview()?.statusLabel ?? '' }}
-                  </span>
-                </div>
-              </div>
 
-              <!-- Customer & date row -->
-              <div class="grid grid-cols-2 gap-4">
-                <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
-                  <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
-                  <p class="text-sm font-bold text-on-surface leading-tight">{{ invoicePreview()?.customerName ?? '—' }}</p>
-                  <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ locale() === 'es' ? 'Cédula:' : 'ID:' }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
-                </div>
-                <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
-                  <div>
-                    <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().dateIssued }}</p>
-                    <p class="text-sm font-bold text-on-surface">{{ formatDate(invoicePreview()?.invoiceDate ?? '') }}</p>
-                  </div>
-                  <p class="text-xs text-on-surface-variant font-mono mt-1">Ref: {{ invoicePreview()?.id }}</p>
-                </div>
-              </div>
-
-              <!-- Product lines Table -->
-              <div class="space-y-2">
-                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
-                  {{ locale() === 'es' ? 'Productos Comprados' : 'Purchased Products' }}
-                </p>
-                <div class="overflow-x-auto rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
-                  <table class="w-full text-left border-collapse text-xs">
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-left">
                     <thead>
-                      <tr class="bg-surface-container-low border-b border-outline-variant/40 font-bold text-[10px] uppercase tracking-wider text-on-surface-variant">
-                        <th class="py-2.5 px-4">{{ copy().colProduct }}</th>
-                        <th class="py-2.5 px-3 text-right">{{ copy().colQty }}</th>
-                        <th class="py-2.5 px-3 text-right">{{ copy().colUnitPrice }}</th>
-                        <th class="py-2.5 px-4 text-right">{{ copy().colTotal }}</th>
+                      <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                        <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().invoiceNumber }}</th>
+                        <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().customer }}</th>
+                        <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().dateIssued }}</th>
+                        <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().amount }}</th>
+                        <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
+                        <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      <tr *ngFor="let item of invoicePreview()?.items" class="border-b border-outline-variant/20 last:border-0 hover:bg-primary/5 transition-colors">
-                        <td class="py-2.5 px-4">
-                          <p class="font-bold text-on-background leading-tight">{{ item.productName || (locale() === 'es' ? 'Producto sin nombre' : 'Unknown Product') }}</p>
-                          <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{{ item.productCode || item.productId }}</p>
+
+                    <tbody class="font-body-sm text-body-sm">
+                      <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
+                        <td class="p-4 pl-7 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
+                        <td class="p-4 text-on-surface-variant font-medium">
+                          <div class="font-semibold text-on-background">{{ invoice.customerName || (locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer') }}</div>
+                          <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
                         </td>
-                        <td class="py-2.5 px-3 text-right font-semibold text-on-surface-variant">{{ item.quantity }}</td>
-                        <td class="py-2.5 px-3 text-right text-on-surface-variant">{{ formatMoney(item.unitPrice) }}</td>
-                        <td class="py-2.5 px-4 text-right font-bold text-on-surface">{{ formatMoney(item.unitPrice * item.quantity) }}</td>
+                        <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.invoiceDate) }}</td>
+                        <td class="p-4 font-semibold text-on-surface">{{ formatMoney(invoice.total) }}</td>
+                        <td class="p-4">
+                          <span [ngClass]="statusClass(invoice.status)" class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide">
+                            <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoice.status)"></span>
+                            {{ invoice.statusLabel }}
+                          </span>
+                        </td>
+                        <td class="p-4 pr-7 text-right">
+                          <button
+                            type="button"
+                            class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-primary hover:text-primary"
+                            (click)="$event.stopPropagation(); openInvoicePreview(invoice)"
+                          >
+                            <span class="material-symbols-outlined text-[16px]">picture_as_pdf</span>
+                            PDF
+                          </button>
+                          <button
+                            *ngIf="invoice.status === 'issued'"
+                            type="button"
+                            class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-error hover:text-error ml-2"
+                            (click)="$event.stopPropagation(); cancelInvoice(invoice)"
+                          >
+                            <span class="material-symbols-outlined text-[16px]">cancel</span>
+                            {{ copy().cancelInvoice }}
+                          </button>
+                        </td>
                       </tr>
-                      <tr *ngIf="!invoicePreview()?.items || invoicePreview()?.items?.length === 0">
-                        <td colspan="4" class="py-6 text-center text-on-surface-variant font-medium">
-                          {{ locale() === 'es' ? 'No hay productos registrados en esta factura.' : 'No products registered in this invoice.' }}
+
+                      <tr *ngIf="paginatedInvoices().length === 0">
+                        <td colspan="6" class="p-8">
+                          <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
+                            <span class="material-symbols-outlined dashboard-table-card__empty-icon">receipt_long</span>
+                            <p class="dashboard-table-card__empty-title">{{ copy().noInvoicesTitle }}</p>
+                            <p class="dashboard-table-card__empty-text">{{ copy().noInvoicesText }}</p>
+                          </div>
                         </td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
+
+                <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
+                  <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+                    <span>
+                      {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
+                    </span>
+                    <select
+                      class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
+                      [value]="pageSize()"
+                      (change)="onPageSizeChange($event)"
+                    >
+                      <option [value]="5">5</option>
+                      <option [value]="10">10</option>
+                      <option [value]="15">15</option>
+                      <option [value]="20">20</option>
+                      <option [value]="30">30</option>
+                    </select>
+                  </div>
+
+                  <div class="flex items-center gap-2">
+                    <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
+                      <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                    </button>
+
+                    <button *ngFor="let pageNumber of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
+                      {{ pageNumber }}
+                    </button>
+
+                    <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === totalPages()" (click)="nextPage()">
+                      <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+            } @placeholder {
+              <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+                <div class="p-6 md:p-7 border-b border-outline-variant/30 flex items-center gap-3">
+                  <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+                  <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+                  <div class="h-9 w-24 rounded-lg bg-surface-container-high ml-auto"></div>
+                </div>
+                <div class="p-8 flex items-center justify-center">
+                  <div class="flex items-center gap-3 text-on-surface-variant">
+                    <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    <span>{{ locale() === 'es' ? 'Cargando facturas...' : 'Loading invoices...' }}</span>
+                  </div>
+                </div>
+              </div>
+            }
+          </main>
+
+@defer (on interaction) {
+            <billflow-modal-shell
+              *ngIf="invoicePreview()"
+              title="{{ invoicePreview()?.invoiceNumber ?? '' }}"
+              [subtitle]="copy().invoicePreview"
+              icon="receipt_long"
+              maxWidth="lg"
+              [hasFooter]="true"
+              (close)="closeInvoicePreview()"
+            >
+              <div class="p-6 space-y-6">
+                <!-- Invoice Header Banner -->
+                <div class="flex items-center justify-between bg-gradient-to-r from-primary/10 to-secondary/10 rounded-2xl p-4 border border-primary/10">
+                  <div class="flex items-center gap-2.5">
+                    <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
+                    <div>
+                      <h4 class="font-bold text-lg text-on-surface leading-tight">BillFlow Inc.</h4>
+                      <p class="text-xs text-on-surface-variant">{{ locale() === 'es' ? 'Comprobante Electrónico' : 'Electronic Invoice' }}</p>
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <span
+                      [ngClass]="statusClass(invoicePreview()?.status ?? 'issued')"
+                      class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-bold tracking-wide"
+                    >
+                      <span class="h-1.5 w-1.5 rounded-full" [ngClass]="statusDotClass(invoicePreview()?.status ?? 'issued')"></span>
+                      {{ invoicePreview()?.statusLabel ?? '' }}
+                    </span>
+                  </div>
+                </div>
+
+                <!-- Customer & date row -->
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
+                    <p class="text-sm font-bold text-on-surface leading-tight">{{ invoicePreview()?.customerName ?? '—' }}</p>
+                    <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ locale() === 'es' ? 'Cédula:' : 'ID:' }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
+                  </div>
+                  <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
+                    <div>
+                      <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().dateIssued }}</p>
+                      <p class="text-sm font-bold text-on-surface">{{ formatDate(invoicePreview()?.invoiceDate ?? '') }}</p>
+                    </div>
+                    <p class="text-xs text-on-surface-variant font-mono mt-1">Ref: {{ invoicePreview()?.id }}</p>
+                  </div>
+                </div>
+
+                <!-- Product lines Table -->
+                <div class="space-y-2">
+                  <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
+                    {{ locale() === 'es' ? 'Productos Comprados' : 'Purchased Products' }}
+                  </p>
+                  <div class="overflow-x-auto rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
+                    <table class="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr class="bg-surface-container-low border-b border-outline-variant/40 font-bold text-[10px] uppercase tracking-wider text-on-surface-variant">
+                          <th class="py-2.5 px-4">{{ copy().colProduct }}</th>
+                          <th class="py-2.5 px-3 text-right">{{ copy().colQty }}</th>
+                          <th class="py-2.5 px-3 text-right">{{ copy().colUnitPrice }}</th>
+                          <th class="py-2.5 px-4 text-right">{{ copy().colTotal }}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let item of invoicePreview()?.items" class="border-b border-outline-variant/20 last:border-0 hover:bg-primary/5 transition-colors">
+                          <td class="py-2.5 px-4">
+                            <p class="font-bold text-on-background leading-tight">{{ item.productName || (locale() === 'es' ? 'Producto sin nombre' : 'Unknown Product') }}</p>
+                            <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{{ item.productCode || item.productId }}</p>
+                          </td>
+                          <td class="py-2.5 px-3 text-right font-semibold text-on-surface-variant">{{ item.quantity }}</td>
+                          <td class="py-2.5 px-3 text-right text-on-surface-variant">{{ formatMoney(item.unitPrice) }}</td>
+                          <td class="py-2.5 px-4 text-right font-bold text-on-surface">{{ formatMoney(item.unitPrice * item.quantity) }}</td>
+                        </tr>
+                        <tr *ngIf="!invoicePreview()?.items || invoicePreview()?.items?.length === 0">
+                          <td colspan="4" class="py-6 text-center text-on-surface-variant font-medium">
+                            {{ locale() === 'es' ? 'No hay productos registrados en esta factura.' : 'No products registered in this invoice.' }}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <!-- Amount breakdown -->
+                <div class="bg-surface-container-low/40 rounded-2xl p-4 border border-outline-variant/30 space-y-3">
+                  <div class="flex items-center justify-between text-xs text-on-surface-variant">
+                    <span>{{ copy().subtotal }}</span>
+                    <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.subtotal ?? 0) }}</span>
+                  </div>
+                  <div class="flex items-center justify-between text-xs text-on-surface-variant">
+                    <span>{{ copy().iva }}</span>
+                    <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.iva ?? 0) }}</span>
+                  </div>
+                  <hr class="border-outline-variant/30" />
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-on-surface">{{ copy().amount }}</span>
+                    <span class="text-lg font-black text-primary">{{ formatMoney(invoicePreview()?.total ?? 0) }}</span>
+                  </div>
+                </div>
               </div>
 
-              <!-- Amount breakdown -->
-              <div class="bg-surface-container-low/40 rounded-2xl p-4 border border-outline-variant/30 space-y-3">
-                <div class="flex items-center justify-between text-xs text-on-surface-variant">
-                  <span>{{ copy().subtotal }}</span>
-                  <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.subtotal ?? 0) }}</span>
-                </div>
-                <div class="flex items-center justify-between text-xs text-on-surface-variant">
-                  <span>{{ copy().iva }}</span>
-                  <span class="font-semibold text-on-surface">{{ formatMoney(invoicePreview()?.iva ?? 0) }}</span>
-                </div>
-                <hr class="border-outline-variant/30" />
-                <div class="flex items-center justify-between">
-                  <span class="text-sm font-bold text-on-surface">{{ copy().amount }}</span>
-                  <span class="text-lg font-black text-primary">{{ formatMoney(invoicePreview()?.total ?? 0) }}</span>
-                </div>
+              <div footer class="flex w-full items-center justify-end gap-3">
+                <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeInvoicePreview()">{{ copy().close }}</button>
+                <div class="flex-1"></div>
+                <button type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="resendInvoiceEmail(invoicePreview()?.id ?? '')">
+                  <span class="material-symbols-outlined text-[16px]">mail</span>
+                  {{ copy().resendEmail }}
+                </button>
+                <button type="button" class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm" (click)="downloadInvoicePdf(invoicePreview()?.id ?? '')">
+                  <span class="material-symbols-outlined text-[18px]">print</span>
+                  {{ copy().downloadPdf }}
+                </button>
               </div>
-            </div>
-
-            <div footer class="flex w-full items-center justify-end gap-3">
-              <button
-                type="button"
-                class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-                (click)="closeInvoicePreview()"
-              >
-                {{ copy().close }}
-              </button>
-              <div class="flex-1"></div>
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-                (click)="resendInvoiceEmail(invoicePreview()?.id ?? '')"
-              >
-                <span class="material-symbols-outlined text-[16px]">mail</span>
-                {{ copy().resendEmail }}
-              </button>
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 px-5 py-2 rounded-xl text-sm font-bold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm"
-                (click)="downloadInvoicePdf(invoicePreview()?.id ?? '')"
-              >
-                <span class="material-symbols-outlined text-[18px]">print</span>
-                {{ copy().downloadPdf }}
-              </button>
-            </div>
-          </billflow-modal-shell>
-          <!-- ── /Invoice Preview Modal ── -->
+            </billflow-modal-shell>
+          } @placeholder {
+            <!-- Invoice preview deferred until interaction -->
+          }
 
           <nav class="md:hidden app-dashboard-mobile-nav">
             <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">

@@ -329,13 +329,11 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       const session = await response.json();
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
       writeBillflowSessionCookie(session);
-      await this.session.hydrateUserProfile();
+      void this.session.hydrateUserProfile();
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
-      window.setTimeout(() => {
-        window.location.replace('/dashboard');
-      }, 180);
+      window.location.replace('/dashboard');
     } catch {
       const message = this.copy().feedback.googleNetworkError;
       this.loginStatusTone.set('error');
@@ -395,13 +393,11 @@ export class AuthPageComponent implements OnInit, OnDestroy {
       const session = await response.json();
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
       writeBillflowSessionCookie(session);
-      await this.session.hydrateUserProfile();
+      void this.session.hydrateUserProfile();
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
-      window.setTimeout(() => {
-        window.location.replace('/dashboard');
-      }, 180);
+      window.location.replace('/dashboard');
     } catch {
       this.loginStatusTone.set('error');
       this.loginStatusMessage.set(this.copy().feedback.invalid);

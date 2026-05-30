@@ -1,19 +1,17 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
-import type { ChartData, ChartOptions, ChartType } from 'chart.js';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { LocaleService } from '../../shared/services/locale.service';
 import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import type { DashboardInitialData } from '../../shared/ssr-page-data';
-
-type Period = 'week' | 'month';
+import { DashboardRevenueChartComponent } from './dashboard-revenue-chart.component';
 
 interface DashboardInvoice {
   id: string;
@@ -248,19 +246,10 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
   },
 };
 
-function detectDashboardLocale(): DashboardLocale {
-  if (typeof window === 'undefined') return 'es';
-  const stored = window.localStorage.getItem('billflow-lang');
-  if (stored === 'es' || stored === 'en') return stored;
-  const browser = (window.navigator.language || window.navigator.languages?.[0] || 'es').toLowerCase();
-  return browser.startsWith('en') ? 'en' : 'es';
-}
-
 @Component({
   selector: 'billflow-dashboard-page',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
-  providers: [provideCharts(withDefaultRegisterables())],
+  imports: [CommonModule, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, DashboardRevenueChartComponent],
   host: { class: 'block w-full' },
   template: `
     <div class="app-dashboard-shell">
@@ -359,33 +348,28 @@ function detectDashboardLocale(): DashboardLocale {
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
           <div class="lg:col-span-2 space-y-8">
-            <div class="dashboard-glass-card rounded-2xl p-7">
-              <div class="flex justify-between items-center mb-8 gap-4">
-                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
-                <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="period()" (change)="setPeriod(($any($event.target).value))">
-                  <option value="week">{{ copy().weekLabel }}</option>
-                  <option value="month">{{ copy().monthLabel }}</option>
-                </select>
-              </div>
-
-              @if (chartReady()) {
-                <div class="app-dashboard-chart-wrap relative h-72 md:h-80">
-                  <canvas
-                    baseChart
-                    [type]="revenueChartType"
-                    [data]="revenueChartData()"
-                    [options]="revenueChartOptions()"
-                  ></canvas>
+            @defer (on idle) {
+              <billflow-dashboard-revenue-chart
+                [invoices]="chartInvoices()"
+                [locale]="locale()"
+                [revenueTitle]="copy().revenueTitle"
+                [weekLabel]="copy().weekLabel"
+                [monthLabel]="copy().monthLabel"
+              ></billflow-dashboard-revenue-chart>
+            } @placeholder {
+              <div class="dashboard-glass-card rounded-2xl p-7">
+                <div class="flex justify-between items-center mb-8 gap-4">
+                  <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
+                  <div class="h-9 w-36 rounded-lg border border-outline-variant/60 bg-surface-container-lowest/80"></div>
                 </div>
-              } @else {
                 <div class="app-dashboard-chart-wrap relative h-72 md:h-80 flex items-center justify-center rounded-2xl border border-outline-variant/30 bg-surface-container-low/30">
                   <div class="flex items-center gap-3 text-on-surface-variant">
                     <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                     <span>{{ locale() === 'es' ? 'Cargando gráfico...' : 'Loading chart...' }}</span>
                   </div>
                 </div>
-              }
-            </div>
+              </div>
+            }
 
             <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
               <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
@@ -509,17 +493,17 @@ export class DashboardPageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
+  private readonly localeService = inject(LocaleService);
 
-  locale = signal<DashboardLocale>(detectDashboardLocale());
+  locale = this.localeService.locale;
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
   tabletSidebarOpen = signal(false);
-  chartReady = signal(false);
   loading = signal(false);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
+  chartInvoices = signal<DashboardInvoice[]>([]);
   products = signal<DashboardProduct[]>([]);
   customers = signal<DashboardCustomer[]>([]);
-  period = signal<Period>('week');
   searchQuery = signal('');
   private hasInitialData = false;
 
@@ -528,6 +512,7 @@ export class DashboardPageComponent implements OnInit {
     this.hasInitialData = true;
     this.stats.set(value.stats);
     this.invoices.set(value.invoices);
+    this.chartInvoices.set(value.invoices);
     this.products.set(value.products);
     this.customers.set(value.customers);
     this.loading.set(false);
@@ -572,12 +557,6 @@ export class DashboardPageComponent implements OnInit {
     ];
   });
 
-  readonly revenueChartType: ChartType = 'bar';
-
-  readonly revenueChartData = computed<ChartData<'bar'>>(() => this.buildRevenueChartData());
-
-  readonly revenueChartOptions = computed<ChartOptions<'bar'>>(() => this.buildRevenueChartOptions());
-
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const invoices = this.invoices();
@@ -609,12 +588,6 @@ export class DashboardPageComponent implements OnInit {
     this.session.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
-    if (typeof window !== 'undefined') {
-      const schedule = 'requestIdleCallback' in window
-        ? (cb: () => void) => (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb)
-        : (cb: () => void) => window.setTimeout(cb, 0);
-      schedule(() => this.chartReady.set(true));
-    }
 
     if (this.hasInitialData) return;
 
@@ -646,6 +619,7 @@ export class DashboardPageComponent implements OnInit {
 
       if (invoicesResult.status === 'fulfilled') {
         this.invoices.set(invoicesResult.value.data.map((invoice) => this.mapInvoice(invoice)));
+        this.chartInvoices.set(invoicesResult.value.data.map((invoice) => this.mapInvoice(invoice)));
       }
 
       if (productsResult.status === 'fulfilled') {
@@ -719,15 +693,6 @@ export class DashboardPageComponent implements OnInit {
     }
   }
 
-  async showPeriodDetail(label: string, value: string) {
-    await this.feedback.toast('info', `Ventas ${label}`, `Valor aproximado: ${value}`);
-  }
-
-  async setPeriod(value: string) {
-    this.period.set(value === 'month' ? 'month' : 'week');
-    await this.feedback.toast('info', this.period() === 'month' ? 'Vista mensual' : 'Vista semanal', 'Se actualizó el análisis visual.');
-  }
-
   kpiBackground(tone: DashboardKpi['tone']) {
     return {
       'bg-primary/5': tone === 'primary',
@@ -786,137 +751,6 @@ export class DashboardPageComponent implements OnInit {
   formatDate(value: string) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(date);
-  }
-
-  private buildRevenueChartData(): ChartData<'bar'> {
-    const today = new Date();
-    const invoices = this.invoices();
-    const labels = this.period() === 'month' ? this.monthLabels() : this.weekLabels();
-    const data = this.period() === 'month'
-      ? Array.from({ length: 12 }, (_, month) => this.sumForMonth(invoices, today.getFullYear(), month))
-      : Array.from({ length: 7 }, (_, index) => this.sumForWeekday(invoices, today, index));
-
-    return {
-      labels,
-      datasets: [
-        {
-          data,
-          label: this.copy().revenueTitle,
-          borderWidth: 2,
-          borderRadius: 12,
-          borderSkipped: false,
-          barPercentage: 0.72,
-          categoryPercentage: 0.72,
-          backgroundColor: 'rgba(79, 70, 229, 0.78)',
-          hoverBackgroundColor: 'rgba(53, 37, 205, 0.92)',
-          borderColor: 'rgba(53, 37, 205, 1)',
-        },
-      ],
-    };
-  }
-
-  private buildRevenueChartOptions(): ChartOptions<'bar'> {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          backgroundColor: 'rgba(17, 24, 39, 0.95)',
-          titleColor: '#eef0ff',
-          bodyColor: '#eef0ff',
-          padding: 12,
-          cornerRadius: 12,
-          callbacks: {
-            label: (context) => ` ${this.formatMoney(Number(context.parsed.y ?? 0))}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11, weight: '600' },
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: 12,
-          },
-        },
-        y: {
-          beginAtZero: true,
-          grace: '10%',
-          grid: { color: 'rgba(148, 163, 184, 0.22)' },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11 },
-            callback: (value) => this.formatCompactMoney(Number(value)),
-          },
-        },
-      },
-    };
-  }
-
-  private weekLabels() {
-    return this.locale() === 'es'
-      ? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }
-
-  private monthLabels() {
-    return this.locale() === 'es'
-      ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  }
-
-  private sumForWeekday(invoices: DashboardInvoice[], today: Date, index: number) {
-    const weekStart = this.startOfWeek(today);
-    const current = new Date(weekStart);
-    current.setDate(weekStart.getDate() + index);
-    return this.sumForDate(invoices, current);
-  }
-
-  private sumForMonth(invoices: DashboardInvoice[], year: number, month: number) {
-    return invoices
-      .filter((invoice) => this.sameMonthYear(invoice.date, year, month))
-      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
-  }
-
-  private sumForDate(invoices: DashboardInvoice[], current: Date) {
-    return invoices
-      .filter((invoice) => this.sameLocalDate(invoice.date, current))
-      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
-  }
-
-  private startOfWeek(date: Date) {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const day = start.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    start.setDate(start.getDate() + diff);
-    return start;
-  }
-
-  private sameLocalDate(value: string, current: Date) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-
-    return date.getFullYear() === current.getFullYear()
-      && date.getMonth() === current.getMonth()
-      && date.getDate() === current.getDate();
-  }
-
-  private sameMonthYear(value: string, year: number, month: number) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-
-    return date.getFullYear() === year && date.getMonth() === month;
-  }
-
-  private formatCompactMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
   }
 
   private mapInvoice(invoice: InvoiceRowDto): DashboardInvoice {

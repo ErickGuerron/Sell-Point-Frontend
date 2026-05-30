@@ -98,24 +98,52 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
         </header>
 
         <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
-          <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
-              <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-on-surface-variant">
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
-            </div>
-          </section>
+          @defer (on timer(200ms)) {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
+                <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
+              </div>
+            </section>
 
-          <billflow-product-kpi-cards
-            [totalProducts]="totalProductsCount()"
-            [activeCount]="activeCount()"
-            [lowStockCount]="lowStockCount()"
-            [locale]="locale()"
-          />
+            <billflow-product-kpi-cards
+              [totalProducts]="totalProductsCount()"
+              [activeCount]="activeCount()"
+              [lowStockCount]="lowStockCount()"
+              [locale]="locale()"
+            />
+          } @placeholder {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div class="h-8 w-48 rounded bg-surface-container-high animate-pulse"></div>
+                <div class="h-4 w-64 rounded bg-surface-container-high mt-2 animate-pulse"></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
+              </div>
+            </section>
+            <section class="grid grid-cols-3 gap-4 mb-6">
+              @for (i of [1,2,3]; track i) {
+                <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 animate-pulse">
+                  <div class="flex items-center gap-4">
+                    <div class="h-10 w-10 rounded-xl bg-surface-container-high shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                      <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                      <div class="h-6 w-12 rounded bg-surface-container-high"></div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </section>
+          }
+        </main>
 
+        @defer (on idle) {
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
             <!-- Toolbar: lupa toggle filters on left, actions on right -->
             <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/20">
@@ -266,38 +294,56 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
               </div>
             </div>
           </section>
-        </main>
+        } @placeholder {
+          <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/30">
+              <div class="h-9 w-9 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+            </div>
+            <div class="p-8 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-on-surface-variant">
+                <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>{{ locale() === 'es' ? 'Cargando productos...' : 'Loading products...' }}</span>
+              </div>
+            </div>
+          </div>
+        }
 
-        <billflow-product-form-modal
-          [open]="productModalOpen()"
-          [editingProduct]="editingProduct()"
-          [categories]="categories()"
-          [locale]="locale()"
-          [copy]="copy()"
-          [initialCode]="nextProductCode()"
-          [saving]="productSaving()"
-          (save)="handleProductSave($event)"
-          (close)="closeProductModal()"
-        />
+        @defer (on interaction) {
+          <billflow-product-form-modal
+            [open]="productModalOpen()"
+            [editingProduct]="editingProduct()"
+            [categories]="categories()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [initialCode]="nextProductCode()"
+            [saving]="productSaving()"
+            (save)="handleProductSave($event)"
+            (close)="closeProductModal()"
+          />
 
-        <billflow-product-movements-modal
-          [open]="movementsModalOpen()"
-          [product]="selectedProductForMovements()"
-          [locale]="locale()"
-          [copy]="copy()"
-          [movements]="movements()"
-          [mvtLoading]="mvtLoading()"
-          [mvtPage]="mvtPage()"
-          [mvtTotalPages]="mvtTotalPages()"
-          [mvtTotalCount]="mvtTotalCount()"
-          [mvtPageSize]="mvtPageSize()"
-          [mvtFormSubmitting]="mvtFormSubmitting()"
-          [resetFormTrigger]="resetFormTrigger()"
-          (adjustStock)="handleAdjustStock($event)"
-          (prevPage)="mvtPrevPage()"
-          (nextPage)="mvtNextPage()"
-          (close)="closeMovementsModal()"
-        />
+          <billflow-product-movements-modal
+            [open]="movementsModalOpen()"
+            [product]="selectedProductForMovements()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [movements]="movements()"
+            [mvtLoading]="mvtLoading()"
+            [mvtPage]="mvtPage()"
+            [mvtTotalPages]="mvtTotalPages()"
+            [mvtTotalCount]="mvtTotalCount()"
+            [mvtPageSize]="mvtPageSize()"
+            [mvtFormSubmitting]="mvtFormSubmitting()"
+            [resetFormTrigger]="resetFormTrigger()"
+            (adjustStock)="handleAdjustStock($event)"
+            (prevPage)="mvtPrevPage()"
+            (nextPage)="mvtNextPage()"
+            (close)="closeMovementsModal()"
+          />
+        } @placeholder {
+          <!-- Product modals deferred until user interaction -->
+        }
 
         <nav class="md:hidden app-dashboard-mobile-nav">
           <a *ngFor="let item of mobileNavItems(); trackBy: trackByHref" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">

@@ -247,9 +247,9 @@ function mapEmployee(raw: any): EmployeeRowDto {
 export async function loadDashboardInitialData(astro: AstroLike): Promise<DashboardInitialData> {
   const [stats, invoices, products, customers] = await Promise.all([
     fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas'),
-    fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=150'),
-    fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=8'),
-    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=8'),
+    fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5'),
+    fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=3'),
+    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4'),
   ]);
 
   return {
@@ -274,7 +274,7 @@ export async function loadCustomersInitialData(astro: AstroLike): Promise<Custom
 export async function loadProductsInitialData(astro: AstroLike): Promise<ProductsInitialData> {
   const [productsResponse, categoriesResponse] = await Promise.all([
     fetchJsonWithAuth<{ data: ProductRawDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number } }>(astro, '/products?page=1&limit=10'),
-    fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?limit=200&isActive=true'),
+    fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?page=1&limit=20&isActive=true'),
   ]);
 
   const products = productsResponse?.data?.map(toProductEntity) ?? [];
@@ -308,7 +308,7 @@ export async function loadCategoriesInitialData(astro: AstroLike): Promise<Categ
 
 export async function loadInvoicesInitialData(astro: AstroLike): Promise<InvoicesInitialData> {
   const [invoicesResponse, kpis] = await Promise.all([
-    fetchJsonWithAuth<{ data: InvoiceRowDto[] }>(astro, '/invoices?page=1&limit=150'),
+    fetchJsonWithAuth<{ data: InvoiceRowDto[] }>(astro, '/invoices?page=1&limit=20'),
     fetchJsonWithAuth<InvoiceKpisDto>(astro, '/invoices/kpis'),
   ]);
 

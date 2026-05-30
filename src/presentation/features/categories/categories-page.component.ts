@@ -118,150 +118,185 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
           </section>
 
           <!-- KPI Cards -->
-          <billflow-category-kpi-cards
-            [totalLabel]="copy().totalLabel"
-            [activeLabel]="copy().activeLabel"
-            [total]="totalCategoriesCount()"
-            [active]="activeCategoriesCount()"
-          ></billflow-category-kpi-cards>
+          @defer (on timer(200ms)) {
+            <billflow-category-kpi-cards
+              [totalLabel]="copy().totalLabel"
+              [activeLabel]="copy().activeLabel"
+              [total]="totalCategoriesCount()"
+              [active]="activeCategoriesCount()"
+            ></billflow-category-kpi-cards>
+          } @placeholder {
+            <section class="grid grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+              @for (i of [1,2]; track i) {
+                <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl animate-pulse">
+                  <div class="flex items-center gap-4">
+                    <div class="h-12 w-12 rounded-xl bg-surface-container-high shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                      <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                      <div class="h-6 w-10 rounded bg-surface-container-high"></div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </section>
+          }
 
           <!-- Table Card -->
-          <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-            <!-- Toolbar -->
-            <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-outline-variant/20">
-              <!-- Search -->
-              <div class="relative flex-1 min-w-[220px] max-w-md">
-                <span
-                  class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none"
-                  >search</span
-                >
-                <input
-                  class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-                  [placeholder]="copy().searchPlaceholder"
-                  [value]="searchQuery()"
-                  (input)="setSearchQuery(($any($event.target).value))"
-                />
-              </div>
+          @defer (on idle) {
+            <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <!-- Toolbar -->
+              <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-outline-variant/20">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[220px] max-w-md">
+                  <span
+                    class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none"
+                    >search</span
+                  >
+                  <input
+                    class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
+                    [placeholder]="copy().searchPlaceholder"
+                    [value]="searchQuery()"
+                    (input)="setSearchQuery(($any($event.target).value))"
+                  />
+                </div>
 
-              <!-- Refresh -->
-              <button
-                type="button"
-                [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
-                (click)="void reloadCategories()"
-              >
-                <span
-                  class="material-symbols-outlined text-[20px]"
-                  [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
-                  >refresh</span
-                >
-              </button>
-
-              <!-- Back to Products -->
-              <a
-                href="/products"
-                class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
-              >
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                {{ copy().goBackToProducts }}
-              </a>
-
-              <!-- New -->
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-                (click)="openCreateModal()"
-              >
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                {{ copy().newCategory }}
-              </button>
-            </div>
-
-            <!-- Table -->
-            <billflow-category-table
-              [copy]="copy()"
-              [categories]="categories()"
-              [loading]="loading()"
-              [statusActive]="locale() === 'es' ? 'ACTIVO' : 'ACTIVE'"
-              [statusInactive]="locale() === 'es' ? 'INACTIVO' : 'INACTIVE'"
-              (edit)="openEditModal($event)"
-              (toggle)="toggleActive($event)"
-            ></billflow-category-table>
-
-            <!-- Pagination Footer -->
-            <div
-              class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60"
-            >
-              <div class="flex items-center gap-3 text-sm text-on-surface-variant">
-                <span>
-                  {{ copy().showingText }}
-                  <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span>
-                  {{ locale() === 'es' ? 'a' : 'to' }}
-                  <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span>
-                  {{ locale() === 'es' ? 'de' : 'of' }}
-                  <span class="font-semibold text-on-surface">{{ totalCategoriesCount() }}</span>
-                  {{ copy().entriesText }}
-                </span>
-                <select
-                  [value]="pageSize()"
-                  (change)="onPageSizeCombo(($any($event.target).value))"
-                  class="bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 py-[5px] px-2 rounded-lg cursor-pointer shadow-sm transition-all"
-                >
-                  @for (option of pageSizeOptions; track option.value) {
-                    <option [value]="option.value">{{ option.label }}</option>
-                  }
-                </select>
-              </div>
-
-              <div class="flex items-center gap-2">
+                <!-- Refresh -->
                 <button
                   type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === 1"
-                  (click)="previousPage()"
+                  [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
+                  class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
+                  (click)="void reloadCategories()"
                 >
-                  <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                  <span
+                    class="material-symbols-outlined text-[20px]"
+                    [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                    >refresh</span
+                  >
                 </button>
 
-                @for (pageNumber of visiblePages(); track pageNumber) {
+                <!-- Back to Products -->
+                <a
+                  href="/products"
+                  class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
+                >
+                  <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                  {{ copy().goBackToProducts }}
+                </a>
+
+                <!-- New -->
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                  (click)="openCreateModal()"
+                >
+                  <span class="material-symbols-outlined text-[18px]">add</span>
+                  {{ copy().newCategory }}
+                </button>
+              </div>
+
+              <!-- Table -->
+              <billflow-category-table
+                [copy]="copy()"
+                [categories]="categories()"
+                [loading]="loading()"
+                [statusActive]="locale() === 'es' ? 'ACTIVO' : 'ACTIVE'"
+                [statusInactive]="locale() === 'es' ? 'INACTIVO' : 'INACTIVE'"
+                (edit)="openEditModal($event)"
+                (toggle)="toggleActive($event)"
+              ></billflow-category-table>
+
+              <!-- Pagination Footer -->
+              <div
+                class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60"
+              >
+                <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+                  <span>
+                    {{ copy().showingText }}
+                    <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span>
+                    {{ locale() === 'es' ? 'a' : 'to' }}
+                    <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span>
+                    {{ locale() === 'es' ? 'de' : 'of' }}
+                    <span class="font-semibold text-on-surface">{{ totalCategoriesCount() }}</span>
+                    {{ copy().entriesText }}
+                  </span>
+                  <select
+                    [value]="pageSize()"
+                    (change)="onPageSizeCombo(($any($event.target).value))"
+                    class="bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 py-[5px] px-2 rounded-lg cursor-pointer shadow-sm transition-all"
+                  >
+                    @for (option of pageSizeOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-2">
                   <button
                     type="button"
-                    class="h-9 w-9 rounded-lg text-sm font-semibold transition"
-                    [class.bg-primary]="pageNumber === page()"
-                    [class.text-on-primary]="pageNumber === page()"
-                    [class.shadow-sm]="pageNumber === page()"
-                    [class.text-on-surface-variant]="pageNumber !== page()"
-                    [class.hover:bg-surface-container-low]="pageNumber !== page()"
-                    [class.hover:text-on-surface]="pageNumber !== page()"
-                    (click)="goToPage(pageNumber)"
+                    class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                    [disabled]="page() === 1"
+                    (click)="previousPage()"
                   >
-                    {{ pageNumber }}
+                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                   </button>
-                }
 
-                <button
-                  type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === totalPages()"
-                  (click)="nextPage()"
-                >
-                  <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-                </button>
+                  @for (pageNumber of visiblePages(); track pageNumber) {
+                    <button
+                      type="button"
+                      class="h-9 w-9 rounded-lg text-sm font-semibold transition"
+                      [class.bg-primary]="pageNumber === page()"
+                      [class.text-on-primary]="pageNumber === page()"
+                      [class.shadow-sm]="pageNumber === page()"
+                      [class.text-on-surface-variant]="pageNumber !== page()"
+                      [class.hover:bg-surface-container-low]="pageNumber !== page()"
+                      [class.hover:text-on-surface]="pageNumber !== page()"
+                      (click)="goToPage(pageNumber)"
+                    >
+                      {{ pageNumber }}
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                    [disabled]="page() === totalPages()"
+                    (click)="nextPage()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+          } @placeholder {
+            <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+              <div class="p-4 md:p-5 border-b border-outline-variant/30 flex items-center gap-3">
+                <div class="h-9 w-48 rounded-lg bg-surface-container-high"></div>
+                <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              </div>
+              <div class="p-8 flex items-center justify-center">
+                <div class="flex items-center gap-3 text-on-surface-variant">
+                  <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <span>{{ locale() === 'es' ? 'Cargando categorías...' : 'Loading categories...' }}</span>
+                </div>
               </div>
             </div>
-          </section>
+          }
         </main>
 
         <!-- Category Form Modal -->
-        @if (categoryModalOpen()) {
-          <billflow-category-form-modal
-            [copy]="copy()"
-            [editing]="editingCategory()"
-            [(name)]="formName"
-            [(description)]="formDescription"
-            (close)="closeCategoryModal()"
-            (save)="saveCategory()"
-          />
+        @defer (on interaction) {
+          @if (categoryModalOpen()) {
+            <billflow-category-form-modal
+              [copy]="copy()"
+              [editing]="editingCategory()"
+              [(name)]="formName"
+              [(description)]="formDescription"
+              (close)="closeCategoryModal()"
+              (save)="saveCategory()"
+            />
+          }
+        } @placeholder {
+          <!-- Modal deferred until user interaction -->
         }
 
         <!-- Mobile Nav -->

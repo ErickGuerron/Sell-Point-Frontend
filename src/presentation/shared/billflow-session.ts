@@ -32,6 +32,10 @@ export function getBillflowSessionCookieName(): string {
 }
 
 export function serializeBillflowSession(session: BillflowSessionData): string {
+  return JSON.stringify(session);
+}
+
+function encodeBillflowSessionCookie(session: BillflowSessionData): string {
   return encodeURIComponent(JSON.stringify(session));
 }
 
@@ -50,7 +54,7 @@ export function readBillflowSessionCookie(): BillflowSessionData | null {
 export function writeBillflowSessionCookie(session: BillflowSessionData): void {
   if (typeof document === 'undefined') return;
 
-  document.cookie = `${SESSION_COOKIE}=${serializeBillflowSession(session)}; path=/; SameSite=Lax`;
+  document.cookie = `${SESSION_COOKIE}=${encodeBillflowSessionCookie(session)}; path=/; SameSite=Lax`;
 }
 
 export function clearBillflowSessionCookie(): void {
