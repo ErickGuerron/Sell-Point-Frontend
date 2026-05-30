@@ -3,6 +3,7 @@ import { UiFeedbackService } from './ui-feedback.service';
 import { LocaleService } from './locale.service';
 import { AuthHttpService } from './auth-http.service';
 import { resolveApiBaseUrl } from './api-base';
+import { clearBillflowSessionCookie } from '../billflow-session';
 
 const API_BASE_URL = resolveApiBaseUrl();
 
@@ -174,6 +175,7 @@ export class SessionService {
     );
     if (!confirmed || typeof window === 'undefined') return;
     window.localStorage.removeItem('billflow-session');
+    clearBillflowSessionCookie();
     window.location.replace('/auth');
   }
 

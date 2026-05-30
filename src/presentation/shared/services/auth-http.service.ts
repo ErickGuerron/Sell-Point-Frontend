@@ -1,5 +1,6 @@
 ﻿import { Injectable } from '@angular/core';
 import { resolveApiBaseUrl } from './api-base';
+import { clearBillflowSessionCookie, readBillflowSessionCookie, writeBillflowSessionCookie } from '../billflow-session';
 
 const AUTH_KEY = 'billflow-session';
 
@@ -78,6 +79,7 @@ export class AuthHttpService {
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(AUTH_KEY, JSON.stringify(merged));
       }
+      writeBillflowSessionCookie(merged);
       return true;
     } catch {
       return false;
@@ -91,6 +93,7 @@ export class AuthHttpService {
     } catch {
       /* ignore */
     }
+    clearBillflowSessionCookie();
     window.location.href = '/auth';
   }
 }

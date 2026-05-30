@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -27,6 +27,7 @@ import { CategoryRemoteDataSource } from './data/category-remote-datasource';
 import { CategoryImplRepository } from './data/category-impl.repository';
 import { CATEGORIES_TEXT } from './i18n/categories.translations';
 import type { CategoriesCopy } from './i18n/categories.translations';
+import type { CategoriesInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-categories-page',
@@ -331,7 +332,7 @@ export class CategoriesPageComponent implements OnInit {
     { label: this.copy().sidebarCategories, icon: 'category', href: '/categories', active: true },
   ]);
 
-  loading = signal(true);
+  loading = signal(false);
   categories = signal<CategoryEntity[]>([]);
 
   // Filters
@@ -358,6 +359,18 @@ export class CategoriesPageComponent implements OnInit {
   // Form signals
   formName = signal('');
   formDescription = signal('');
+  private hasInitialData = false;
+
+  @Input() set initialData(value: CategoriesInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.categories.set(value.categories);
+    this.totalCategoriesCount.set(value.totalCategoriesCount);
+    this.activeCategoriesCount.set(value.activeCategoriesCount);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   // ── Computed pagination ────────────────────────────────────────────────────
 
@@ -382,6 +395,7 @@ export class CategoriesPageComponent implements OnInit {
     this.session.init();
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
+      if (this.hasInitialData) return;
       await this.reloadCategories();
     }
   }

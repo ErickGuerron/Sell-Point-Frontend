@@ -1,12 +1,15 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { ProfilePageComponent } from '../presentation/features/profile/profile-page.component';
+import { loadProfileInitialData } from '../presentation/shared/ssr-page-data';
+
+const initialData = await loadProfileInitialData(Astro);
 ---
 
 <MainLayout title="BillFlow - My Profile" lang="es">
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <ProfilePageComponent client:load />
+      <ProfilePageComponent client:load initialData={initialData} />
     </div>
   </div>
 </MainLayout>

@@ -1,5 +1,5 @@
 ﻿import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceKpisDto, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
@@ -15,6 +15,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import type { InvoicesInitialData } from '../../shared/ssr-page-data';
 
 type InvoiceStatus = 'issued' | 'cancelled';
 type InvoiceRange = '30d' | '90d' | 'year' | 'all';
@@ -640,7 +641,7 @@ export class InvoicePageComponent implements OnInit {
     { label: this.copy().sidebarReports, icon: 'analytics', href: '/dashboard' },
   ]);
 
-  loading = signal(true);
+  loading = signal(false);
   invoices = signal<InvoiceViewModel[]>([]);
   invoiceKpis = signal<InvoiceKpisDto>({
     totalInvoiced: 0,
@@ -653,10 +654,21 @@ export class InvoicePageComponent implements OnInit {
   searchQuery = signal('');
   invoiceFilterField = signal<'all' | 'invoiceNumber' | 'customerName' | 'total'>('all');
   statusFilter = signal<'all' | InvoiceStatus>('all');
-  rangeFilter = signal<InvoiceRange>('30d');
+  rangeFilter = signal<InvoiceRange>('all');
   page = signal(1);
   pageSize = signal(5);
   invoicePreview = signal<InvoiceViewModel | null>(null);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: InvoicesInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.invoices.set(value.invoices);
+    this.invoiceKpis.set(value.invoiceKpis);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   Math = Math;
   String = String;
@@ -739,6 +751,7 @@ export class InvoicePageComponent implements OnInit {
     this.themeService.init();
     this.session.init();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
+    if (this.hasInitialData) return;
     await this.reloadInvoices();
   }
 

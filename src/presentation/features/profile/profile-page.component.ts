@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, computed, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, computed, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
@@ -17,6 +17,7 @@ import { ProfileImplRepository } from './data/profile.impl.repository';
 import { ProfileRepository } from './domain/profile.repository';
 import type { ProfileCopy } from './i18n/profile.translations';
 import { PROFILE_TEXT } from './i18n/profile.translations';
+import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-profile-page',
@@ -322,6 +323,13 @@ export class ProfilePageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: ProfileInitialData | null | undefined) {
+    if (!value) return;
+    this.store.setInitialProfile(value.profile);
+    this.hasInitialData = Boolean(value.profile);
+  }
 
   readonly sidebarItems = computed<BillflowSidebarItem[]>(() =>
     buildBillflowSidebarItems(
@@ -336,10 +344,11 @@ export class ProfilePageComponent implements OnInit {
     ),
   );
 
-  ngOnInit() {
+  async ngOnInit() {
     this.themeService.init();
     this.session.init();
-    this.store.loadProfile();
+    if (this.hasInitialData) return;
+    await this.store.loadProfile();
   }
 
   toggleLocale() {

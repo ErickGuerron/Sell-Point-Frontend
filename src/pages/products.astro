@@ -1,12 +1,15 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { ProductsPageComponent } from '../presentation/features/products/products-page.component';
+import { loadProductsInitialData } from '../presentation/shared/ssr-page-data';
+
+const initialData = await loadProductsInitialData(Astro);
 ---
 
 <MainLayout title="BillFlow - Product Management" lang="en">
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <ProductsPageComponent client:load />
+      <ProductsPageComponent client:load initialData={initialData} />
     </div>
   </div>
 </MainLayout>

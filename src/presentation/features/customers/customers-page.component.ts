@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -25,6 +25,7 @@ import { customersCopy } from './i18n/customers.translations';
 import { CustomerKpiCardsComponent } from './components/customer-kpi-cards.component';
 import { CustomerTableComponent } from './components/customer-table.component';
 import { CustomerFormModalComponent } from './components/customer-form-modal.component';
+import type { CustomersInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-customers-page',
@@ -56,7 +57,7 @@ export class CustomersPageComponent implements OnInit {
   locale = this.localeService.locale;
   copy = customersCopy(this.locale);
 
-  loading = signal(true);
+  loading = signal(false);
   customers = signal<CustomerEntity[]>([]);
   totalCustomers = signal(0);
   totalPages = signal(1);
@@ -146,11 +147,24 @@ export class CustomersPageComponent implements OnInit {
   // ── Modal state ──────────────────────────────────────────────────────────
   customerModalOpen = signal(false);
   editingCustomer = signal<CustomerEntity | null>(null);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: CustomersInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.customers.set(value.customers);
+    this.totalCustomers.set(value.totalCustomers);
+    this.totalPages.set(value.totalPages);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
+    if (this.hasInitialData) return;
     await this.reloadCustomers();
   }
 

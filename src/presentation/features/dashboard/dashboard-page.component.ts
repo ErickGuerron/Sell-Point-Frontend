@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import type { ChartData, ChartOptions, ChartType } from 'chart.js';
@@ -11,6 +11,7 @@ import { BillflowSidebarComponent } from '../../shared/components/billflow-sideb
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+import type { DashboardInitialData } from '../../shared/ssr-page-data';
 
 type Period = 'week' | 'month';
 
@@ -367,14 +368,23 @@ function detectDashboardLocale(): DashboardLocale {
                 </select>
               </div>
 
-              <div class="app-dashboard-chart-wrap relative h-72 md:h-80" *ngIf="chartReady()">
-                <canvas
-                  baseChart
-                  [type]="revenueChartType"
-                  [data]="revenueChartData()"
-                  [options]="revenueChartOptions()"
-                ></canvas>
-              </div>
+              @if (chartReady()) {
+                <div class="app-dashboard-chart-wrap relative h-72 md:h-80">
+                  <canvas
+                    baseChart
+                    [type]="revenueChartType"
+                    [data]="revenueChartData()"
+                    [options]="revenueChartOptions()"
+                  ></canvas>
+                </div>
+              } @else {
+                <div class="app-dashboard-chart-wrap relative h-72 md:h-80 flex items-center justify-center rounded-2xl border border-outline-variant/30 bg-surface-container-low/30">
+                  <div class="flex items-center gap-3 text-on-surface-variant">
+                    <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    <span>{{ locale() === 'es' ? 'Cargando gráfico...' : 'Loading chart...' }}</span>
+                  </div>
+                </div>
+              }
             </div>
 
             <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
@@ -504,13 +514,24 @@ export class DashboardPageComponent implements OnInit {
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
   tabletSidebarOpen = signal(false);
   chartReady = signal(false);
-  loading = signal(true);
+  loading = signal(false);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
   products = signal<DashboardProduct[]>([]);
   customers = signal<DashboardCustomer[]>([]);
   period = signal<Period>('week');
   searchQuery = signal('');
+  private hasInitialData = false;
+
+  @Input() set initialData(value: DashboardInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.stats.set(value.stats);
+    this.invoices.set(value.invoices);
+    this.products.set(value.products);
+    this.customers.set(value.customers);
+    this.loading.set(false);
+  }
 
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
@@ -579,14 +600,23 @@ export class DashboardPageComponent implements OnInit {
 
   readonly recentCustomers = computed(() => this.customers().slice(0, 4));
 
-  ngOnInit() {
-    if (typeof window === 'undefined') return;
+  async ngOnInit() {
+    if (typeof window === 'undefined') {
+      return;
+    }
 
     this.themeService.init();
     this.session.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
-    this.chartReady.set(true);
+    if (typeof window !== 'undefined') {
+      const schedule = 'requestIdleCallback' in window
+        ? (cb: () => void) => (window as Window & { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb)
+        : (cb: () => void) => window.setTimeout(cb, 0);
+      schedule(() => this.chartReady.set(true));
+    }
+
+    if (this.hasInitialData) return;
 
     try {
       if (!this.session.hasStoredSession()) {
@@ -594,13 +624,14 @@ export class DashboardPageComponent implements OnInit {
         return;
       }
 
-      void this.loadDashboardData();
+      await this.loadDashboardData();
     } catch {
       window.location.assign('/auth');
     }
   }
 
   private async loadDashboardData() {
+    this.loading.set(true);
     try {
       const [statsResult, invoicesResult, productsResult, customersResult] = await Promise.allSettled([
         this.api.getStats(),

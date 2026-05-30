@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
@@ -16,6 +16,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import type { EmployeesInitialData } from '../../shared/ssr-page-data';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -263,6 +264,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   ],
   template: `<billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
   <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
+
   <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
     <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
       <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
@@ -740,6 +742,22 @@ export class EmployeesPageComponent implements OnInit {
   employeeModalOpen = signal(false);
   editingEmployee = signal<EmployeeRowDto | null>(null);
   reactivateModalOpen = signal(false);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: EmployeesInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.employees.set(value.employees);
+    this.roles.set(value.roles);
+    this.totalCount.set(value.totalCount);
+    this.totalEmployeesKpi.set(value.totalEmployeesKpi);
+    this.activeEmployeesKpi.set(value.activeEmployeesKpi);
+    this.inactiveEmployeesKpi.set(value.inactiveEmployeesKpi);
+    this.blockedEmployeesKpi.set(value.blockedEmployeesKpi);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   // ── Form signals ──
   formFirstName = signal('');
@@ -789,7 +807,8 @@ export class EmployeesPageComponent implements OnInit {
     this.applyStoredTheme();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
-    // Load roles and employees in parallel
+    if (this.hasInitialData) return;
+
     await Promise.all([
       this.loadRoles(),
       this.reloadEmployees(),

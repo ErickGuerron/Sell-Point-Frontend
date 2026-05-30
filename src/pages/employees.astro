@@ -1,12 +1,15 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { EmployeesPageComponent } from '../presentation/features/employees/employees-page.component';
+import { loadEmployeesInitialData } from '../presentation/shared/ssr-page-data';
+
+const initialData = await loadEmployeesInitialData(Astro);
 ---
 
 <MainLayout title="BillFlow - Employee Management" lang="en">
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <EmployeesPageComponent client:load />
+      <EmployeesPageComponent client:load initialData={initialData} />
     </div>
   </div>
 </MainLayout>

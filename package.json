@@ -6,6 +6,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "predev": "node ./scripts/clean-dev-cache.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
@@ -25,6 +26,7 @@
     "@angular/material": "^21.2.12",
     "@angular/platform-browser": "^21.2.10",
     "@angular/platform-server": "^21.2.10",
+    "@astrojs/node": "^10.1.2",
     "@tailwindcss/vite": "^4.2.4",
     "@tsparticles/angular": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",

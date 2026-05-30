@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -32,6 +32,7 @@ import { ProductImplRepository } from './data/product-impl.repository';
 import type { CategoryRawDto } from './data/product-remote-datasource';
 import { PRODUCTS_TEXT } from './i18n/products.translations';
 import type { ProductsCopy } from './i18n/products.translations';
+import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-products-page',
@@ -349,7 +350,7 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   // ─── State signals ──────────────────────────────────────────────────────────
-  loading = signal(true);
+  loading = signal(false);
   products = signal<ProductEntity[]>([]);
   categories = signal<CategoryRawDto[]>([]);
 
@@ -432,6 +433,20 @@ export class ProductsPageComponent implements OnInit {
   mvtTotalPages = computed(() => Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize())));
   mvtFormSubmitting = signal(false);
   private resetFormTrigger = signal(0);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: ProductsInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.products.set(value.products);
+    this.categories.set(value.categories);
+    this.totalProductsCount.set(value.totalProductsCount);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.activeCount.set(value.activeCount);
+    this.lowStockCount.set(value.lowStockCount);
+    this.loading.set(false);
+  }
 
   // ─── Abort / debounce handles ──────────────────────────────────────────────
   private abortController: AbortController | null = null;
@@ -447,6 +462,7 @@ export class ProductsPageComponent implements OnInit {
     this.session.init();
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
+      if (this.hasInitialData) return;
       await this.loadCategories();
       await this.reloadProducts();
     }

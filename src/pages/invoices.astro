@@ -1,12 +1,15 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { InvoicePageComponent } from '../presentation/features/invoices/invoice-page.component';
+import { loadInvoicesInitialData } from '../presentation/shared/ssr-page-data';
+
+const initialData = await loadInvoicesInitialData(Astro);
 ---
 
 <MainLayout title="BillFlow - Invoice History" lang="en">
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <InvoicePageComponent client:load />
+      <InvoicePageComponent client:load initialData={initialData} />
     </div>
   </div>
 </MainLayout>

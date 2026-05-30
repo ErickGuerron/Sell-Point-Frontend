@@ -8,6 +8,7 @@ import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { SessionService } from '../../shared/services/session.service';
 import { resolveApiBaseUrl } from '../../shared/services/api-base';
+import { writeBillflowSessionCookie } from '../../shared/billflow-session';
 
 const API_BASE_URL = resolveApiBaseUrl();
 
@@ -327,6 +328,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
 
       const session = await response.json();
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      writeBillflowSessionCookie(session);
       await this.session.hydrateUserProfile();
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
@@ -392,6 +394,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
 
       const session = await response.json();
       window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      writeBillflowSessionCookie(session);
       await this.session.hydrateUserProfile();
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);

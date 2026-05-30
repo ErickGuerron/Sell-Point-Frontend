@@ -61,6 +61,23 @@ export class ProfileStore {
       this.profile()?.failedLoginAttempts ?? 0,
   );
 
+  setInitialProfile(profile: ProfileEntity | null): void {
+    this.profile.set(profile);
+    this.error.set(false);
+    this.errorMessage.set(null);
+    this.loading.set(false);
+
+    if (!profile) {
+      this.googleLinked.set(false);
+      this.googleEmail.set(null);
+      return;
+    }
+
+    const linked = profile.googleId != null;
+    this.googleLinked.set(linked);
+    this.googleEmail.set(linked ? (profile.googleEmail ?? null) : null);
+  }
+
   async loadProfile() {
     if (typeof window === 'undefined') return;
 
