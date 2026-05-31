@@ -1,8 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -32,6 +32,7 @@ import { ProductImplRepository } from './data/product-impl.repository';
 import type { CategoryRawDto } from './data/product-remote-datasource';
 import { PRODUCTS_TEXT } from './i18n/products.translations';
 import type { ProductsCopy } from './i18n/products.translations';
+import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-products-page',
@@ -97,24 +98,52 @@ import type { ProductsCopy } from './i18n/products.translations';
         </header>
 
         <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
-          <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
-              <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-on-surface-variant">
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
-            </div>
-          </section>
+          @defer (on timer(200ms)) {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
+                <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
+              </div>
+            </section>
 
-          <billflow-product-kpi-cards
-            [totalProducts]="totalProductsCount()"
-            [activeCount]="activeCount()"
-            [lowStockCount]="lowStockCount()"
-            [locale]="locale()"
-          />
+            <billflow-product-kpi-cards
+              [totalProducts]="totalProductsCount()"
+              [activeCount]="activeCount()"
+              [lowStockCount]="lowStockCount()"
+              [locale]="locale()"
+            />
+          } @placeholder {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div class="h-8 w-48 rounded bg-surface-container-high animate-pulse"></div>
+                <div class="h-4 w-64 rounded bg-surface-container-high mt-2 animate-pulse"></div>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
+              </div>
+            </section>
+            <section class="grid grid-cols-3 gap-4 mb-6">
+              @for (i of [1,2,3]; track i) {
+                <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 animate-pulse">
+                  <div class="flex items-center gap-4">
+                    <div class="h-10 w-10 rounded-xl bg-surface-container-high shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                      <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                      <div class="h-6 w-12 rounded bg-surface-container-high"></div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </section>
+          }
+        </main>
 
+        @defer (on idle) {
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
             <!-- Toolbar: lupa toggle filters on left, actions on right -->
             <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/20">
@@ -122,7 +151,7 @@ import type { ProductsCopy } from './i18n/products.translations';
               <!-- Search toggle (lupa) — ALWAYS visible -->
               <button
                 type="button"
-                [title]="showFilters() ? (locale() === 'es' ? 'Ocultar filtros' : 'Hide filters') : (locale() === 'es' ? 'Mostrar filtros' : 'Show filters')"
+                [title]="showFilters() ? copy().hideFilters : copy().showFilters"
                 class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
                 (click)="toggleFilters()"
               >
@@ -131,47 +160,49 @@ import type { ProductsCopy } from './i18n/products.translations';
 
               <!-- Filters (only when toggled) -->
               <ng-container *ngIf="showFilters()">
-                <!-- Status -->
-                <billflow-combobox
-                  [options]="statusFilterOptions()"
-                  [value]="statusFilter()"
-                  placeholder="{{ copy().allStatuses }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
-                  [compact]="true"
-                  (valueChange)="setStatusFilter($event)"
-                ></billflow-combobox>
-
-                <!-- Category -->
-                <billflow-combobox
-                  [options]="categoryFilterOptions()"
-                  [value]="categoryFilter()"
-                  placeholder="{{ copy().allCategories }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
-                  [compact]="true"
-                  (valueChange)="setCategoryFilter($event)"
-                ></billflow-combobox>
-
-                <!-- Search field type + text input (takes remaining space) -->
-                <div class="flex items-stretch flex-3 min-w-[180px]">
+<div class="flex items-center gap-2 flex-wrap">
+                  <!-- Status -->
                   <billflow-combobox
-                    [options]="searchFieldOptions()"
-                    [value]="searchField()"
-                    placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    [options]="statusFilterOptions()"
+                    [value]="statusFilter()"
+                    placeholder="{{ copy().allStatuses }}"
+                    searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                    emptyLabel="{{ copy().noResultsText }}"
                     [compact]="true"
-                    (valueChange)="searchField.set($event)"
+                    (valueChange)="setStatusFilter($event)"
                   ></billflow-combobox>
-                  <div class="relative flex-1">
-                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
-                    <input
-                      class="w-full pl-8 pr-2 py-[5px] bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                      [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
-                      [value]="searchQuery()"
-                      (input)="setSearchQuery(($any($event.target).value))"
-                    />
+
+                  <!-- Category -->
+                  <billflow-combobox
+                    [options]="categoryFilterOptions()"
+                    [value]="categoryFilter()"
+                    placeholder="{{ copy().allCategories }}"
+                    searchPlaceholder="{{ copy().searchCategoryPlaceholder }}"
+                    emptyLabel="{{ copy().noResultsText }}"
+                    [compact]="true"
+                    (valueChange)="setCategoryFilter($event)"
+                  ></billflow-combobox>
+
+                  <!-- Search field type + text input -->
+                  <div class="flex items-stretch min-w-[200px] flex-1 max-w-[320px]">
+                    <billflow-combobox
+                      [options]="searchFieldOptions()"
+                      [value]="searchField()"
+                      placeholder="{{ copy().allLabel }}"
+                      searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                      emptyLabel="{{ copy().noResultsText }}"
+                      [compact]="true"
+                      (valueChange)="searchField.set($event)"
+                    ></billflow-combobox>
+                    <div class="relative flex-1">
+                      <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
+                      <input
+                        class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                        [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
+                        [value]="searchQuery()"
+                        (input)="setSearchQuery(($any($event.target).value))"
+                      />
+                    </div>
                   </div>
                 </div>
               </ng-container>
@@ -182,7 +213,7 @@ import type { ProductsCopy } from './i18n/products.translations';
               <!-- Refresh — ALWAYS visible -->
               <button
                 type="button"
-                [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
+                [title]="copy().reloadLabel"
                 class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
                 (click)="void reloadProducts()"
               >
@@ -195,7 +226,7 @@ import type { ProductsCopy } from './i18n/products.translations';
                 class="inline-flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap shrink-0"
               >
                 <span class="material-symbols-outlined text-[16px]">category</span>
-                <span class="hidden sm:inline">{{ locale() === 'es' ? 'Categorías' : 'Categories' }}</span>
+                <span class="hidden sm:inline">{{ copy().categoriesLabel }}</span>
               </a>
 
               <!-- New Product — ALWAYS visible -->
@@ -223,7 +254,7 @@ import type { ProductsCopy } from './i18n/products.translations';
             <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
               <div class="flex items-center gap-3 text-sm text-on-surface-variant">
                 <span>
-                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
+                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ copy().rangeFrom }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ copy().rangeOf }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
                 </span>
                 <select
                   class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
@@ -240,7 +271,7 @@ import type { ProductsCopy } from './i18n/products.translations';
 
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1 mr-2">
-                  <label class="text-xs text-on-surface-variant hidden sm:inline">{{ locale() === 'es' ? 'Ir a:' : 'Go to:' }}</label>
+                  <label class="text-xs text-on-surface-variant hidden sm:inline">{{ copy().goToLabel }}</label>
                   <input
                     type="number"
                     min="1"
@@ -265,38 +296,56 @@ import type { ProductsCopy } from './i18n/products.translations';
               </div>
             </div>
           </section>
-        </main>
+        } @placeholder {
+          <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/30">
+              <div class="h-9 w-9 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+            </div>
+            <div class="p-8 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-on-surface-variant">
+                <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>{{ copy().loadingText }}</span>
+              </div>
+            </div>
+          </div>
+        }
 
-        <billflow-product-form-modal
-          [open]="productModalOpen()"
-          [editingProduct]="editingProduct()"
-          [categories]="categories()"
-          [locale]="locale()"
-          [copy]="copy()"
-          [initialCode]="nextProductCode()"
-          [saving]="productSaving()"
-          (save)="handleProductSave($event)"
-          (close)="closeProductModal()"
-        />
+        @defer (on interaction) {
+          <billflow-product-form-modal
+            [open]="productModalOpen()"
+            [editingProduct]="editingProduct()"
+            [categories]="categories()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [initialCode]="nextProductCode()"
+            [saving]="productSaving()"
+            (save)="handleProductSave($event)"
+            (close)="closeProductModal()"
+          />
 
-        <billflow-product-movements-modal
-          [open]="movementsModalOpen()"
-          [product]="selectedProductForMovements()"
-          [locale]="locale()"
-          [copy]="copy()"
-          [movements]="movements()"
-          [mvtLoading]="mvtLoading()"
-          [mvtPage]="mvtPage()"
-          [mvtTotalPages]="mvtTotalPages()"
-          [mvtTotalCount]="mvtTotalCount()"
-          [mvtPageSize]="mvtPageSize()"
-          [mvtFormSubmitting]="mvtFormSubmitting()"
-          [resetFormTrigger]="resetFormTrigger()"
-          (adjustStock)="handleAdjustStock($event)"
-          (prevPage)="mvtPrevPage()"
-          (nextPage)="mvtNextPage()"
-          (close)="closeMovementsModal()"
-        />
+          <billflow-product-movements-modal
+            [open]="movementsModalOpen()"
+            [product]="selectedProductForMovements()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [movements]="movements()"
+            [mvtLoading]="mvtLoading()"
+            [mvtPage]="mvtPage()"
+            [mvtTotalPages]="mvtTotalPages()"
+            [mvtTotalCount]="mvtTotalCount()"
+            [mvtPageSize]="mvtPageSize()"
+            [mvtFormSubmitting]="mvtFormSubmitting()"
+            [resetFormTrigger]="resetFormTrigger()"
+            (adjustStock)="handleAdjustStock($event)"
+            (prevPage)="mvtPrevPage()"
+            (nextPage)="mvtNextPage()"
+            (close)="closeMovementsModal()"
+          />
+        } @placeholder {
+          <!-- Product modals deferred until user interaction -->
+        }
 
         <nav class="md:hidden app-dashboard-mobile-nav">
           <a *ngFor="let item of mobileNavItems(); trackBy: trackByHref" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
@@ -332,6 +381,11 @@ export class ProductsPageComponent implements OnInit {
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
 
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
+
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
     invoices: this.copy().sidebarInvoices,
@@ -349,7 +403,7 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   // ─── State signals ──────────────────────────────────────────────────────────
-  loading = signal(true);
+  loading = signal(false);
   products = signal<ProductEntity[]>([]);
   categories = signal<CategoryRawDto[]>([]);
 
@@ -367,7 +421,7 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   readonly searchFieldOptions = computed<ComboboxOption[]>(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Todos' : 'All' },
+    { value: 'all', label: this.copy().allLabel },
     { value: 'code', label: this.copy().code },
     { value: 'name', label: this.copy().name },
   ]);
@@ -432,6 +486,20 @@ export class ProductsPageComponent implements OnInit {
   mvtTotalPages = computed(() => Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize())));
   mvtFormSubmitting = signal(false);
   private resetFormTrigger = signal(0);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: ProductsInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.products.set(value.products);
+    this.categories.set(value.categories);
+    this.totalProductsCount.set(value.totalProductsCount);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.activeCount.set(value.activeCount);
+    this.lowStockCount.set(value.lowStockCount);
+    this.loading.set(false);
+  }
 
   // ─── Abort / debounce handles ──────────────────────────────────────────────
   private abortController: AbortController | null = null;
@@ -447,6 +515,7 @@ export class ProductsPageComponent implements OnInit {
     this.session.init();
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
+      if (this.hasInitialData) return;
       await this.loadCategories();
       await this.reloadProducts();
     }

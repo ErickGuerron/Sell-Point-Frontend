@@ -1,12 +1,17 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { InvoicePageComponent } from '../presentation/features/invoices/invoice-page.component';
+import { loadInvoicesInitialData } from '../presentation/shared/ssr-page-data';
+import type { AppLocale } from '../presentation/shared/services/locale.service';
+
+const initialLocale: AppLocale = 'en';
+const initialData = await loadInvoicesInitialData(Astro, initialLocale);
 ---
 
-<MainLayout title="BillFlow - Invoice History" lang="en">
+<MainLayout title="BillFlow - Invoice History" lang={initialLocale}>
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <InvoicePageComponent client:load />
+      <InvoicePageComponent client:load initialLocale={initialLocale} initialData={initialData} />
     </div>
   </div>
 </MainLayout>

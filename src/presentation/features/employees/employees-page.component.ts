@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
@@ -16,6 +16,10 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import type { EmployeesInitialData } from '../../shared/ssr-page-data';
+import { EmployeesKpiCardsComponent } from './components/employees-kpi-cards.component';
+import { EmployeesTableComponent } from './components/employees-table.component';
+import { EmployeesFormModalComponent } from './components/employees-form-modal.component';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -77,6 +81,15 @@ interface EmployeesCopy {
   save: string;
   saveEdit: string;
   cancel: string;
+  searchStatusPlaceholder: string;
+  searchRolePlaceholder: string;
+  loadingText: string;
+  blockedUsersSubtitle: string;
+  blockedUsersEmptyTitle: string;
+  blockedUsersEmptyText: string;
+  selectUsersToUnlock: string;
+  closeLabel: string;
+  allFields: string;
   // Form
   firstNameLabel: string;
   lastNameLabel: string;
@@ -92,7 +105,6 @@ interface EmployeesCopy {
   cedulaExact10: string;
   emailInvalidFormat: string;
   usernameNoSpaces: string;
-  passwordNoSpaces: string;
   charCountLabel: string;
 }
 
@@ -155,6 +167,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     save: 'Guardar Empleado',
     saveEdit: 'Actualizar Empleado',
     cancel: 'Cancelar',
+    searchStatusPlaceholder: 'Buscar estado...',
+    searchRolePlaceholder: 'Buscar rol...',
+    loadingText: 'Cargando empleados...',
+    blockedUsersSubtitle: 'Usuarios bloqueados del sistema',
+    blockedUsersEmptyTitle: 'No hay usuarios bloqueados',
+    blockedUsersEmptyText: 'Todos los usuarios pueden acceder al sistema.',
+    selectUsersToUnlock: 'Seleccioná los usuarios que querés desbloquear:',
+    closeLabel: 'Cerrar',
+    allFields: 'Cualquier campo',
     firstNameLabel: 'Nombre',
     lastNameLabel: 'Apellido',
     docLabel: 'Cédula',
@@ -169,7 +190,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Debe tener exactamente 10 dígitos',
     emailInvalidFormat: 'Formato de email inválido',
     usernameNoSpaces: 'No se permiten espacios',
-    passwordNoSpaces: 'No se permiten espacios',
     charCountLabel: '',
   },
   en: {
@@ -223,6 +243,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    searchStatusPlaceholder: 'Search status...',
+    searchRolePlaceholder: 'Search role...',
+    loadingText: 'Loading employees...',
+    blockedUsersSubtitle: 'Blocked system users',
+    blockedUsersEmptyTitle: 'No blocked users',
+    blockedUsersEmptyText: 'All users can access the system.',
+    selectUsersToUnlock: 'Select the users to unlock:',
+    closeLabel: 'Close',
+    allFields: 'Any field',
     modalCreateTitle: 'New Employee',
     modalCreateSubtitle: 'Fill in the new employee details',
     modalEditTitle: 'Edit Employee',
@@ -244,7 +273,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Must be exactly 10 digits',
     emailInvalidFormat: 'Invalid email format',
     usernameNoSpaces: 'No spaces allowed',
-    passwordNoSpaces: 'No spaces allowed',
     charCountLabel: '',
   },
 };
@@ -256,13 +284,14 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   standalone: true,
   imports: [
     CommonModule, FormsModule, BillflowComboboxComponent,
-
     BillflowPageShellComponent, DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
     BillflowUserMenuComponent, BillflowModalShellComponent,
+    EmployeesKpiCardsComponent, EmployeesTableComponent, EmployeesFormModalComponent,
   ],
   template: `<billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
   <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
+
   <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
     <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
       <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
@@ -305,72 +334,52 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span>
         </div>
       </section>
-      <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">badge</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">badge</span>
+      @defer (on timer(200ms)) {
+        <billflow-employees-kpi-cards
+          [locale]="locale()"
+          [total]="totalEmployeesCount()"
+          [active]="activeEmployeesCount()"
+          [inactive]="inactiveEmployeesCount()"
+          [blocked]="blockedEmployeesCount()"
+        ></billflow-employees-kpi-cards>
+      } @placeholder {
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          @for (i of [1,2,3,4]; track i) {
+            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl animate-pulse">
+              <div class="flex items-center gap-4">
+                <div class="h-12 w-12 rounded-xl bg-surface-container-high shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                  <div class="h-6 w-10 rounded bg-surface-container-high"></div>
+                </div>
+              </div>
             </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total de Empleados' : 'Total Employees' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalEmployeesCount() }}</h3>
-            </div>
-          </div>
-        </div>
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">check_circle</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activos' : 'Active' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeEmployeesCount() }}</h3>
-            </div>
-          </div>
-        </div>
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-[#f59e0b]/5 dark:text-[#f59e0b]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">pause_circle</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-[#f59e0b]/10 text-[#f59e0b] flex items-center justify-center border border-[#f59e0b]/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">pause_circle</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Inactivos' : 'Inactive' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ inactiveEmployeesCount() }}</h3>
-            </div>
-          </div>
-        </div>
-        <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-          <div class="absolute -right-4 -bottom-4 text-error/5 dark:text-error/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-            <span class="material-symbols-outlined text-[96px] font-light">lock</span>
-          </div>
-          <div class="flex items-center gap-4">
-            <div class="h-12 w-12 rounded-xl bg-error/10 text-error flex items-center justify-center border border-error/20 shrink-0 shadow-sm">
-              <span class="material-symbols-outlined text-[24px]">lock</span>
-            </div>
-            <div>
-              <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Bloqueados' : 'Blocked' }}</p>
-              <h3 class="text-2xl font-bold text-on-background mt-1">{{ blockedEmployeesCount() }}</h3>
-            </div>
-          </div>
-        </div>
-      </section>
-      <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-        <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div class="flex flex-wrap items-center gap-3">
+          }
+        </section>
+      }
+      @defer (on idle) {
+        <billflow-employees-table
+          [employees]="employees"
+          [loading]="loading"
+          [locale]="locale"
+          [page]="page"
+          [total]="totalCount"
+          [pageSize]="pageSize"
+          (onRowClick)="showEmployeeInfo($event)"
+          (onEditClick)="openEditModal($event)"
+          (onToggleClick)="toggleActive($event)"
+          (onUnlockClick)="unlockEmployee($event)"
+          (onInfoClick)="showEmployeeInfo($event)"
+          (onPrevPage)="previousPage()"
+          (onNextPage)="nextPage()"
+          (onPageClick)="goToPage($event)"
+        >
+          <ng-container toolbar-left>
             <billflow-combobox
               [options]="statusFilterOptions()"
               [value]="statusFilter()"
               [placeholder]="copy().allStatuses"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+              searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
               [compact]="true"
               (valueChange)="setStatusFilter($event)"
             ></billflow-combobox>
@@ -378,7 +387,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
               [options]="roleFilterOptions()"
               [value]="roleFilter()"
               [placeholder]="copy().allRoles"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar rol...' : 'Search role...' }}"
+              searchPlaceholder="{{ copy().searchRolePlaceholder }}"
               [compact]="true"
               (valueChange)="setRoleFilter($event)"
             ></billflow-combobox>
@@ -391,238 +400,78 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
               <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
             </button>
-          </div>
-          <div class="flex items-center gap-2 w-full lg:w-auto">
-            <billflow-combobox
-              [options]="searchFieldOptionsList()"
-              [value]="searchFieldValue()"
-              [placeholder]="locale() === 'es' ? 'Buscar por...' : 'Search by...'"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-              [compact]="true"
-              (valueChange)="onSearchFieldSelected($event)"
-            ></billflow-combobox>
+          </ng-container>
+          <ng-container toolbar-right>
             <div class="relative flex-1 lg:w-64">
               <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
               <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
             </div>
+          </ng-container>
+        </billflow-employees-table>
+      } @placeholder {
+        <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+          <div class="p-6 md:p-7 border-b border-outline-variant/30">
+            <div class="flex items-center gap-3">
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+            </div>
+          </div>
+          <div class="p-8 flex items-center justify-center">
+            <div class="flex items-center gap-3 text-on-surface-variant">
+              <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+              <span>{{ copy().loadingText }}</span>
+            </div>
           </div>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-left">
-            <thead>
-              <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ locale() === 'es' ? 'Empleado' : 'Employee' }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().email }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().role }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
-                <th class="dashboard-table-card__th p-4 font-semibold text-center">{{ locale() === 'es' ? 'Intentos' : 'Attempts' }}</th>
-                <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
-              </tr>
-            </thead>
-            <tbody class="font-body-sm text-body-sm">
-              @for (employee of employees(); track employee.id) {
-                <tr class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200 cursor-pointer" [ngClass]="!employee.isActive ? 'opacity-70 bg-surface-container-lowest/20' : ''" (click)="showEmployeeInfo(employee)">
-                  <td class="p-4 pl-7 font-semibold text-on-background">
+      }
+    </main>
+    @defer (on interaction) {
+        <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" (close)="closeEmployeeModal()">
+          <billflow-employees-form-modal
+            [locale]="locale"
+            [employee]="editingEmployee() ?? undefined"
+            [roleOptions]="roleOptions"
+            [submitting]="formSubmitting"
+            (onCancel)="closeEmployeeModal()"
+            (onSave)="saveEmployeeFromModal($event)"
+          ></billflow-employees-form-modal>
+        </billflow-modal-shell>
+        <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ copy().blockedUsersSubtitle }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
+          <div class="p-6">
+            @let blockedEmployees = employees().filter(e => e.failedLoginAttempts >= 3);
+            @if (blockedEmployees.length === 0) {
+              <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
+                <span class="material-symbols-outlined dashboard-table-card__empty-icon">lock_open</span>
+                <p class="dashboard-table-card__empty-title">{{ copy().blockedUsersEmptyTitle }}</p>
+                <p class="dashboard-table-card__empty-text">{{ copy().blockedUsersEmptyText }}</p>
+              </div>
+            } @else {
+              <p class="text-sm text-on-surface-variant mb-4">{{ copy().selectUsersToUnlock }}</p>
+              <div class="space-y-2 max-h-80 overflow-y-auto">
+                @for (employee of blockedEmployees; track employee.id) {
+                  <div class="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low/30 hover:bg-surface-container-low transition-colors">
                     <div class="flex items-center gap-3">
                       <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm" [ngClass]="getEmployeeGradient(employee)">{{ getEmployeeInitials(employee) }}</div>
                       <div>
-                        <div class="font-semibold text-on-background">{{ employeeFullName(employee) }}</div>
-                        <div class="text-[10px] text-outline mt-0.5 md:hidden font-mono">{{ copy().employeeId }}: {{ employee.employeeId }}</div>
+                        <div class="font-semibold text-sm text-on-background">{{ employeeFullName(employee) }}</div>
+                        <div class="text-[11px] text-outline">{{ employee.email }} · {{ copy().employeeId }}: {{ employee.employeeId }}</div>
                       </div>
                     </div>
-                  </td>
-                  <td class="p-4 text-on-surface font-medium max-w-[160px] truncate">{{ employee.email || '—' }}</td>
-                  <td class="p-4">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-surface-container-high text-on-surface-variant border border-outline-variant/40">{{ employee.role }}</span>
-                  </td>
-                  <td class="p-4">
-                    <span class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide" [ngClass]="getStatusClass(employee)">
-                      <span class="h-1.5 w-1.5 rounded-full" [ngClass]="getStatusDot(employee)"></span>{{ getStatusLabel(employee) | uppercase }}
-                    </span>
-                  </td>
-                  <td class="p-4 text-center">
-                    <span class="inline-flex items-center justify-center h-7 min-w-[2rem] px-2 rounded-md text-xs font-bold" [ngClass]="employee.failedLoginAttempts >= 3 ? 'bg-error/10 text-error border border-error/20' : 'bg-surface-container-high text-on-surface-variant border border-outline-variant/40'">{{ employee.failedLoginAttempts }}</span>
-                  </td>
-                  <td class="p-4 pr-7 text-right">
-                    <div class="flex items-center justify-end gap-1.5">
-                      <button type="button" [title]="locale() === 'es' ? 'Ver Detalles' : 'View Details'" class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer" (click)="$event.stopPropagation(); showEmployeeInfo(employee)">
-                        <span class="material-symbols-outlined text-[18px]">info</span>
-                      </button>
-                      <button type="button" [title]="copy().edit" class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer" (click)="$event.stopPropagation(); openEditModal(employee)">
-                        <span class="material-symbols-outlined text-[18px]">edit</span>
-                      </button>
-                      @if (employee.failedLoginAttempts >= 3) {
-                        <button type="button" [title]="copy().unlock" class="inline-flex h-8 w-8 items-center justify-center bg-[#f59e0b] text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer" (click)="$event.stopPropagation(); void unlockEmployee(employee)">
-                          <span class="material-symbols-outlined text-[18px]">lock_open</span>
-                        </button>
-                      }
-                      <button type="button" [title]="employee.isActive ? copy().deactivate : copy().activate" class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer" [ngClass]="employee.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'" (click)="$event.stopPropagation(); void toggleActive(employee)">
-                        <span class="material-symbols-outlined text-[18px]">{{ employee.isActive ? 'close' : 'check' }}</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              }
-              @if (employees().length === 0 && !loading()) {
-                <tr>
-                  <td colspan="6" class="p-8">
-                    <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                      <span class="material-symbols-outlined dashboard-table-card__empty-icon">badge</span>
-                      <p class="dashboard-table-card__empty-title">{{ copy().noEmployeesTitle }}</p>
-                      <p class="dashboard-table-card__empty-text">{{ copy().noEmployeesText }}</p>
-                    </div>
-                  </td>
-                </tr>
-              }
-              @if (loading()) {
-                <tr>
-                  <td colspan="6" class="p-8">
-                    <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                      <div class="flex items-center gap-3 text-on-surface-variant">
-                        <svg class="animate-spin h-6 w-6 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                        <span>{{ locale() === 'es' ? 'Cargando empleados...' : 'Loading employees...' }}</span>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-        <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
-          <div class="flex items-center gap-3 text-sm text-on-surface-variant">
-            <span>{{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ totalCount() }}</span> {{ copy().entriesText }}</span>
-            <select class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary" [value]="pageSize()" (change)="onPageSizeChange($event)">
-              <option [value]="5">5</option>
-              <option [value]="10">10</option>
-              <option [value]="15">15</option>
-              <option [value]="20">20</option>
-              <option [value]="30">30</option>
-            </select>
-          </div>
-          <div class="flex items-center gap-2">
-            <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
-              <span class="material-symbols-outlined text-[18px]">chevron_left</span>
-            </button>
-            @for (pageNumber of visiblePages(); track pageNumber) {
-              <button type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">{{ pageNumber }}</button>
-            }
-            <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === totalPages()" (click)="nextPage()">
-              <span class="material-symbols-outlined text-[18px]">chevron_right</span>
-            </button>
-          </div>
-        </div>
-      </section>
-    </main>
-    <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" (close)="closeEmployeeModal()">
-      <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-          <input #firstNameInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formFirstNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="Ej: Carlos" [ngModel]="formFirstName()" (ngModelChange)="onFirstNameInput($event)" />
-          @if (formFirstNameError()) {
-            <span class="text-xs text-error mt-1 block">{{ formFirstNameError() }}</span>
-          }
-          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ firstNameCount() }}/100</span>
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-          <input #lastNameInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formLastNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="Ej: González" [ngModel]="formLastName()" (ngModelChange)="onLastNameInput($event)" />
-          @if (formLastNameError()) {
-            <span class="text-xs text-error mt-1 block">{{ formLastNameError() }}</span>
-          }
-          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ lastNameCount() }}/100</span>
-        </div>
-        
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-          <input #cedulaInput type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formCedulaError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="10" placeholder="Ej: 1234567890" [ngModel]="formCedula()" (ngModelChange)="onCedulaInput($event)" />
-          @if (formCedulaError()) {
-            <span class="text-xs text-error mt-1 block">{{ formCedulaError() }}</span>
-          }
-          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ cedulaCount() }}/10</span>
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
-          <input type="email" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formEmailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [ngModel]="formEmail()" (ngModelChange)="onEmailInput($event)" />
-          @if (formEmailError()) {
-            <span class="text-xs text-error mt-1 block">{{ formEmailError() }}</span>
-          }
-          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ emailCount() }}/255</span>
-        </div>
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
-          <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formUsernameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="50" placeholder="Ej: carlos.gonzalez" [ngModel]="formUsername()" (ngModelChange)="onUsernameInput($event)" />
-          @if (formUsernameError()) {
-            <span class="text-xs text-error mt-1 block">{{ formUsernameError() }}</span>
-          }
-          <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ usernameCount() }}/50</span>
-        </div>
-        @if (!editingEmployee()) {
-          <div class="md:col-span-1">
-            <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().passwordLabel }} <span class="text-error">*</span></label>
-            <input type="password" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant" [ngClass]="formPasswordError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'" [maxLength]="100" placeholder="••••••••" [ngModel]="formPassword()" (ngModelChange)="onPasswordInput($event)" />
-            @if (formPasswordError()) {
-              <span class="text-xs text-error mt-1 block">{{ formPasswordError() }}</span>
-            }
-          </div>
-        }
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
-          <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer" [ngModel]="formRole()" (ngModelChange)="formRole.set($event)">
-            <option value="">-- {{ locale() === 'es' ? 'Seleccionar' : 'Select' }} --</option>
-            @for (opt of roleOptions(); track opt.value) {
-              <option [value]="opt.value">{{ opt.label }}</option>
-            }
-          </select>
-        </div>
-      </div>
-      <div footer class="flex w-full items-center justify-end gap-3">
-        <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeEmployeeModal()">{{ copy().cancel }}</button>
-        <button type="button" class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50" [disabled]="!formValid() || formSubmitting()" (click)="void saveEmployee()">
-          @if (formSubmitting()) {
-            <span class="inline-flex items-center gap-2">
-              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              {{ locale() === 'es' ? 'Guardando...' : 'Saving...' }}
-            </span>
-          } @else {
-            {{ editingEmployee() ? copy().saveEdit : copy().save }}
-          }
-        </button>
-      </div>
-    </billflow-modal-shell>
-    <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ locale() === 'es' ? 'Usuarios bloqueados del sistema' : 'Blocked system users' }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
-      <div class="p-6">
-        @let blockedEmployees = employees().filter(e => e.failedLoginAttempts >= 3);
-        @if (blockedEmployees.length === 0) {
-          <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-            <span class="material-symbols-outlined dashboard-table-card__empty-icon">lock_open</span>
-            <p class="dashboard-table-card__empty-title">{{ locale() === 'es' ? 'No hay usuarios bloqueados' : 'No blocked users' }}</p>
-            <p class="dashboard-table-card__empty-text">{{ locale() === 'es' ? 'Todos los usuarios pueden acceder al sistema.' : 'All users can access the system.' }}</p>
-          </div>
-        } @else {
-          <p class="text-sm text-on-surface-variant mb-4">{{ locale() === 'es' ? 'Seleccioná los usuarios que querés desbloquear:' : 'Select the users to unlock:' }}</p>
-          <div class="space-y-2 max-h-80 overflow-y-auto">
-            @for (employee of blockedEmployees; track employee.id) {
-              <div class="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low/30 hover:bg-surface-container-low transition-colors">
-                <div class="flex items-center gap-3">
-                  <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm" [ngClass]="getEmployeeGradient(employee)">{{ getEmployeeInitials(employee) }}</div>
-                  <div>
-                    <div class="font-semibold text-sm text-on-background">{{ employeeFullName(employee) }}</div>
-                    <div class="text-[11px] text-outline">{{ employee.email }} · {{ copy().employeeId }}: {{ employee.employeeId }}</div>
+                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#f59e0b] text-white hover:opacity-90 transition-all shadow-sm" (click)="$event.stopPropagation(); void unlockEmployee(employee)">
+                      <span class="material-symbols-outlined text-[16px]">lock_open</span>{{ copy().unlock }}
+                    </button>
                   </div>
-                </div>
-                <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#f59e0b] text-white hover:opacity-90 transition-all shadow-sm" (click)="$event.stopPropagation(); void unlockEmployee(employee)">
-                  <span class="material-symbols-outlined text-[16px]">lock_open</span>{{ copy().unlock }}
-                </button>
+                }
               </div>
             }
           </div>
-        }
-      </div>
-      <div footer class="flex w-full items-center justify-end gap-3">
-        <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeReactivateModal()">{{ locale() === 'es' ? 'Cerrar' : 'Close' }}</button>
-      </div>
-    </billflow-modal-shell>
+          <div footer class="flex w-full items-center justify-end gap-3">
+            <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeReactivateModal()">{{ copy().closeLabel }}</button>
+          </div>
+        </billflow-modal-shell>
+      } @placeholder {
+        <!-- Modals deferred until user interaction -->
+      }
     <nav class="md:hidden app-dashboard-mobile-nav">
       <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
         <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
@@ -650,6 +499,11 @@ export class EmployeesPageComponent implements OnInit {
 
   locale = this.localeService.locale;
   copy = computed(() => EMPLOYEES_TEXT[this.locale()]);
+
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
 
   Math = Math;
   String = String;
@@ -718,7 +572,7 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Filter values ──
   readonly searchFieldOptionsList = computed(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Cualquier campo' : 'Any field' },
+    { value: 'all', label: this.copy().allFields },
     { value: 'employeeId', label: this.copy().employeeId },
     { value: 'username', label: this.copy().usernameLabel },
     { value: 'email', label: this.copy().emailLabel },
@@ -740,6 +594,22 @@ export class EmployeesPageComponent implements OnInit {
   employeeModalOpen = signal(false);
   editingEmployee = signal<EmployeeRowDto | null>(null);
   reactivateModalOpen = signal(false);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: EmployeesInitialData | null | undefined) {
+    if (!value) return;
+    this.hasInitialData = true;
+    this.employees.set(value.employees);
+    this.roles.set(value.roles);
+    this.totalCount.set(value.totalCount);
+    this.totalEmployeesKpi.set(value.totalEmployeesKpi);
+    this.activeEmployeesKpi.set(value.activeEmployeesKpi);
+    this.inactiveEmployeesKpi.set(value.inactiveEmployeesKpi);
+    this.blockedEmployeesKpi.set(value.blockedEmployeesKpi);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   // ── Form signals ──
   formFirstName = signal('');
@@ -758,7 +628,6 @@ export class EmployeesPageComponent implements OnInit {
     && this.formEmailValid()
     && this.formUsernameValid()
     && this.formRole().trim().length > 0
-    && (!this.editingEmployee() || this.formPassword().trim().length >= 6)
   );
 
   // ── Validation signals ──
@@ -767,8 +636,6 @@ export class EmployeesPageComponent implements OnInit {
   formCedulaError = signal('');
   formEmailError = signal('');
   formUsernameError = signal('');
-  formPasswordError = signal('');
-
   readonly formFirstNameValid = computed(() => this.formFirstNameError() === '');
   readonly formLastNameValid = computed(() => this.formLastNameError() === '');
   readonly formCedulaValid = computed(() => this.formCedulaError() === '');
@@ -789,7 +656,8 @@ export class EmployeesPageComponent implements OnInit {
     this.applyStoredTheme();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
-    // Load roles and employees in parallel
+    if (this.hasInitialData) return;
+
     await Promise.all([
       this.loadRoles(),
       this.reloadEmployees(),
@@ -995,7 +863,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedulaError.set('');
     this.formEmailError.set('');
     this.formUsernameError.set('');
-    this.formPasswordError.set('');
     this.editingEmployee.set(employee);
     this.employeeModalOpen.set(true);
   }
@@ -1020,7 +887,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedulaError.set('');
     this.formEmailError.set('');
     this.formUsernameError.set('');
-    this.formPasswordError.set('');
   }
 
   // ── Input handlers ──
@@ -1060,12 +926,6 @@ export class EmployeesPageComponent implements OnInit {
     const cleaned = value.replace(/\s/g, '');
     this.formUsername.set(cleaned);
     this.validateUsername(cleaned);
-  }
-
-  onPasswordInput(value: string) {
-    const cleaned = value.replace(/\s/g, '');
-    this.formPassword.set(cleaned);
-    this.validatePassword(cleaned);
   }
 
   // ── Validation methods ──
@@ -1111,24 +971,18 @@ export class EmployeesPageComponent implements OnInit {
     }
   }
 
-  private validatePassword(value: string) {
-    if (value.includes(' ')) {
-      this.formPasswordError.set(this.copy().passwordNoSpaces);
-    } else {
-      this.formPasswordError.set('');
-    }
-  }
-
-  async saveEmployee() {
-    if (!this.formValid() || this.formSubmitting()) return;
+  async saveEmployeeFromModal(payload: {
+    firstName: string; lastName: string; cedula: string; email: string;
+    username: string; role: string;
+  }) {
     this.formSubmitting.set(true);
     try {
       if (this.editingEmployee()) {
         const updated = await this.api.updateUser(this.editingEmployee()!.id, {
-          firstName: this.formFirstName().trim(),
-          lastName: this.formLastName().trim(),
-          email: this.formEmail().trim(),
-          role: this.formRole(),
+          firstName: payload.firstName.trim(),
+          lastName: payload.lastName.trim(),
+          email: payload.email.trim(),
+          role: payload.role,
         });
         this.employees.update(emps =>
           emps.map(e => e.id === updated.id ? updated : e)
@@ -1137,12 +991,12 @@ export class EmployeesPageComponent implements OnInit {
           this.locale() === 'es' ? 'Empleado actualizado correctamente' : 'Employee updated successfully');
       } else {
         const created = await this.api.registerUser({
-          email: this.formEmail().trim(),
-          firstName: this.formFirstName().trim(),
-          lastName: this.formLastName().trim(),
-          cedula: this.formCedula().trim(),
-          role: this.formRole(),
-          username: this.formUsername().trim(),
+          email: payload.email.trim(),
+          firstName: payload.firstName.trim(),
+          lastName: payload.lastName.trim(),
+          cedula: payload.cedula.trim(),
+          role: payload.role,
+          username: payload.username.trim(),
           defaultBranchId: '',
         });
         this.employees.update(emps => [created, ...emps]);

@@ -1,12 +1,17 @@
 ---
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { EmployeesPageComponent } from '../presentation/features/employees/employees-page.component';
+import { loadEmployeesInitialData } from '../presentation/shared/ssr-page-data';
+import type { AppLocale } from '../presentation/shared/services/locale.service';
+
+const initialLocale: AppLocale = 'en';
+const initialData = await loadEmployeesInitialData(Astro, initialLocale);
 ---
 
-<MainLayout title="BillFlow - Employee Management" lang="en">
+<MainLayout title="BillFlow - Employee Management" lang={initialLocale}>
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-background text-on-background">
     <div class="relative z-10">
-      <EmployeesPageComponent client:load />
+      <EmployeesPageComponent client:load initialLocale={initialLocale} initialData={initialData} />
     </div>
   </div>
 </MainLayout>
