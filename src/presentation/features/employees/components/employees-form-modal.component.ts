@@ -37,6 +37,7 @@ interface EmployeesFormCopy {
   usernameNoSpaces: string;
   charCountLabel: string;
   selectPlaceholder: string;
+  savingText: string;
 }
 
 const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
@@ -51,6 +52,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     emailInvalidFormat: 'Formato de email inválido', usernameNoSpaces: 'No se permiten espacios',
     charCountLabel: '',
     selectPlaceholder: '-- Seleccionar --',
+    savingText: 'Guardando...',
   },
   en: {
     modalCreateTitle: 'New Employee', modalCreateSubtitle: 'Fill in the new employee details',
@@ -63,6 +65,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     emailInvalidFormat: 'Invalid email format', usernameNoSpaces: 'No spaces allowed',
     charCountLabel: '',
     selectPlaceholder: '-- Select --',
+    savingText: 'Saving...',
   },
 };
 
@@ -143,7 +146,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
             </svg>
-            {{ locale() === 'es' ? 'Guardando...' : 'Saving...' }}
+            {{ copy().savingText }}
           </span>
         } @else {
           {{ isEdit ? copy().saveEdit : copy().save }}

@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -151,7 +151,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
               <!-- Search toggle (lupa) — ALWAYS visible -->
               <button
                 type="button"
-                [title]="showFilters() ? (locale() === 'es' ? 'Ocultar filtros' : 'Hide filters') : (locale() === 'es' ? 'Mostrar filtros' : 'Show filters')"
+                [title]="showFilters() ? copy().hideFilters : copy().showFilters"
                 class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
                 (click)="toggleFilters()"
               >
@@ -166,8 +166,8 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                     [options]="statusFilterOptions()"
                     [value]="statusFilter()"
                     placeholder="{{ copy().allStatuses }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                    emptyLabel="{{ copy().noResultsText }}"
                     [compact]="true"
                     (valueChange)="setStatusFilter($event)"
                   ></billflow-combobox>
@@ -177,8 +177,8 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                     [options]="categoryFilterOptions()"
                     [value]="categoryFilter()"
                     placeholder="{{ copy().allCategories }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
-                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    searchPlaceholder="{{ copy().searchCategoryPlaceholder }}"
+                    emptyLabel="{{ copy().noResultsText }}"
                     [compact]="true"
                     (valueChange)="setCategoryFilter($event)"
                   ></billflow-combobox>
@@ -188,9 +188,9 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                     <billflow-combobox
                       [options]="searchFieldOptions()"
                       [value]="searchField()"
-                      placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
-                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-                      emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                      placeholder="{{ copy().allLabel }}"
+                      searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                      emptyLabel="{{ copy().noResultsText }}"
                       [compact]="true"
                       (valueChange)="searchField.set($event)"
                     ></billflow-combobox>
@@ -198,7 +198,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                       <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
                       <input
                         class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                        [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
+                        [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
                         [value]="searchQuery()"
                         (input)="setSearchQuery(($any($event.target).value))"
                       />
@@ -213,7 +213,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
               <!-- Refresh — ALWAYS visible -->
               <button
                 type="button"
-                [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
+                [title]="copy().reloadLabel"
                 class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
                 (click)="void reloadProducts()"
               >
@@ -226,7 +226,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                 class="inline-flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap shrink-0"
               >
                 <span class="material-symbols-outlined text-[16px]">category</span>
-                <span class="hidden sm:inline">{{ locale() === 'es' ? 'Categorías' : 'Categories' }}</span>
+                <span class="hidden sm:inline">{{ copy().categoriesLabel }}</span>
               </a>
 
               <!-- New Product — ALWAYS visible -->
@@ -254,7 +254,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
             <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
               <div class="flex items-center gap-3 text-sm text-on-surface-variant">
                 <span>
-                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
+                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ copy().rangeFrom }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ copy().rangeOf }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
                 </span>
                 <select
                   class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
@@ -271,7 +271,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
               <div class="flex items-center gap-2">
                 <div class="flex items-center gap-1 mr-2">
-                  <label class="text-xs text-on-surface-variant hidden sm:inline">{{ locale() === 'es' ? 'Ir a:' : 'Go to:' }}</label>
+                  <label class="text-xs text-on-surface-variant hidden sm:inline">{{ copy().goToLabel }}</label>
                   <input
                     type="number"
                     min="1"
@@ -306,7 +306,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
             <div class="p-8 flex items-center justify-center">
               <div class="flex items-center gap-3 text-on-surface-variant">
                 <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                <span>{{ locale() === 'es' ? 'Cargando productos...' : 'Loading products...' }}</span>
+                <span>{{ copy().loadingText }}</span>
               </div>
             </div>
           </div>
@@ -381,6 +381,11 @@ export class ProductsPageComponent implements OnInit {
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
 
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
+
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
     invoices: this.copy().sidebarInvoices,
@@ -416,7 +421,7 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   readonly searchFieldOptions = computed<ComboboxOption[]>(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Todos' : 'All' },
+    { value: 'all', label: this.copy().allLabel },
     { value: 'code', label: this.copy().code },
     { value: 'name', label: this.copy().name },
   ]);

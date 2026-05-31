@@ -5,7 +5,7 @@ import type { OnInit } from '@angular/core';
 import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
@@ -81,6 +81,15 @@ interface EmployeesCopy {
   save: string;
   saveEdit: string;
   cancel: string;
+  searchStatusPlaceholder: string;
+  searchRolePlaceholder: string;
+  loadingText: string;
+  blockedUsersSubtitle: string;
+  blockedUsersEmptyTitle: string;
+  blockedUsersEmptyText: string;
+  selectUsersToUnlock: string;
+  closeLabel: string;
+  allFields: string;
   // Form
   firstNameLabel: string;
   lastNameLabel: string;
@@ -158,6 +167,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     save: 'Guardar Empleado',
     saveEdit: 'Actualizar Empleado',
     cancel: 'Cancelar',
+    searchStatusPlaceholder: 'Buscar estado...',
+    searchRolePlaceholder: 'Buscar rol...',
+    loadingText: 'Cargando empleados...',
+    blockedUsersSubtitle: 'Usuarios bloqueados del sistema',
+    blockedUsersEmptyTitle: 'No hay usuarios bloqueados',
+    blockedUsersEmptyText: 'Todos los usuarios pueden acceder al sistema.',
+    selectUsersToUnlock: 'Seleccioná los usuarios que querés desbloquear:',
+    closeLabel: 'Cerrar',
+    allFields: 'Cualquier campo',
     firstNameLabel: 'Nombre',
     lastNameLabel: 'Apellido',
     docLabel: 'Cédula',
@@ -225,6 +243,15 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    searchStatusPlaceholder: 'Search status...',
+    searchRolePlaceholder: 'Search role...',
+    loadingText: 'Loading employees...',
+    blockedUsersSubtitle: 'Blocked system users',
+    blockedUsersEmptyTitle: 'No blocked users',
+    blockedUsersEmptyText: 'All users can access the system.',
+    selectUsersToUnlock: 'Select the users to unlock:',
+    closeLabel: 'Close',
+    allFields: 'Any field',
     modalCreateTitle: 'New Employee',
     modalCreateSubtitle: 'Fill in the new employee details',
     modalEditTitle: 'Edit Employee',
@@ -352,7 +379,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
               [options]="statusFilterOptions()"
               [value]="statusFilter()"
               [placeholder]="copy().allStatuses"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+              searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
               [compact]="true"
               (valueChange)="setStatusFilter($event)"
             ></billflow-combobox>
@@ -360,7 +387,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
               [options]="roleFilterOptions()"
               [value]="roleFilter()"
               [placeholder]="copy().allRoles"
-              searchPlaceholder="{{ locale() === 'es' ? 'Buscar rol...' : 'Search role...' }}"
+              searchPlaceholder="{{ copy().searchRolePlaceholder }}"
               [compact]="true"
               (valueChange)="setRoleFilter($event)"
             ></billflow-combobox>
@@ -392,7 +419,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           <div class="p-8 flex items-center justify-center">
             <div class="flex items-center gap-3 text-on-surface-variant">
               <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <span>{{ locale() === 'es' ? 'Cargando empleados...' : 'Loading employees...' }}</span>
+              <span>{{ copy().loadingText }}</span>
             </div>
           </div>
         </div>
@@ -409,17 +436,17 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             (onSave)="saveEmployeeFromModal($event)"
           ></billflow-employees-form-modal>
         </billflow-modal-shell>
-        <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ locale() === 'es' ? 'Usuarios bloqueados del sistema' : 'Blocked system users' }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
+        <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ copy().blockedUsersSubtitle }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
           <div class="p-6">
             @let blockedEmployees = employees().filter(e => e.failedLoginAttempts >= 3);
             @if (blockedEmployees.length === 0) {
               <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
                 <span class="material-symbols-outlined dashboard-table-card__empty-icon">lock_open</span>
-                <p class="dashboard-table-card__empty-title">{{ locale() === 'es' ? 'No hay usuarios bloqueados' : 'No blocked users' }}</p>
-                <p class="dashboard-table-card__empty-text">{{ locale() === 'es' ? 'Todos los usuarios pueden acceder al sistema.' : 'All users can access the system.' }}</p>
+                <p class="dashboard-table-card__empty-title">{{ copy().blockedUsersEmptyTitle }}</p>
+                <p class="dashboard-table-card__empty-text">{{ copy().blockedUsersEmptyText }}</p>
               </div>
             } @else {
-              <p class="text-sm text-on-surface-variant mb-4">{{ locale() === 'es' ? 'Seleccioná los usuarios que querés desbloquear:' : 'Select the users to unlock:' }}</p>
+              <p class="text-sm text-on-surface-variant mb-4">{{ copy().selectUsersToUnlock }}</p>
               <div class="space-y-2 max-h-80 overflow-y-auto">
                 @for (employee of blockedEmployees; track employee.id) {
                   <div class="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low/30 hover:bg-surface-container-low transition-colors">
@@ -439,7 +466,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             }
           </div>
           <div footer class="flex w-full items-center justify-end gap-3">
-            <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeReactivateModal()">{{ locale() === 'es' ? 'Cerrar' : 'Close' }}</button>
+            <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeReactivateModal()">{{ copy().closeLabel }}</button>
           </div>
         </billflow-modal-shell>
       } @placeholder {
@@ -472,6 +499,11 @@ export class EmployeesPageComponent implements OnInit {
 
   locale = this.localeService.locale;
   copy = computed(() => EMPLOYEES_TEXT[this.locale()]);
+
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
 
   Math = Math;
   String = String;
@@ -540,7 +572,7 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Filter values ──
   readonly searchFieldOptionsList = computed(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Cualquier campo' : 'Any field' },
+    { value: 'all', label: this.copy().allFields },
     { value: 'employeeId', label: this.copy().employeeId },
     { value: 'username', label: this.copy().usernameLabel },
     { value: 'email', label: this.copy().emailLabel },

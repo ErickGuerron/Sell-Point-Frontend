@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -43,7 +43,11 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
     UpdateCustomerUseCase, ToggleCustomerActiveUseCase,
   ],
   template: `
-<billflow-page-shell [items]="sidebarItems()" [actionLabel]="copy().newCustomer" actionIcon="add" (actionClick)="openCreateModal()">
+<billflow-page-shell
+  [items]="sidebarItems()"
+  [locale]="locale()"
+  (settings)="session.openUserSettings()"
+  (logout)="session.logout()">
   <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
   <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
@@ -146,7 +150,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
           <div class="p-8 flex items-center justify-center">
             <div class="flex items-center gap-3 text-on-surface-variant">
               <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-              <span>{{ copy().loadingText || 'Loading...' }}</span>
+              <span>{{ copy().loadingText }}</span>
             </div>
           </div>
         </div>
@@ -196,6 +200,11 @@ export class CustomersPageComponent implements OnInit {
   locale = this.localeService.locale;
   copy = customersCopy(this.locale);
 
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
+
   loading = signal(false);
   customers = signal<CustomerEntity[]>([]);
   totalCustomers = signal(0);
@@ -209,18 +218,18 @@ export class CustomersPageComponent implements OnInit {
 
   // ── Computeds ──────────────────────────────────────────────────────────────
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
-    dashboard: 'Dashboard',
-    invoices: this.locale() === 'es' ? 'Facturas' : 'Invoices',
-    customers: this.locale() === 'es' ? 'Clientes' : 'Customers',
-    products: this.locale() === 'es' ? 'Productos' : 'Products',
-    employees: this.locale() === 'es' ? 'Empleados' : 'Employees',
+    dashboard: this.copy().sidebarDashboard,
+    invoices: this.copy().sidebarInvoices,
+    customers: this.copy().sidebarCustomers,
+    products: this.copy().sidebarProducts,
+    employees: this.copy().sidebarEmployees,
   }, 'customers'));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: 'Dashboard', icon: 'dashboard', href: '/dashboard' },
-    { label: this.locale() === 'es' ? 'Facturas' : 'Invoices', icon: 'receipt_long', href: '/invoices' },
-    { label: this.locale() === 'es' ? 'Clientes' : 'Customers', icon: 'groups', href: '/customers', active: true },
-    { label: this.locale() === 'es' ? 'Productos' : 'Products', icon: 'inventory_2', href: '/dashboard' },
+    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+    { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers', active: true },
+    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
   ]);
 
   readonly pageSizeOptions: ComboboxOption[] = [
@@ -238,7 +247,7 @@ export class CustomersPageComponent implements OnInit {
   ]);
 
   readonly searchFieldOptions = computed<ComboboxOption[]>(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Cualquier campo' : 'Any field' },
+    { value: 'all', label: this.copy().allFields },
     { value: 'name', label: this.copy().name },
     { value: 'lastName', label: this.copy().lastName },
     { value: 'cedula', label: this.copy().document },

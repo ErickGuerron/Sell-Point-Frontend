@@ -2069,6 +2069,18 @@ html.dark {
       border-color: rgba(57, 69, 102, 0.55);
   }
 
+  html.dark .app-dashboard-nav-link {
+      color: #e2e8f0;
+  }
+
+  html.dark .app-dashboard-nav-link:hover {
+      background: rgba(30, 41, 59, 0.9);
+  }
+
+  html.dark .app-dashboard-nav-link--active {
+      color: #eef0ff;
+  }
+
   html.dark .app-dashboard-tablet-menu {
       background: linear-gradient(180deg, rgba(53, 37, 205, 0.3), rgba(0, 101, 145, 0.22));
       border-color: rgba(195, 192, 255, 0.3);

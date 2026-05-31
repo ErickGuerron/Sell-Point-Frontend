@@ -2,13 +2,18 @@
 import MainLayout from '../presentation/layouts/MainLayout.astro';
 import { DashboardPageComponent } from '../presentation/features/dashboard/dashboard-page.component';
 import { DashboardParticlesBackgroundComponent } from '../presentation/features/dashboard/dashboard-particles-background.component';
+import { loadDashboardInitialData } from '../presentation/shared/ssr-page-data';
+import type { AppLocale } from '../presentation/shared/services/locale.service';
+
+const initialLocale: AppLocale = 'es';
+const initialData = await loadDashboardInitialData(Astro, initialLocale);
 ---
 
-<MainLayout title="BillFlow - Dashboard POS" lang="es">
+<MainLayout title="BillFlow - Dashboard POS" lang={initialLocale}>
   <div class="relative isolate min-h-[100dvh] overflow-hidden bg-surface text-on-surface">
-    <DashboardParticlesBackgroundComponent client:visible />
+    <DashboardParticlesBackgroundComponent client:idle />
     <div class="relative z-10">
-      <DashboardPageComponent client:load />
+      <DashboardPageComponent client:load initialLocale={initialLocale} initialData={initialData} />
     </div>
   </div>
 </MainLayout>

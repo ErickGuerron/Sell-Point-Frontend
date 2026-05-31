@@ -52,6 +52,21 @@ export interface ProductsCopy {
   notifications: string;
   languageToggle: string;
   sessionLabel: string;
+  showFilters: string;
+  hideFilters: string;
+  searchStatusPlaceholder: string;
+  searchCategoryPlaceholder: string;
+  searchFieldPlaceholder: string;
+  searchByCodePlaceholder: string;
+  searchByNamePlaceholder: string;
+  noResultsText: string;
+  reloadLabel: string;
+  categoriesLabel: string;
+  rangeFrom: string;
+  rangeOf: string;
+  goToLabel: string;
+  loadingText: string;
+  allLabel: string;
   modalCreateTitle: string;
   modalCreateSubtitle: string;
   modalEditTitle: string;
@@ -144,6 +159,21 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     notifications: 'Notificaciones',
     languageToggle: 'English',
     sessionLabel: 'Sesión',
+    showFilters: 'Mostrar filtros',
+    hideFilters: 'Ocultar filtros',
+    searchStatusPlaceholder: 'Buscar estado...',
+    searchCategoryPlaceholder: 'Buscar categoría...',
+    searchFieldPlaceholder: 'Buscar campo...',
+    searchByCodePlaceholder: 'Buscar por código...',
+    searchByNamePlaceholder: 'Buscar por nombre...',
+    noResultsText: 'Sin resultados',
+    reloadLabel: 'Recargar',
+    categoriesLabel: 'Categorías',
+    rangeFrom: 'a',
+    rangeOf: 'de',
+    goToLabel: 'Ir a:',
+    loadingText: 'Cargando productos...',
+    allLabel: 'Todos',
     modalCreateTitle: 'Nuevo Producto',
     modalCreateSubtitle: 'Completa los datos del nuevo producto',
     modalEditTitle: 'Editar Producto',
@@ -229,6 +259,21 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    showFilters: 'Show filters',
+    hideFilters: 'Hide filters',
+    searchStatusPlaceholder: 'Search status...',
+    searchCategoryPlaceholder: 'Search category...',
+    searchFieldPlaceholder: 'Search field...',
+    searchByCodePlaceholder: 'Search by code...',
+    searchByNamePlaceholder: 'Search by name...',
+    noResultsText: 'No results',
+    reloadLabel: 'Reload',
+    categoriesLabel: 'Categories',
+    rangeFrom: 'to',
+    rangeOf: 'of',
+    goToLabel: 'Go to:',
+    loadingText: 'Loading products...',
+    allLabel: 'All',
     modalCreateTitle: 'New Product',
     modalCreateSubtitle: 'Fill in the new product details',
     modalEditTitle: 'Edit Product',

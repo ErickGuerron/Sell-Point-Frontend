@@ -9,6 +9,11 @@ export interface CustomersCopy {
   title: string;
   description: string;
   resultsLabel: string;
+  sidebarDashboard: string;
+  sidebarInvoices: string;
+  sidebarCustomers: string;
+  sidebarProducts: string;
+  sidebarEmployees: string;
   searchPlaceholder: string;
   newCustomer: string;
   name: string;
@@ -58,6 +63,8 @@ export interface CustomersCopy {
   notifications: string;
   languageToggle: string;
   sessionLabel: string;
+  allFields: string;
+  loadingText: string;
   cancel: string;
 }
 
@@ -69,6 +76,11 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     title: 'Gestión de Clientes',
     description: 'Administrá, editá y controlá el estado de tus clientes.',
     resultsLabel: 'resultados',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Facturas',
+    sidebarCustomers: 'Clientes',
+    sidebarProducts: 'Productos',
+    sidebarEmployees: 'Empleados',
     searchPlaceholder: 'Buscar clientes...',
     newCustomer: 'Nuevo Cliente',
     name: 'Nombre',
@@ -119,12 +131,19 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     notifications: 'Notificaciones',
     languageToggle: 'English',
     sessionLabel: 'Sesión',
+    allFields: 'Cualquier campo',
+    loadingText: 'Cargando clientes...',
   },
   en: {
     moduleLabel: 'Customers Module',
     title: 'Customer Management',
     description: 'Manage, edit, and control your customers.',
     resultsLabel: 'results',
+    sidebarDashboard: 'Dashboard',
+    sidebarInvoices: 'Invoices',
+    sidebarCustomers: 'Customers',
+    sidebarProducts: 'Products',
+    sidebarEmployees: 'Employees',
     searchPlaceholder: 'Search customers...',
     newCustomer: 'New Customer',
     name: 'Name',
@@ -175,6 +194,8 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     notifications: 'Notifications',
     languageToggle: 'Español',
     sessionLabel: 'Session',
+    allFields: 'Any field',
+    loadingText: 'Loading customers...',
   },
 };
 

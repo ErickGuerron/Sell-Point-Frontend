@@ -1,4 +1,6 @@
 import { resolveApiBaseUrl } from './services/api-base';
+import type { AppLocale } from './services/locale.service';
+import { getSharedTranslations } from './i18n/shared.translations';
 import { getBillflowSessionCookieName, parseBillflowSession, serializeBillflowSession } from './billflow-session';
 import type { DashboardStatsDto } from '../features/dashboard/dashboard-api.service';
 import type { InvoiceRowDto as DashboardInvoiceRowDto, ProductRowDto as DashboardProductRowDto, CustomerRowDto as DashboardCustomerRowDto } from '../features/dashboard/dashboard-api.service';
@@ -172,11 +174,11 @@ async function refreshSession(refreshToken: string,): Promise<{ accessToken?: st
   }
 }
 
-function mapDashboardInvoice(invoice: DashboardInvoiceRowDto): DashboardInvoiceEntry {
+function mapDashboardInvoice(invoice: DashboardInvoiceRowDto, unknownCustomerLabel: string): DashboardInvoiceEntry {
   return {
     id: invoice.id,
     number: invoice.invoiceNumber,
-    customer: invoice.customerName || 'Cliente sin nombre',
+    customer: invoice.customerName || unknownCustomerLabel,
     date: invoice.invoiceDate ?? invoice.issueDate ?? invoice.createdAt ?? '',
     total: Number(invoice.total ?? 0),
   };
@@ -202,14 +204,14 @@ function mapDashboardCustomer(customer: DashboardCustomerRowDto): DashboardCusto
   };
 }
 
-function mapInvoiceEntry(invoice: InvoiceRowDto): InvoicePageEntry {
+function mapInvoiceEntry(invoice: InvoiceRowDto, copy: { invoiceIssuedLabel: string; invoiceCancelledLabel: string }): InvoicePageEntry {
   const daysOld = daysBetween(new Date(invoice.invoiceDate), new Date());
   const status = normalizeInvoiceStatus(invoice.status);
   return {
     ...invoice,
     status,
     daysOld,
-    statusLabel: status === 'cancelled' ? 'CANCELLED' : 'ISSUED',
+    statusLabel: status === 'cancelled' ? copy.invoiceCancelledLabel : copy.invoiceIssuedLabel,
     statusTone: status,
   };
 }
@@ -244,7 +246,8 @@ function mapEmployee(raw: any): EmployeeRowDto {
   };
 }
 
-export async function loadDashboardInitialData(astro: AstroLike): Promise<DashboardInitialData> {
+export async function loadDashboardInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<DashboardInitialData> {
+  const { ssr } = getSharedTranslations(locale);
   const [stats, invoices, products, customers] = await Promise.all([
     fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas'),
     fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5'),
@@ -254,13 +257,14 @@ export async function loadDashboardInitialData(astro: AstroLike): Promise<Dashbo
 
   return {
     stats,
-    invoices: invoices?.data?.map(mapDashboardInvoice) ?? [],
+    invoices: invoices?.data?.map((invoice) => mapDashboardInvoice(invoice, ssr.unknownCustomer)) ?? [],
     products: products?.data?.map(mapDashboardProduct) ?? [],
     customers: customers?.data?.map(mapDashboardCustomer) ?? [],
   };
 }
 
-export async function loadCustomersInitialData(astro: AstroLike): Promise<CustomersInitialData> {
+export async function loadCustomersInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CustomersInitialData> {
+  void locale;
   const response = await fetchJsonWithAuth<{ data: BackendCustomer[]; total?: number; page?: number; limit?: number; pagination?: { total: number; totalPages: number; page: number; limit: number } }>(astro, '/customers?page=1&limit=5');
   const data = response?.data?.map(mapBackendToEntity) ?? [];
   const totalCustomers = response?.pagination?.total ?? response?.total ?? data.length;
@@ -271,7 +275,8 @@ export async function loadCustomersInitialData(astro: AstroLike): Promise<Custom
   return { customers: data, totalCustomers, totalPages, page, pageSize };
 }
 
-export async function loadProductsInitialData(astro: AstroLike): Promise<ProductsInitialData> {
+export async function loadProductsInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<ProductsInitialData> {
+  void locale;
   const [productsResponse, categoriesResponse] = await Promise.all([
     fetchJsonWithAuth<{ data: ProductRawDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number } }>(astro, '/products?page=1&limit=10'),
     fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?page=1&limit=20&isActive=true'),
@@ -290,7 +295,8 @@ export async function loadProductsInitialData(astro: AstroLike): Promise<Product
   };
 }
 
-export async function loadCategoriesInitialData(astro: AstroLike): Promise<CategoriesInitialData> {
+export async function loadCategoriesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CategoriesInitialData> {
+  void locale;
   const response = await fetchJsonWithAuth<{ data: CategoryBackendDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number; totalPages: number } }>(astro, '/categories?page=1&limit=5');
   const categories = response?.data?.map(mapCategoryToEntity) ?? [];
   const totalCategoriesCount = response?.pagination?.total ?? response?.total ?? categories.length;
@@ -306,14 +312,15 @@ export async function loadCategoriesInitialData(astro: AstroLike): Promise<Categ
   };
 }
 
-export async function loadInvoicesInitialData(astro: AstroLike): Promise<InvoicesInitialData> {
+export async function loadInvoicesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<InvoicesInitialData> {
+  const { ssr } = getSharedTranslations(locale);
   const [invoicesResponse, kpis] = await Promise.all([
     fetchJsonWithAuth<{ data: InvoiceRowDto[] }>(astro, '/invoices?page=1&limit=20'),
     fetchJsonWithAuth<InvoiceKpisDto>(astro, '/invoices/kpis'),
   ]);
 
   return {
-    invoices: invoicesResponse?.data?.map(mapInvoiceEntry) ?? [],
+    invoices: invoicesResponse?.data?.map((invoice) => mapInvoiceEntry(invoice, ssr)) ?? [],
     invoiceKpis: kpis ?? {
       totalInvoiced: 0,
       issuedCount: 0,
@@ -327,14 +334,16 @@ export async function loadInvoicesInitialData(astro: AstroLike): Promise<Invoice
   };
 }
 
-export async function loadProfileInitialData(astro: AstroLike): Promise<ProfileInitialData> {
+export async function loadProfileInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<ProfileInitialData> {
+  void locale;
   const response = await fetchJsonWithAuth<ProfileRawDto>(astro, '/auth/me');
   return {
     profile: response ? toProfileEntity(response) : null,
   };
 }
 
-export async function loadEmployeesInitialData(astro: AstroLike): Promise<EmployeesInitialData> {
+export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<EmployeesInitialData> {
+  void locale;
   const [employeesResponse, rolesResponse, activeResponse, inactiveResponse, blockedResponse] = await Promise.all([
     fetchJsonWithAuth<{ data: any[]; total?: number; page?: number; limit?: number }>(astro, '/users?page=1&limit=5'),
     fetchJsonWithAuth<RoleDto[] | { data: RoleDto[] }>(astro, '/roles'),

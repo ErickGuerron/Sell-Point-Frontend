@@ -3,7 +3,7 @@ import { Component, computed, inject, signal, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { InvoiceApiService, type InvoiceKpisDto, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
@@ -89,6 +89,18 @@ interface InvoiceCopy {
   colQty: string;
   colUnitPrice: string;
   colTotal: string;
+  searchStatusPlaceholder: string;
+  searchPeriodPlaceholder: string;
+  searchFieldPlaceholder: string;
+  unknownCustomer: string;
+  loadingText: string;
+  electronicInvoiceLabel: string;
+  customerIdLabel: string;
+  purchasedProductsLabel: string;
+  unknownProduct: string;
+  noProductsText: string;
+  rangeFrom: string;
+  rangeOf: string;
 }
 
 const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
@@ -152,6 +164,18 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     colQty: 'Cant.',
     colUnitPrice: 'Precio Unitario',
     colTotal: 'Total',
+    searchStatusPlaceholder: 'Buscar estado...',
+    searchPeriodPlaceholder: 'Buscar período...',
+    searchFieldPlaceholder: 'Buscar campo...',
+    unknownCustomer: 'Cliente sin nombre',
+    loadingText: 'Cargando facturas...',
+    electronicInvoiceLabel: 'Comprobante Electrónico',
+    customerIdLabel: 'Cédula:',
+    purchasedProductsLabel: 'Productos Comprados',
+    unknownProduct: 'Producto sin nombre',
+    noProductsText: 'No hay productos registrados en esta factura.',
+    rangeFrom: 'a',
+    rangeOf: 'de',
   },
   en: {
     moduleLabel: 'Billing Module',
@@ -213,6 +237,18 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     colQty: 'Qty.',
     colUnitPrice: 'Unit Price',
     colTotal: 'Total',
+    searchStatusPlaceholder: 'Search status...',
+    searchPeriodPlaceholder: 'Search period...',
+    searchFieldPlaceholder: 'Search field...',
+    unknownCustomer: 'Unknown customer',
+    loadingText: 'Loading invoices...',
+    electronicInvoiceLabel: 'Electronic Invoice',
+    customerIdLabel: 'ID:',
+    purchasedProductsLabel: 'Purchased Products',
+    unknownProduct: 'Unknown Product',
+    noProductsText: 'No products registered in this invoice.',
+    rangeFrom: 'to',
+    rangeOf: 'of',
   },
 };
 
@@ -341,7 +377,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       [options]="statusFilterOptions()"
                       [value]="statusFilter()"
                       placeholder="{{ copy().allStatuses }}"
-                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
+                      searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
                       [compact]="true"
                       (valueChange)="setStatusFilter($event)"
                     ></billflow-combobox>
@@ -350,7 +386,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       [options]="rangeFilterOptions()"
                       [value]="rangeFilter()"
                       placeholder="{{ copy().allTime }}"
-                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar período...' : 'Search period...' }}"
+                      searchPlaceholder="{{ copy().searchPeriodPlaceholder }}"
                       [compact]="true"
                       (valueChange)="setRangeFilter($event)"
                     ></billflow-combobox>
@@ -382,7 +418,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       [options]="filterFieldOptions()"
                       [value]="invoiceFilterField()"
                       placeholder="{{ copy().filterAll }}"
-                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                      searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
                       [compact]="true"
                       (valueChange)="setInvoiceFilterField($event)"
                     ></billflow-combobox>
@@ -416,7 +452,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       <tr *ngFor="let invoice of paginatedInvoices()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectInvoice(invoice)">
                         <td class="p-4 pl-7 font-semibold text-primary">{{ invoice.invoiceNumber }}</td>
                         <td class="p-4 text-on-surface-variant font-medium">
-                          <div class="font-semibold text-on-background">{{ invoice.customerName || (locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer') }}</div>
+                          <div class="font-semibold text-on-background">{{ invoice.customerName || copy().unknownCustomer }}</div>
                           <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
                         </td>
                         <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.invoiceDate) }}</td>
@@ -464,7 +500,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
                   <div class="flex items-center gap-3 text-sm text-on-surface-variant">
                     <span>
-                      {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
+                      {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ copy().rangeFrom }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ copy().rangeOf }} <span class="font-semibold text-on-surface">{{ filteredInvoices().length }}</span> {{ copy().entriesText }}
                     </span>
                     <select
                       class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
@@ -504,7 +540,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 <div class="p-8 flex items-center justify-center">
                   <div class="flex items-center gap-3 text-on-surface-variant">
                     <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                    <span>{{ locale() === 'es' ? 'Cargando facturas...' : 'Loading invoices...' }}</span>
+                    <span>{{ copy().loadingText }}</span>
                   </div>
                 </div>
               </div>
@@ -528,7 +564,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                     <span class="material-symbols-outlined text-primary text-[28px]">receipt_long</span>
                     <div>
                       <h4 class="font-bold text-lg text-on-surface leading-tight">BillFlow Inc.</h4>
-                      <p class="text-xs text-on-surface-variant">{{ locale() === 'es' ? 'Comprobante Electrónico' : 'Electronic Invoice' }}</p>
+                      <p class="text-xs text-on-surface-variant">{{ copy().electronicInvoiceLabel }}</p>
                     </div>
                   </div>
                   <div class="text-right">
@@ -547,7 +583,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                   <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
                     <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
                     <p class="text-sm font-bold text-on-surface leading-tight">{{ invoicePreview()?.customerName ?? '—' }}</p>
-                    <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ locale() === 'es' ? 'Cédula:' : 'ID:' }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
+                    <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ copy().customerIdLabel }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
                   </div>
                   <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
                     <div>
@@ -561,7 +597,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 <!-- Product lines Table -->
                 <div class="space-y-2">
                   <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
-                    {{ locale() === 'es' ? 'Productos Comprados' : 'Purchased Products' }}
+                    {{ copy().purchasedProductsLabel }}
                   </p>
                   <div class="overflow-x-auto rounded-xl border border-outline-variant/40 bg-surface-container-lowest">
                     <table class="w-full text-left border-collapse text-xs">
@@ -576,7 +612,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       <tbody>
                         <tr *ngFor="let item of invoicePreview()?.items" class="border-b border-outline-variant/20 last:border-0 hover:bg-primary/5 transition-colors">
                           <td class="py-2.5 px-4">
-                            <p class="font-bold text-on-background leading-tight">{{ item.productName || (locale() === 'es' ? 'Producto sin nombre' : 'Unknown Product') }}</p>
+                            <p class="font-bold text-on-background leading-tight">{{ item.productName || copy().unknownProduct }}</p>
                             <p class="text-[10px] text-on-surface-variant mt-0.5 font-mono">{{ item.productCode || item.productId }}</p>
                           </td>
                           <td class="py-2.5 px-3 text-right font-semibold text-on-surface-variant">{{ item.quantity }}</td>
@@ -585,7 +621,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                         </tr>
                         <tr *ngIf="!invoicePreview()?.items || invoicePreview()?.items?.length === 0">
                           <td colspan="4" class="py-6 text-center text-on-surface-variant font-medium">
-                            {{ locale() === 'es' ? 'No hay productos registrados en esta factura.' : 'No products registered in this invoice.' }}
+                            {{ copy().noProductsText }}
                           </td>
                         </tr>
                       </tbody>
@@ -653,6 +689,11 @@ export class InvoicePageComponent implements OnInit {
 
   locale = this.localeService.locale;
   copy = computed(() => INVOICE_TEXT[this.locale()]);
+
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
 
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
@@ -855,7 +896,7 @@ export class InvoicePageComponent implements OnInit {
   }
 
   inspectInvoice(invoice: InvoiceViewModel) {
-    void this.feedback.toast('info', invoice.invoiceNumber, `${invoice.customerName ?? (this.locale() === 'es' ? 'Cliente sin nombre' : 'Unknown customer')} · ${this.formatMoney(invoice.total)}`);
+    void this.feedback.toast('info', invoice.invoiceNumber, `${invoice.customerName ?? this.copy().unknownCustomer} · ${this.formatMoney(invoice.total)}`);
   }
 
   invoicePdfUrl(id: string) {

@@ -4,6 +4,7 @@ import { LocaleService } from './locale.service';
 import { AuthHttpService } from './auth-http.service';
 import { resolveApiBaseUrl } from './api-base';
 import { clearBillflowSessionCookie } from '../billflow-session';
+import { getSharedTranslations } from '../i18n/shared.translations';
 
 const API_BASE_URL = resolveApiBaseUrl();
 
@@ -237,15 +238,13 @@ export class SessionService {
     }
   }
 
-async logout(): Promise<void> {
-    const locale = this.localeService.locale();
+  async logout(): Promise<void> {
+    const { session } = getSharedTranslations(this.localeService.locale());
     const confirmed = await this.feedback.confirm(
-      locale === 'es' ? 'Cerrar sesión' : 'Sign out',
-      locale === 'es'
-        ? '¿Seguro que querés salir del panel?'
-        : 'Are you sure you want to leave the dashboard?',
-      locale === 'es' ? 'Cerrar sesión' : 'Sign out',
-      locale === 'es' ? 'Cancelar' : 'Cancel',
+      session.logoutTitle,
+      session.logoutMessage,
+      session.logoutConfirm,
+      session.logoutCancel,
     );
     if (!confirmed || typeof window === 'undefined') return;
     this.clearSession();
@@ -253,13 +252,11 @@ async logout(): Promise<void> {
   }
 
   openNotifications(): void {
-    const locale = this.localeService.locale();
+    const { session } = getSharedTranslations(this.localeService.locale());
     void this.feedback.toast(
       'info',
-      locale === 'es' ? 'Notificaciones' : 'Notifications',
-      locale === 'es'
-        ? 'Tenés 3 movimientos críticos esperando revisión.'
-        : 'You have 3 critical movements waiting for review.',
+      session.notificationsTitle,
+      session.notificationsMessage,
     );
   }
 

@@ -5,7 +5,7 @@ import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type 
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -104,6 +104,9 @@ interface DashboardCopy {
   logoutCancel: string;
   languageShort: string;
   languageToggleAria: string;
+  languageLabel: string;
+  openMenuLabel: string;
+  closeMenuLabel: string;
   kpiDailySalesLabel: string;
   kpiMonthlySalesLabel: string;
   kpiTotalInvoicesLabel: string;
@@ -121,6 +124,11 @@ interface DashboardCopy {
   productsEmptyText: string;
   customersEmptyTitle: string;
   customersEmptyText: string;
+  loadingChart: string;
+  partialDataTitle: string;
+  partialDataText: string;
+  dashboardErrorTitle: string;
+  dashboardErrorText: string;
 }
 
 const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
@@ -166,6 +174,9 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancelar',
     languageShort: 'ES',
     languageToggleAria: 'Cambiar idioma',
+    languageLabel: 'English',
+    openMenuLabel: 'Abrir menú',
+    closeMenuLabel: 'Cerrar menú',
     kpiDailySalesLabel: 'Ventas del Día',
     kpiMonthlySalesLabel: 'Ventas del Mes',
     kpiTotalInvoicesLabel: 'Facturas Totales',
@@ -183,6 +194,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsEmptyText: 'No hay productos disponibles para mostrar en este momento.',
     customersEmptyTitle: 'Sin clientes registrados',
     customersEmptyText: 'No hay clientes disponibles para mostrar en este momento.',
+    loadingChart: 'Cargando gráfico...',
+    partialDataTitle: 'Datos parciales',
+    partialDataText: 'Algunos módulos no pudieron cargarse.',
+    dashboardErrorTitle: 'No se pudo cargar el dashboard',
+    dashboardErrorText: 'Revisá la conexión del sistema.',
   },
   en: {
     greeting: 'Welcome back',
@@ -226,6 +242,9 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancel',
     languageShort: 'EN',
     languageToggleAria: 'Change language',
+    languageLabel: 'Español',
+    openMenuLabel: 'Open menu',
+    closeMenuLabel: 'Close menu',
     kpiDailySalesLabel: 'Daily Sales',
     kpiMonthlySalesLabel: 'Monthly Sales',
     kpiTotalInvoicesLabel: 'Total Invoices',
@@ -243,6 +262,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsEmptyText: 'There are no products available to show right now.',
     customersEmptyTitle: 'No customers registered',
     customersEmptyText: 'There are no customers available to show right now.',
+    loadingChart: 'Loading chart...',
+    partialDataTitle: 'Partial data',
+    partialDataText: 'Some modules could not be loaded.',
+    dashboardErrorTitle: 'Could not load dashboard',
+    dashboardErrorText: 'Please check the system connection.',
   },
 };
 
@@ -254,7 +278,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
   template: `
     <div class="app-dashboard-shell">
       <div *ngIf="tabletSidebarOpen()" class="app-dashboard-tablet-drawer lg:hidden">
-        <button type="button" class="app-dashboard-tablet-drawer__backdrop" aria-label="Cerrar menú" (click)="closeTabletSidebar()"></button>
+        <button type="button" class="app-dashboard-tablet-drawer__backdrop" [attr.aria-label]="copy().closeMenuLabel" (click)="closeTabletSidebar()"></button>
         <aside class="app-dashboard-tablet-drawer__panel app-dashboard-tablet-drawer__panel--open">
           <div class="app-dashboard-tablet-drawer__header">
             <div class="flex items-center gap-3 min-w-0">
@@ -264,7 +288,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
                 <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
               </div>
             </div>
-            <button type="button" class="app-dashboard-tablet-drawer__close" aria-label="Cerrar menú" (click)="closeTabletSidebar()">
+            <button type="button" class="app-dashboard-tablet-drawer__close" [attr.aria-label]="copy().closeMenuLabel" (click)="closeTabletSidebar()">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
@@ -290,7 +314,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
       <main class="app-dashboard-main">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-30 isolate overflow-visible min-w-0">
           <div class="flex items-start gap-3 min-w-0 flex-wrap">
-            <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" aria-label="Abrir menú" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
+            <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" [attr.aria-label]="copy().openMenuLabel" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
               <span class="material-symbols-outlined">menu</span>
             </button>
 
@@ -314,7 +338,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
                   [displayName]="session.displayName()"
                   [initials]="session.userInitials()"
                   [showLanguageToggle]="true"
-                  [languageLabel]="locale() === 'es' ? 'English' : 'Español'"
+                  [languageLabel]="copy().languageLabel"
                   [settingsLabel]="copy().settingsLabel"
                   [logoutLabel]="copy().logoutConfirm"
                   [sessionLabel]="copy().settingsLabel"
@@ -365,7 +389,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
                 <div class="app-dashboard-chart-wrap relative h-72 md:h-80 flex items-center justify-center rounded-2xl border border-outline-variant/30 bg-surface-container-low/30">
                   <div class="flex items-center gap-3 text-on-surface-variant">
                     <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                    <span>{{ locale() === 'es' ? 'Cargando gráfico...' : 'Loading chart...' }}</span>
+                    <span>{{ copy().loadingChart }}</span>
                   </div>
                 </div>
               </div>
@@ -507,6 +531,11 @@ export class DashboardPageComponent implements OnInit {
   searchQuery = signal('');
   private hasInitialData = false;
 
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
+
   @Input() set initialData(value: DashboardInitialData | null | undefined) {
     if (!value) return;
     this.hasInitialData = true;
@@ -579,7 +608,7 @@ export class DashboardPageComponent implements OnInit {
 
   readonly recentCustomers = computed(() => this.customers().slice(0, 4));
 
-async ngOnInit() {
+  async ngOnInit() {
     if (typeof window === 'undefined') {
       return;
     }
@@ -591,6 +620,8 @@ async ngOnInit() {
     // Try to restore session: check localStorage → refresh via API → redirect if fails
     const restored = await this.session.restoreSession();
     if (!restored) return; // restoreSession already redirected to /auth
+
+    if (this.hasInitialData) return;
 
     await this.loadDashboardData();
   }
@@ -623,10 +654,10 @@ async ngOnInit() {
       }
 
       if ([statsResult, invoicesResult, productsResult, customersResult].some((result) => result.status === 'rejected')) {
-        await this.feedback.toast('warning', 'Datos parciales', 'Algunos módulos no pudieron cargarse.');
+        await this.feedback.toast('warning', this.copy().partialDataTitle, this.copy().partialDataText);
       }
     } catch {
-      await this.feedback.alert('error', 'No se pudo cargar el dashboard', 'Revisá la conexión del sistema.');
+      await this.feedback.alert('error', this.copy().dashboardErrorTitle, this.copy().dashboardErrorText);
     } finally {
       this.loading.set(false);
     }
