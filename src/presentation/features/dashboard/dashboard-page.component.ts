@@ -579,28 +579,20 @@ export class DashboardPageComponent implements OnInit {
 
   readonly recentCustomers = computed(() => this.customers().slice(0, 4));
 
-  async ngOnInit() {
+async ngOnInit() {
     if (typeof window === 'undefined') {
       return;
     }
 
     this.themeService.init();
-    this.session.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
 
-    if (this.hasInitialData) return;
+    // Try to restore session: check localStorage → refresh via API → redirect if fails
+    const restored = await this.session.restoreSession();
+    if (!restored) return; // restoreSession already redirected to /auth
 
-    try {
-      if (!this.session.hasStoredSession()) {
-        window.location.assign('/auth');
-        return;
-      }
-
-      await this.loadDashboardData();
-    } catch {
-      window.location.assign('/auth');
-    }
+    await this.loadDashboardData();
   }
 
   private async loadDashboardData() {

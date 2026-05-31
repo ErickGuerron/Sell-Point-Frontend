@@ -40,6 +40,13 @@ interface AuthMeResponse {
   };
 }
 
+interface StoredSession {
+  accessToken?: string;
+  refreshToken?: string;
+  token?: string;
+  [key: string]: unknown;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SessionService {
   readonly displayName = signal('Usuario');
@@ -65,6 +72,73 @@ export class SessionService {
       this.displayName.set('Usuario');
       this.userInitials.set('US');
     }
+  }
+
+  /**
+   * Attempt to restore a session using stored credentials.
+   * Priority: localStorage session → refresh token → redirect to /auth
+   * Returns true if session was restored and is usable.
+   */
+  async restoreSession(): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+
+    const raw = window.localStorage.getItem('billflow-session');
+    if (!raw) return false;
+
+    try {
+      const session = JSON.parse(raw) as StoredSession;
+
+      // No refresh token means no session restore possible
+      if (!session?.refreshToken) return false;
+
+      // Try to refresh using the stored refresh token
+      const refreshed = await this.tryRefresh(session.refreshToken);
+      if (refreshed) return true;
+
+      // Refresh failed — clear everything and redirect to auth
+      this.clearSession();
+      window.location.replace('/auth');
+      return false;
+    } catch {
+      this.clearSession();
+      return false;
+    }
+  }
+
+  private async tryRefresh(refreshToken: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) return false;
+
+      const newSession = await response.json() as {
+        accessToken: string;
+        refreshToken?: string;
+        expiresIn?: number;
+      };
+
+      const raw = window.localStorage.getItem('billflow-session');
+      const current = raw ? JSON.parse(raw) as StoredSession : {};
+      const merged: StoredSession = { ...current, ...newSession };
+
+      window.localStorage.setItem('billflow-session', JSON.stringify(merged));
+
+      // Hydrate profile with new token
+      void this.hydrateUserProfile();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private clearSession(): void {
+    try {
+      window.localStorage.removeItem('billflow-session');
+    } catch { /* ignore */ }
+    clearBillflowSessionCookie();
   }
 
   async hydrateUserProfile(): Promise<void> {
@@ -163,7 +237,7 @@ export class SessionService {
     }
   }
 
-  async logout(): Promise<void> {
+async logout(): Promise<void> {
     const locale = this.localeService.locale();
     const confirmed = await this.feedback.confirm(
       locale === 'es' ? 'Cerrar sesión' : 'Sign out',
@@ -174,8 +248,7 @@ export class SessionService {
       locale === 'es' ? 'Cancelar' : 'Cancel',
     );
     if (!confirmed || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    clearBillflowSessionCookie();
+    this.clearSession();
     window.location.replace('/auth');
   }
 

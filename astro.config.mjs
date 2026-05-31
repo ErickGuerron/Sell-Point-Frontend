@@ -17,6 +17,9 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()]
+    plugins: [tailwindcss()],
+    optimizeDeps: {
+      include: ['@angular/common', '@angular/common/http'],
+    },
   }
 });
