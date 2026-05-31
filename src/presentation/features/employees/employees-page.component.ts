@@ -96,7 +96,6 @@ interface EmployeesCopy {
   cedulaExact10: string;
   emailInvalidFormat: string;
   usernameNoSpaces: string;
-  passwordNoSpaces: string;
   charCountLabel: string;
 }
 
@@ -173,7 +172,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Debe tener exactamente 10 dígitos',
     emailInvalidFormat: 'Formato de email inválido',
     usernameNoSpaces: 'No se permiten espacios',
-    passwordNoSpaces: 'No se permiten espacios',
     charCountLabel: '',
   },
   en: {
@@ -248,7 +246,6 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Must be exactly 10 digits',
     emailInvalidFormat: 'Invalid email format',
     usernameNoSpaces: 'No spaces allowed',
-    passwordNoSpaces: 'No spaces allowed',
     charCountLabel: '',
   },
 };
@@ -348,6 +345,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           (onInfoClick)="showEmployeeInfo($event)"
           (onPrevPage)="previousPage()"
           (onNextPage)="nextPage()"
+          (onPageClick)="goToPage($event)"
         >
           <ng-container toolbar-left>
             <billflow-combobox
@@ -598,7 +596,6 @@ export class EmployeesPageComponent implements OnInit {
     && this.formEmailValid()
     && this.formUsernameValid()
     && this.formRole().trim().length > 0
-    && (!this.editingEmployee() || this.formPassword().trim().length >= 6)
   );
 
   // ── Validation signals ──
@@ -607,8 +604,6 @@ export class EmployeesPageComponent implements OnInit {
   formCedulaError = signal('');
   formEmailError = signal('');
   formUsernameError = signal('');
-  formPasswordError = signal('');
-
   readonly formFirstNameValid = computed(() => this.formFirstNameError() === '');
   readonly formLastNameValid = computed(() => this.formLastNameError() === '');
   readonly formCedulaValid = computed(() => this.formCedulaError() === '');
@@ -836,7 +831,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedulaError.set('');
     this.formEmailError.set('');
     this.formUsernameError.set('');
-    this.formPasswordError.set('');
     this.editingEmployee.set(employee);
     this.employeeModalOpen.set(true);
   }
@@ -861,7 +855,6 @@ export class EmployeesPageComponent implements OnInit {
     this.formCedulaError.set('');
     this.formEmailError.set('');
     this.formUsernameError.set('');
-    this.formPasswordError.set('');
   }
 
   // ── Input handlers ──
@@ -901,12 +894,6 @@ export class EmployeesPageComponent implements OnInit {
     const cleaned = value.replace(/\s/g, '');
     this.formUsername.set(cleaned);
     this.validateUsername(cleaned);
-  }
-
-  onPasswordInput(value: string) {
-    const cleaned = value.replace(/\s/g, '');
-    this.formPassword.set(cleaned);
-    this.validatePassword(cleaned);
   }
 
   // ── Validation methods ──
@@ -952,17 +939,9 @@ export class EmployeesPageComponent implements OnInit {
     }
   }
 
-  private validatePassword(value: string) {
-    if (value.includes(' ')) {
-      this.formPasswordError.set(this.copy().passwordNoSpaces);
-    } else {
-      this.formPasswordError.set('');
-    }
-  }
-
   async saveEmployeeFromModal(payload: {
     firstName: string; lastName: string; cedula: string; email: string;
-    username: string; password?: string; role: string;
+    username: string; role: string;
   }) {
     this.formSubmitting.set(true);
     try {

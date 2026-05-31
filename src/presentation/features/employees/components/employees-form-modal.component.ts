@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, Input, Output, EventEmitter, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
@@ -28,7 +28,6 @@ interface EmployeesFormCopy {
   docLabel: string;
   emailLabel: string;
   usernameLabel: string;
-  passwordLabel: string;
   roleLabel: string;
   firstNameError: string;
   lastNameError: string;
@@ -36,7 +35,6 @@ interface EmployeesFormCopy {
   cedulaExact10: string;
   emailInvalidFormat: string;
   usernameNoSpaces: string;
-  passwordNoSpaces: string;
   charCountLabel: string;
   selectPlaceholder: string;
 }
@@ -47,11 +45,11 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     modalEditTitle: 'Editar Empleado', modalEditSubtitle: 'Actualizá los datos del empleado',
     save: 'Guardar Empleado', saveEdit: 'Actualizar Empleado', cancel: 'Cancelar',
     firstNameLabel: 'Nombre', lastNameLabel: 'Apellido', docLabel: 'Cédula',
-    emailLabel: 'Email', usernameLabel: 'Usuario', passwordLabel: 'Contraseña', roleLabel: 'Rol',
+    emailLabel: 'Email', usernameLabel: 'Usuario', roleLabel: 'Rol',
     firstNameError: 'Solo letras permitidas', lastNameError: 'Solo letras permitidas',
     lastNameNoSpaces: 'No se permiten espacios', cedulaExact10: 'Debe tener exactamente 10 dígitos',
     emailInvalidFormat: 'Formato de email inválido', usernameNoSpaces: 'No se permiten espacios',
-    passwordNoSpaces: 'No se permiten espacios', charCountLabel: '',
+    charCountLabel: '',
     selectPlaceholder: '-- Seleccionar --',
   },
   en: {
@@ -59,11 +57,11 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     modalEditTitle: 'Edit Employee', modalEditSubtitle: 'Update the employee details',
     save: 'Save Employee', saveEdit: 'Update Employee', cancel: 'Cancel',
     firstNameLabel: 'First Name', lastNameLabel: 'Last Name', docLabel: 'ID Number',
-    emailLabel: 'Email', usernameLabel: 'Username', passwordLabel: 'Password', roleLabel: 'Role',
+    emailLabel: 'Email', usernameLabel: 'Username', roleLabel: 'Role',
     firstNameError: 'Only letters allowed', lastNameError: 'Only letters allowed',
     lastNameNoSpaces: 'No spaces allowed', cedulaExact10: 'Must be exactly 10 digits',
     emailInvalidFormat: 'Invalid email format', usernameNoSpaces: 'No spaces allowed',
-    passwordNoSpaces: 'No spaces allowed', charCountLabel: '',
+    charCountLabel: '',
     selectPlaceholder: '-- Select --',
   },
 };
@@ -124,17 +122,6 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         }
         <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ username().length }}/50</span>
       </div>
-      @if (!isEdit) {
-        <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().passwordLabel }} <span class="text-error">*</span></label>
-          <input type="password" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-            [ngClass]="passwordError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-            [maxLength]="100" placeholder="••••••••" [value]="password()" (input)="password.set($any($event.target).value)" />
-          @if (passwordError()) {
-            <span class="text-xs text-error mt-1 block">{{ passwordError() }}</span>
-          }
-        </div>
-      }
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
         <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
@@ -174,7 +161,7 @@ export class EmployeesFormModalComponent {
   @Output() onCancel = new EventEmitter<void>();
   @Output() onSave = new EventEmitter<{
     firstName: string; lastName: string; cedula: string; email: string;
-    username: string; password?: string; role: string;
+    username: string; role: string;
   }>();
 
   firstName = signal('');
@@ -182,7 +169,6 @@ export class EmployeesFormModalComponent {
   cedula = signal('');
   email = signal('');
   username = signal('');
-  password = signal('');
   role = signal('');
 
   private localeState = signal<EmployeesLocale>('es');
@@ -229,12 +215,6 @@ export class EmployeesFormModalComponent {
     if (!v) return '';
     return /\s/.test(v) ? FORM_COPY[this.localeState()].usernameNoSpaces : '';
   });
-  readonly passwordError = computed(() => {
-    if (this.isEdit) return '';
-    const v = this.password();
-    if (!v) return '';
-    return /\s/.test(v) ? FORM_COPY[this.localeState()].passwordNoSpaces : '';
-  });
 
   isValid() {
     return (
@@ -243,7 +223,6 @@ export class EmployeesFormModalComponent {
       this.cedula() && !this.cedulaError() &&
       this.email() && !this.emailError() &&
       this.username() && !this.usernameError() &&
-      (this.isEdit || (this.password() && !this.passwordError())) &&
       this.role()
     );
   }
@@ -255,7 +234,6 @@ export class EmployeesFormModalComponent {
       cedula: this.cedula(),
       email: this.email(),
       username: this.username(),
-      password: this.isEdit ? undefined : this.password(),
       role: this.role(),
     };
   }

@@ -160,47 +160,49 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
               <!-- Filters (only when toggled) -->
               <ng-container *ngIf="showFilters()">
-                <!-- Status -->
-                <billflow-combobox
-                  [options]="statusFilterOptions()"
-                  [value]="statusFilter()"
-                  placeholder="{{ copy().allStatuses }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
-                  [compact]="true"
-                  (valueChange)="setStatusFilter($event)"
-                ></billflow-combobox>
-
-                <!-- Category -->
-                <billflow-combobox
-                  [options]="categoryFilterOptions()"
-                  [value]="categoryFilter()"
-                  placeholder="{{ copy().allCategories }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
-                  [compact]="true"
-                  (valueChange)="setCategoryFilter($event)"
-                ></billflow-combobox>
-
-                <!-- Search field type + text input (takes remaining space) -->
-                <div class="flex items-stretch flex-3 min-w-[180px]">
+<div class="flex items-center gap-2 flex-wrap">
+                  <!-- Status -->
                   <billflow-combobox
-                    [options]="searchFieldOptions()"
-                    [value]="searchField()"
-                    placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                    [options]="statusFilterOptions()"
+                    [value]="statusFilter()"
+                    placeholder="{{ copy().allStatuses }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
                     emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
                     [compact]="true"
-                    (valueChange)="searchField.set($event)"
+                    (valueChange)="setStatusFilter($event)"
                   ></billflow-combobox>
-                  <div class="relative flex-1">
-                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
-                    <input
-                      class="w-full pl-8 pr-2 py-[5px] bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                      [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
-                      [value]="searchQuery()"
-                      (input)="setSearchQuery(($any($event.target).value))"
-                    />
+
+                  <!-- Category -->
+                  <billflow-combobox
+                    [options]="categoryFilterOptions()"
+                    [value]="categoryFilter()"
+                    placeholder="{{ copy().allCategories }}"
+                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
+                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    [compact]="true"
+                    (valueChange)="setCategoryFilter($event)"
+                  ></billflow-combobox>
+
+                  <!-- Search field type + text input -->
+                  <div class="flex items-stretch min-w-[200px] flex-1 max-w-[320px]">
+                    <billflow-combobox
+                      [options]="searchFieldOptions()"
+                      [value]="searchField()"
+                      placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
+                      searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
+                      emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                      [compact]="true"
+                      (valueChange)="searchField.set($event)"
+                    ></billflow-combobox>
+                    <div class="relative flex-1">
+                      <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
+                      <input
+                        class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                        [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
+                        [value]="searchQuery()"
+                        (input)="setSearchQuery(($any($event.target).value))"
+                      />
+                    </div>
                   </div>
                 </div>
               </ng-container>

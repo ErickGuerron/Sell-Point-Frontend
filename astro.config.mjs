@@ -11,6 +11,9 @@ export default defineConfig({
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   integrations: [analogjsangular()],
+  devToolbar: {
+    enabled: false,
+  },
   prefetch: {
     prefetchAll: true,
     defaultStrategy: 'hover',
@@ -19,7 +22,15 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     optimizeDeps: {
-      include: ['@angular/common', '@angular/common/http'],
+      include: [
+        '@angular/common',
+        '@angular/common/http',
+        '@angular/core',
+        '@angular/forms',
+        '@angular/platform-browser',
+        'rxjs',
+        'rxjs/operators',
+      ],
     },
   }
 });

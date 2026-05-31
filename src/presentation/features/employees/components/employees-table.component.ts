@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, Input, signal } from '@angular/core';
+import { Component, EventEmitter, Output, computed, Input } from '@angular/core';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -90,7 +90,7 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
             @for (employee of employees(); track employee.id) {
               <tr class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200 cursor-pointer"
                   [ngClass]="!employee.isActive ? 'opacity-70 bg-surface-container-lowest/20' : ''"
-                  (click)="onRowClick?.(employee)">
+                  (click)="onRowClick.emit(employee)">
                 <td class="p-4 pl-7 font-semibold text-on-background">
                   <div class="flex items-center gap-3">
                     <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm"
@@ -119,25 +119,25 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
                   <div class="flex items-center justify-end gap-1.5">
                     <button type="button" [title]="copy().viewDetails"
                             class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                            (click)="$event.stopPropagation(); onInfoClick?.(employee)">
+                            (click)="$event.stopPropagation(); onInfoClick.emit(employee)">
                       <span class="material-symbols-outlined text-[18px]">info</span>
                     </button>
                     <button type="button" [title]="copy().edit"
                             class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                            (click)="$event.stopPropagation(); onEditClick?.(employee)">
+                            (click)="$event.stopPropagation(); onEditClick.emit(employee)">
                       <span class="material-symbols-outlined text-[18px]">edit</span>
                     </button>
                     @if (employee.failedLoginAttempts >= 3) {
                       <button type="button" [title]="copy().unlock"
                               class="inline-flex h-8 w-8 items-center justify-center bg-[#f59e0b] text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                              (click)="$event.stopPropagation(); onUnlockClick?.(employee)">
+                              (click)="$event.stopPropagation(); onUnlockClick.emit(employee)">
                         <span class="material-symbols-outlined text-[18px]">lock_open</span>
                       </button>
                     }
                     <button type="button" [title]="employee.isActive ? copy().deactivate : copy().activate"
                             class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
                             [ngClass]="employee.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'"
-                            (click)="$event.stopPropagation(); onToggleClick?.(employee)">
+                            (click)="$event.stopPropagation(); onToggleClick.emit(employee)">
                       <span class="material-symbols-outlined text-[18px]">{{ employee.isActive ? 'close' : 'check' }}</span>
                     </button>
                   </div>
@@ -180,12 +180,18 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
         </div>
         <div class="flex items-center gap-2">
           <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === 1" (click)="onPrevPage?.()">
+                  [disabled]="page() === 1" (click)="onPrevPage.emit()">
             <span class="material-symbols-outlined text-[18px]">chevron_left</span>
           </button>
-          <span class="text-sm text-on-surface-variant">{{ copy().pageText }} {{ page() }} / {{ totalPages() }}</span>
+
+          <button *ngFor="let p of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition"
+                  [ngClass]="p === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'"
+                  (click)="onPageClick.emit(p)">
+            {{ p }}
+          </button>
+
           <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === totalPages()" (click)="onNextPage?.()">
+                  [disabled]="page() === totalPages()" (click)="onNextPage.emit()">
             <span class="material-symbols-outlined text-[18px]">chevron_right</span>
           </button>
         </div>
@@ -201,25 +207,29 @@ export class EmployeesTableComponent {
   @Input({ required: true }) total!: () => number;
   @Input({ required: true }) pageSize!: () => number;
 
-  @Input() onRowClick?: (e: EmployeeRowDto) => void;
-  @Input() onInfoClick?: (e: EmployeeRowDto) => void;
-  @Input() onEditClick?: (e: EmployeeRowDto) => void;
-  @Input() onUnlockClick?: (e: EmployeeRowDto) => void;
-  @Input() onToggleClick?: (e: EmployeeRowDto) => void;
-  @Input() onPrevPage?: () => void;
-  @Input() onNextPage?: () => void;
+  @Output() onRowClick = new EventEmitter<EmployeeRowDto>();
+  @Output() onInfoClick = new EventEmitter<EmployeeRowDto>();
+  @Output() onEditClick = new EventEmitter<EmployeeRowDto>();
+  @Output() onUnlockClick = new EventEmitter<EmployeeRowDto>();
+  @Output() onToggleClick = new EventEmitter<EmployeeRowDto>();
+  @Output() onPrevPage = new EventEmitter<void>();
+  @Output() onNextPage = new EventEmitter<void>();
+  @Output() onPageClick = new EventEmitter<number>();
 
-  private localeState = signal<EmployeesLocale>('es');
-
-  ngOnInit() {
-    this.localeState.set(this.locale() === 'en' ? 'en' : 'es');
-  }
-
-  readonly copy = computed(() => TABLE_COPY[this.localeState()]);
+  readonly copy = computed(() => TABLE_COPY[this.locale() === 'en' ? 'en' : 'es']);
 
   readonly totalPages = computed(() => Math.ceil(this.total() / this.pageSize()) || 1);
-  readonly visibleStart = computed(() => (this.page() - 1) * this.pageSize() + 1);
-  readonly visibleEnd = computed(() => Math.min(this.page() * this.pageSize(), this.total()));
+  readonly visibleStart = computed(() => this.total() === 0 ? 0 : ((this.page() - 1) * this.pageSize() + 1));
+  readonly visibleEnd = computed(() => this.total() === 0 ? 0 : Math.min(this.page() * this.pageSize(), this.total()));
+  readonly visiblePages = computed(() => {
+    const total = this.totalPages();
+    const current = this.page();
+    const pages: number[] = [];
+    const start = Math.max(1, current - 2);
+    const end = Math.min(total, current + 2);
+    for (let i = start; i <= end; i += 1) pages.push(i);
+    return pages;
+  });
 
   getInitials(e: EmployeeRowDto) { return `${e.firstName[0] ?? ''}${e.lastName[0] ?? ''}`.toUpperCase(); }
   fullName(e: EmployeeRowDto) { return `${e.firstName} ${e.lastName}`; }
