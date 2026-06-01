@@ -185,7 +185,13 @@ function mapDashboardInvoice(invoice: DashboardInvoiceRowDto, unknownCustomerLab
 }
 
 function mapDashboardProduct(product: DashboardProductRowDto): DashboardProductEntry {
-  const rawPrice = product.unitPrice ?? product.price ?? 0;
+  // R2a fix — SSR reads the raw backend field directly. The CSR layer
+  // translates `p.salePrice` to `unitPrice` at dashboard-api.service.ts:87
+  // and then `mapProduct` reads `unitPrice ?? price`. The SSR path skips
+  // that translation, so it must read the raw field name. If the canonical
+  // backend field changes (see docs/milestones/M6-M8/products-endpoint-shape.md),
+  // update BOTH this line and the CSR line.
+  const rawPrice = product.salePrice;
   return {
     rank: '00',
     code: product.code,

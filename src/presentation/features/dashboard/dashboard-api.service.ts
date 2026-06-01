@@ -86,6 +86,10 @@ export class DashboardApiService {
         id: p.id,
         code: p.code,
         name: p.name,
+        // TODO(M6-M8-R2a): confirm backend price field — see design §1.2
+        // Assumed canonical: `salePrice`. If the Network-tab capture proves
+        // otherwise, change this line AND the SSR mapper at
+        // `ssr-page-data.ts:188` to use the actual field name.
         unitPrice: Number(p.salePrice),
         availableQuantity: Number(p.currentStock),
       })),

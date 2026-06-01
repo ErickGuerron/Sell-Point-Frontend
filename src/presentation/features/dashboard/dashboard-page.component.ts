@@ -790,6 +790,14 @@ export class DashboardPageComponent implements OnInit {
 
   private mapProduct(product: ProductRowDto): DashboardProduct {
     const rawPrice = product.unitPrice ?? product.price ?? 0;
+    // M6-M8-R2a tripwire — dev-only. Fires when the rendered price is 0/NaN
+    // so the next regression (e.g. a backend field rename) is loud, not silent.
+    // Enable in DevTools: `window.__BILLFLOW_DASHBOARD_DEBUG__ = true`.
+    if (!Number.isFinite(rawPrice) || rawPrice === 0) {
+      if (typeof window !== 'undefined' && (window as any).__BILLFLOW_DASHBOARD_DEBUG__) {
+        console.warn('[dashboard] mapProduct produced 0/NaN — backend field name may have changed', { source: (product as any).salePrice, mapped: rawPrice });
+      }
+    }
     return {
       rank: '00',
       code: product.code,
