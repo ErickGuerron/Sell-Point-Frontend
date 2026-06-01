@@ -92,6 +92,11 @@ interface DashboardCopy {
   quickActionEmployees: string;
   productsTitle: string;
   productsSubtitle: string;
+  productsTableHeaderRank: string;
+  productsTableHeaderCode: string;
+  productsTableHeaderName: string;
+  productsTableHeaderUnits: string;
+  productsTableHeaderPrice: string;
   customersTitle: string;
   settingsLabel: string;
   noEmailText: string;
@@ -162,6 +167,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionEmployees: 'Gestionar Empleados',
     productsTitle: 'Productos',
     productsSubtitle: '(inventario actual)',
+    productsTableHeaderRank: '#',
+    productsTableHeaderCode: 'Código',
+    productsTableHeaderName: 'Nombre',
+    productsTableHeaderUnits: 'Unidades',
+    productsTableHeaderPrice: 'Precio',
     customersTitle: 'Clientes recientes',
     settingsLabel: 'Configuración',
     noEmailText: 'Sin email',
@@ -230,6 +240,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionEmployees: 'Manage Employees',
     productsTitle: 'Products',
     productsSubtitle: '(current inventory)',
+    productsTableHeaderRank: '#',
+    productsTableHeaderCode: 'Code',
+    productsTableHeaderName: 'Name',
+    productsTableHeaderUnits: 'Units',
+    productsTableHeaderPrice: 'Price',
     customersTitle: 'Recent Customers',
     settingsLabel: 'Settings',
     noEmailText: 'No email',
@@ -449,31 +464,6 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
-              <ng-container *ngIf="topProducts().length > 0; else emptyProducts">
-                <ul class="space-y-5">
-                  <li *ngFor="let product of topProducts()" class="app-dashboard-list-item app-dashboard-list-item--product group cursor-pointer p-2 -mx-2 rounded-xl transition-all duration-200" (click)="inspectProduct(product)">
-                    <div class="flex items-center gap-4">
-                      <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
-                      <div>
-                        <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.code }}</p>
-                        <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.name }} · {{ product.units }} uds</p>
-                      </div>
-                    </div>
-                    <span class="font-body-sm font-bold text-on-surface group-hover:text-primary transition-colors">{{ formatMoney(product.price) }}</span>
-                  </li>
-                </ul>
-              </ng-container>
-              <ng-template #emptyProducts>
-                <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                  <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
-                  <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
-                  <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
-                </div>
-              </ng-template>
-            </div>
-
-            <div class="dashboard-glass-card rounded-2xl p-7">
               <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().customersTitle }}</h3>
               <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
                 <ul class="space-y-4">
@@ -494,6 +484,43 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
                 </div>
               </ng-template>
             </div>
+          </div>
+        </div>
+
+        <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+          <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
+            <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                  <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().productsTableHeaderRank }}</th>
+                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderCode }}</th>
+                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderName }}</th>
+                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderUnits }}</th>
+                  <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ copy().productsTableHeaderPrice }}</th>
+                </tr>
+              </thead>
+              <tbody class="font-body-sm text-body-sm">
+                <tr *ngFor="let product of topProducts()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectProduct(product)">
+                  <td class="p-4 pl-7 font-semibold text-on-surface">{{ product.rank }}</td>
+                  <td class="p-4 text-on-surface font-medium">{{ product.code }}</td>
+                  <td class="p-4 text-on-surface font-medium">{{ product.name }}</td>
+                  <td class="p-4 text-on-surface font-medium">{{ product.units }}</td>
+                  <td class="p-4 pr-7 text-on-surface font-semibold">{{ formatMoney(product.price) }}</td>
+                </tr>
+                <tr *ngIf="topProducts().length === 0">
+                  <td colspan="5" class="p-8">
+                    <div class="dashboard-table-card__empty">
+                      <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
+                      <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
+                      <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </main>
