@@ -259,7 +259,7 @@ export async function loadDashboardInitialData(astro: AstroLike, locale: AppLoca
     fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas'),
     fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5'),
     fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=3'),
-    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4'),
+    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4&isActive=true'),
   ]);
 
   return {

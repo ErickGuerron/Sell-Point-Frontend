@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, Signal } from '@angular/core';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
@@ -11,6 +11,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { getSharedTranslations } from '../../shared/i18n/shared.translations';
+import { customersCopy, type CustomersLocale } from '../customers/i18n/customers.translations';
 import type { DashboardInitialData } from '../../shared/ssr-page-data';
 import { DashboardRevenueChartComponent } from './dashboard-revenue-chart.component';
 
@@ -97,7 +98,6 @@ interface DashboardCopy {
   productsTableHeaderName: string;
   productsTableHeaderUnits: string;
   productsTableHeaderPrice: string;
-  customersTitle: string;
   settingsLabel: string;
   noEmailText: string;
   notificationsTitle: string;
@@ -172,7 +172,6 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsTableHeaderName: 'Nombre',
     productsTableHeaderUnits: 'Unidades',
     productsTableHeaderPrice: 'Precio',
-    customersTitle: 'Clientes recientes',
     settingsLabel: 'Configuración',
     noEmailText: 'Sin email',
     notificationsTitle: 'Notificaciones',
@@ -245,7 +244,6 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsTableHeaderName: 'Name',
     productsTableHeaderUnits: 'Units',
     productsTableHeaderPrice: 'Price',
-    customersTitle: 'Recent Customers',
     settingsLabel: 'Settings',
     noEmailText: 'No email',
     notificationsTitle: 'Notifications',
@@ -464,7 +462,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().customersTitle }}</h3>
+              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ recentActiveClientsTitle() }}</h3>
               <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
                 <ul class="space-y-4">
                   <li *ngFor="let customer of recentCustomers()" class="app-dashboard-list-item flex items-center justify-between gap-4 rounded-xl p-3 cursor-pointer transition-colors" (click)="inspectCustomer(customer)">
@@ -549,6 +547,13 @@ export class DashboardPageComponent implements OnInit {
 
   locale = this.localeService.locale;
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
+  // Spec 5 R1: heading for the "recent active clients" widget is owned
+  // by the customers feature (it semantically belongs there). Reuse
+  // `customersCopy` so the source of truth stays in customers/.
+  // AppLocale and CustomersLocale are structurally identical ('es' | 'en')
+  // so the cast is safe and one-line.
+  private readonly customersText = customersCopy(this.locale as unknown as Signal<CustomersLocale>);
+  readonly recentActiveClientsTitle = computed(() => this.customersText().recentActiveClientsTitle);
   tabletSidebarOpen = signal(false);
   loading = signal(false);
   stats = signal<DashboardStatsDto | null>(null);
@@ -661,7 +666,7 @@ export class DashboardPageComponent implements OnInit {
         this.api.getStats(),
         this.api.listInvoices(150),
         this.api.listProducts(8),
-        this.api.listCustomers(8),
+        this.api.listCustomers(8, 'true'),
       ]);
 
       if (statsResult.status === 'fulfilled') {
