@@ -206,7 +206,7 @@ export class NewCustomerModalComponent {
   readonly newCustomerFormValid = computed(() =>
     this.newCustomerFirstName().trim().length > 0
     && this.newCustomerLastName().trim().length > 0
-    && this.newCustomerCedula().trim().length === 10
+    && this.newCustomerCedula().trim().length >= 6
   );
 
   // Spec 2 R2 + R4: per-field error computed signals.

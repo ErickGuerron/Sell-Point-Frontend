@@ -304,7 +304,7 @@ export class CustomerFormModalComponent {
       this.formCedula.set(trimmed.replace(/\D/g, '').slice(0, 10));
     } else {
       this.lastRawPhone.set(trimmed);
-      this.formPhone.set(trimmed.replace(/\D/g, ''));
+      this.formPhone.set(trimmed.replace(/\D/g, '').slice(0, 10));
     }
   }
 
