@@ -55,6 +55,10 @@ export interface CustomersCopy {
   phoneLabel: string;
   emailLabel: string;
   nameError: string;
+  lastNameError: string;
+  cedulaError: string;
+  phoneError: string;
+  emailError: string;
   cedulaPlaceholder: string;
   phonePlaceholder: string;
   emailPlaceholder: string;
@@ -122,6 +126,10 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phoneLabel: 'Teléfono',
     emailLabel: 'Email',
     nameError: 'Los nombres no deben contener números',
+    lastNameError: 'El apellido no debe contener números ni espacios',
+    cedulaError: 'La cédula solo puede contener dígitos',
+    phoneError: 'El teléfono solo puede contener dígitos',
+    emailError: 'Formato de email inválido',
     cedulaPlaceholder: 'Ej: 1234567',
     phonePlaceholder: 'Ej: +595 981 123456',
     emailPlaceholder: 'Ej: cliente@ejemplo.com',
@@ -185,6 +193,10 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phoneLabel: 'Phone',
     emailLabel: 'Email',
     nameError: 'Names must not contain numbers',
+    lastNameError: 'Last name must not contain numbers or spaces',
+    cedulaError: 'ID number must contain digits only',
+    phoneError: 'Phone must contain digits only',
+    emailError: 'Invalid email format',
     cedulaPlaceholder: 'e.g. 1234567',
     phonePlaceholder: 'e.g. +1 555 123 4567',
     emailPlaceholder: 'e.g. john@example.com',
