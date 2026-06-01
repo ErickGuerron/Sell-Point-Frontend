@@ -216,6 +216,12 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
-export function customersCopy(locale: Signal<CustomersLocale>): Signal<CustomersCopy> {
+// The function accepts a `Signal<'es' | 'en'>` (the bare union) rather than
+// `Signal<CustomersLocale>` so any feature that has its own locale type alias
+// (e.g. `AppLocale` in `shared/services/locale.service.ts`) can pass its signal
+// without a structural cast. `CustomersLocale` and `AppLocale` are both
+// `'es' | 'en'`, so widening the parameter to the bare union is a no-op for
+// the CUSTOMERS_TEXT lookup but removes the `as unknown as Signal<...>` hack.
+export function customersCopy(locale: Signal<'es' | 'en'>): Signal<CustomersCopy> {
   return computed(() => CUSTOMERS_TEXT[locale()]);
 }

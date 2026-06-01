@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, Input } from '@angular/core';
-import type { OnInit, Signal } from '@angular/core';
+import type { OnInit } from '@angular/core';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
@@ -11,7 +11,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { getSharedTranslations } from '../../shared/i18n/shared.translations';
-import { customersCopy, type CustomersLocale } from '../customers/i18n/customers.translations';
+import { customersCopy } from '../customers/i18n/customers.translations';
 import type { DashboardInitialData } from '../../shared/ssr-page-data';
 import { DashboardRevenueChartComponent } from './dashboard-revenue-chart.component';
 
@@ -462,7 +462,10 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </div>
 
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ recentActiveClientsTitle() }}</h3>
+              <div class="flex items-center justify-between mb-6 gap-3">
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ recentActiveClientsTitle() }}</h3>
+                <span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 rounded-full bg-primary/10 text-primary text-xs font-semibold">{{ recentCustomers().length }}</span>
+              </div>
               <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
                 <ul class="space-y-4">
                   <li *ngFor="let customer of recentCustomers()" class="app-dashboard-list-item flex items-center justify-between gap-4 rounded-xl p-3 cursor-pointer transition-colors" (click)="inspectCustomer(customer)">
@@ -485,7 +488,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
           </div>
         </div>
 
-        <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+        <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden mt-6">
           <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
             <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
           </div>
@@ -550,9 +553,9 @@ export class DashboardPageComponent implements OnInit {
   // Spec 5 R1: heading for the "recent active clients" widget is owned
   // by the customers feature (it semantically belongs there). Reuse
   // `customersCopy` so the source of truth stays in customers/.
-  // AppLocale and CustomersLocale are structurally identical ('es' | 'en')
-  // so the cast is safe and one-line.
-  private readonly customersText = customersCopy(this.locale as unknown as Signal<CustomersLocale>);
+  // The helper accepts `Signal<'es' | 'en'>` (the bare union) so any
+  // `AppLocale` signal flows through without a structural cast.
+  private readonly customersText = customersCopy(this.locale);
   readonly recentActiveClientsTitle = computed(() => this.customersText().recentActiveClientsTitle);
   tabletSidebarOpen = signal(false);
   loading = signal(false);
