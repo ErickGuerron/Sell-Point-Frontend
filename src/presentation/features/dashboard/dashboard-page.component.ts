@@ -10,6 +10,7 @@ import { BillflowSidebarComponent } from '../../shared/components/billflow-sideb
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+import { getSharedTranslations } from '../../shared/i18n/shared.translations';
 import type { DashboardInitialData } from '../../shared/ssr-page-data';
 import { DashboardRevenueChartComponent } from './dashboard-revenue-chart.component';
 
@@ -650,7 +651,8 @@ export class DashboardPageComponent implements OnInit {
       }
 
       if (customersResult.status === 'fulfilled') {
-        this.customers.set(customersResult.value.data.map((customer) => this.mapCustomer(customer)));
+        const unknownCustomerLabel = getSharedTranslations(this.locale()).ssr.unknownCustomer;
+        this.customers.set(customersResult.value.data.map((customer) => this.mapCustomer(customer, unknownCustomerLabel)));
       }
 
       if ([statsResult, invoicesResult, productsResult, customersResult].some((result) => result.status === 'rejected')) {
@@ -797,10 +799,11 @@ export class DashboardPageComponent implements OnInit {
     };
   }
 
-  private mapCustomer(customer: CustomerRowDto): DashboardCustomer {
+  private mapCustomer(customer: CustomerRowDto, unknownCustomerLabel: string): DashboardCustomer {
+    const fullName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
     return {
       id: customer.id,
-      name: `${customer.name} ${customer.lastName}`.trim(),
+      name: fullName || unknownCustomerLabel,
       cedula: customer.cedula,
       email: customer.email,
     };

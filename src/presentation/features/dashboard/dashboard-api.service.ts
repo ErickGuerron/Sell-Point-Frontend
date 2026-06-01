@@ -32,8 +32,10 @@ export interface ProductRowDto {
 
 export interface CustomerRowDto {
   id: string;
-  name: string;
-  lastName: string;
+  // Legacy: backend never emits this; kept for source-compat with old call sites.
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   cedula: string;
   email?: string;
 }

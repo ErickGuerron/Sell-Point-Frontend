@@ -195,10 +195,11 @@ function mapDashboardProduct(product: DashboardProductRowDto): DashboardProductE
   };
 }
 
-function mapDashboardCustomer(customer: DashboardCustomerRowDto): DashboardCustomerEntry {
+function mapDashboardCustomer(customer: DashboardCustomerRowDto, unknownCustomerLabel: string): DashboardCustomerEntry {
+  const fullName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
   return {
     id: customer.id,
-    name: `${customer.name} ${customer.lastName}`.trim(),
+    name: fullName || unknownCustomerLabel,
     cedula: customer.cedula,
     email: customer.email ?? undefined,
   };
@@ -259,7 +260,7 @@ export async function loadDashboardInitialData(astro: AstroLike, locale: AppLoca
     stats,
     invoices: invoices?.data?.map((invoice) => mapDashboardInvoice(invoice, ssr.unknownCustomer)) ?? [],
     products: products?.data?.map(mapDashboardProduct) ?? [],
-    customers: customers?.data?.map(mapDashboardCustomer) ?? [],
+    customers: customers?.data?.map((customer) => mapDashboardCustomer(customer, ssr.unknownCustomer)) ?? [],
   };
 }
 
