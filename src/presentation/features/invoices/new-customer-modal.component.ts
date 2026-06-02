@@ -122,7 +122,8 @@ import { customersCopy, type CustomersLocale } from '../customers/i18n/customers
               [maxLength]="200"
               placeholder="Ej: Av. Principal 123, Asunción"
               [ngModel]="formAddress()"
-              (ngModelChange)="formAddress.set($event)"
+              (keydown.space)="blockOuterSpace($event)"
+              (ngModelChange)="formAddress.set(trimOuterSpaces($event))"
             />
           </div>
         </div>
@@ -138,7 +139,8 @@ import { customersCopy, type CustomersLocale } from '../customers/i18n/customers
               [maxLength]="255"
               [placeholder]="locale === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="newCustomerEmail()"
-              (ngModelChange)="newCustomerEmail.set($event)"
+              (keydown.space)="blockOuterSpace($event)"
+              (ngModelChange)="onEmailInput($event)"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline">{{ newCustomerEmail().length }}/255</span>
           </div>
@@ -176,7 +178,17 @@ export class NewCustomerModalComponent {
   // through the shell's `requestClose()` (which owns the unsaved-changes guard).
   private readonly shell = viewChild(BillflowModalShellComponent);
 
-  @Input({ required: true }) open = false;
+  private readonly openSig = signal(false);
+  @Input({ required: true }) set open(value: boolean) {
+    if (this.openSig() && !value) {
+      // Modal se cierra — limpiamos el formulario para la próxima apertura
+      this.resetForm();
+    }
+    this.openSig.set(value);
+  }
+  get open(): boolean {
+    return this.openSig();
+  }
 
   // Spec 2 R6 parity: bind a typed locale signal so the customersCopy()
   // helper can drive the new error keys (nameError, lastNameError,
@@ -291,6 +303,24 @@ export class NewCustomerModalComponent {
       this.lastRawPhone.set(trimmed);
       this.newCustomerPhone.set(trimmed.replace(/\D/g, '').slice(0, 10));
     }
+  }
+
+  onEmailInput(value: string) {
+    // Los emails no pueden contener espacios en ninguna posición.
+    this.newCustomerEmail.set(value.replace(/\s/g, ''));
+  }
+
+  /** Resetea todas las signals del formulario a su estado inicial. */
+  private resetForm(): void {
+    this.newCustomerFirstName.set('');
+    this.newCustomerLastName.set('');
+    this.newCustomerCedula.set('');
+    this.newCustomerEmail.set('');
+    this.newCustomerPhone.set('');
+    this.formAddress.set('');
+    this.nameFieldError.set(null);
+    this.lastRawCedula.set('');
+    this.lastRawPhone.set('');
   }
 
   // Spec 2 R1 helpers (reused from product-form-modal pattern).
