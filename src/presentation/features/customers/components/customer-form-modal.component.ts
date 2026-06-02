@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Component, Input, Output, EventEmitter, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { LocaleService } from '../../../shared/services/locale.service';
+import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import type { CustomerEntity, CreateCustomerPayload } from '../domain/customer.entity';
 import type { CustomersCopy } from '../i18n/customers.translations';
 
@@ -31,11 +32,13 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              [ngClass]="nameFieldError() === 'firstName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
               [ngModel]="formFirstName()"
-              (keydown.space)="blockOuterSpace($event)"
+              (keydown)="onNameKeyDown($event, 'firstName')"
+              (paste)="onNamePaste($event, 'firstName')"
               (ngModelChange)="onNameInput(trimOuterSpaces($event), 'firstName')"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
@@ -55,11 +58,13 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              [ngClass]="nameFieldError() === 'lastName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
               [ngModel]="formLastName()"
-              (keydown.space)="blockOuterSpace($event)"
+              (keydown)="onNameKeyDown($event, 'lastName')"
+              (paste)="onNamePaste($event, 'lastName')"
               (ngModelChange)="onNameInput(trimOuterSpaces($event), 'lastName')"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
@@ -86,8 +91,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               [ngModel]="formCedula()"
               [disabled]="cedulaDisabled()"
               (keydown.space)="blockOuterSpace($event)"
-              (keydown)="onNumericKeyDown($event)"
-              (paste)="onNumericPaste($event)"
+              (keydown)="onNumericKeyDown($event, 'cedula')"
+              (paste)="onNumericPaste($event, 'cedula')"
               (ngModelChange)="onNumericInput(trimOuterSpaces($event), 'cedula')"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
@@ -110,8 +115,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formPhone()"
               (keydown.space)="blockOuterSpace($event)"
-              (keydown)="onNumericKeyDown($event)"
-              (paste)="onNumericPaste($event)"
+              (keydown)="onNumericKeyDown($event, 'phone')"
+              (paste)="onNumericPaste($event, 'phone')"
               (ngModelChange)="onNumericInput(trimOuterSpaces($event), 'phone')"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
@@ -135,7 +140,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               [maxLength]="200"
               placeholder="Ej: Av. Principal 123, Asunción"
               [ngModel]="formAddress()"
-              (ngModelChange)="formAddress.set($event)"
+              (keydown.space)="blockOuterSpace($event)"
+              (ngModelChange)="formAddress.set(trimOuterSpaces($event))"
             />
           </div>
         </div>
@@ -151,7 +157,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               [maxLength]="255"
               [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="formEmail()"
-              (ngModelChange)="formEmail.set($event)"
+              (keydown)="onEmailKeyDown($event)"
+              (ngModelChange)="formEmail.set(trimOuterSpaces($event).replace(/\s/g, ''))"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
               >{{ formEmail().length }}/255</span
@@ -185,15 +192,25 @@ import type { CustomersCopy } from '../i18n/customers.translations';
 })
 export class CustomerFormModalComponent {
   private readonly localeService = inject(LocaleService);
+  private readonly feedback = inject(UiFeedbackService);
   protected readonly locale = this.localeService.locale;
+
+  // ── Req 1.8: debounce toast per-field (100ms) ─────────────────────
+  private readonly lastToastTimestamps: Record<string, number> = {};
 
   // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
   // through the shell's `requestClose()` (which owns the unsaved-changes guard).
   private readonly shell = viewChild(BillflowModalShellComponent);
 
-  // ── Inputs ─────────────────────────────────────────────────────────────
-  @Input({ required: true }) open = false;
-  @Input() editing: CustomerEntity | null = null;
+  // ── Inputs (signal-backed so syncEffect reacts to changes) ─────────────
+  private readonly _open = signal(false);
+  @Input({ required: true }) set open(value: boolean) { this._open.set(value); }
+  get open(): boolean { return this._open(); }
+
+  private readonly _editing = signal<CustomerEntity | null>(null);
+  @Input() set editing(value: CustomerEntity | null) { this._editing.set(value); }
+  get editing(): CustomerEntity | null { return this._editing(); }
+
   @Input({ required: true }) copy!: CustomersCopy;
 
   // ── Outputs ────────────────────────────────────────────────────────────
@@ -232,18 +249,18 @@ export class CustomerFormModalComponent {
   // ── Spec 2 R2 + R4: per-field error computed signals ─────────────────
   readonly formCedulaError = computed(() => {
     const raw = this.lastRawCedula();
-    return raw && raw !== this.formCedula() ? this.copy().cedulaError : null;
+    return raw && raw !== this.formCedula() ? this.copy.cedulaError : null;
   });
 
   readonly formPhoneError = computed(() => {
     const raw = this.lastRawPhone();
-    return raw && raw !== this.formPhone() ? this.copy().phoneError : null;
+    return raw && raw !== this.formPhone() ? this.copy.phoneError : null;
   });
 
   readonly formEmailError = computed(() => {
     const v = this.formEmail();
     if (!v) return null;
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy().emailError;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy.emailError;
   });
 
   // ── Spec 3 R6: dirty signal — true when any form field diverges from ──
@@ -329,11 +346,102 @@ export class CustomerFormModalComponent {
     this.nameFieldError.set(null);
   }
 
+  // ── Req 1.8: debounced toast helper ──────────────────────────────────
+  private showErrorToast(message: string, fieldKey: string): void {
+    const now = Date.now();
+    if (now - (this.lastToastTimestamps[fieldKey] ?? 0) < 100) return;
+    this.lastToastTimestamps[fieldKey] = now;
+    this.feedback.toast('error', message);
+  }
+
+  // ── Req 5 + Req 2: unified keydown handler for name fields ─────────
+  onNameKeyDown(event: KeyboardEvent, target: 'firstName' | 'lastName'): void {
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    const errorMsg = target === 'firstName' ? this.copy.nameError : this.copy.lastNameError;
+
+    if (event.key === ' ') {
+      // Req 2.2: delegate leading space to blockOuterSpace
+      this.blockOuterSpace(event);
+      // Req 2.3: middle/end space → toast
+      if (!event.defaultPrevented) {
+        event.preventDefault();
+        this.showErrorToast(errorMsg, target);
+        this.nameFieldError.set(target);
+      }
+      return;
+    }
+
+    // Req 5.2: validate against name char set
+    if (!/^[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]$/.test(event.key)) {
+      event.preventDefault();
+      this.nameFieldError.set(target);
+      // Req 1.1: toast only when field is at max length
+      if (input.value.length >= 100) {
+        this.showErrorToast(errorMsg, target);
+      }
+    }
+  }
+
+  // ── Req 2.4: strip spaces from pasted name content ─────────────────
+  onNamePaste(event: ClipboardEvent, target: 'firstName' | 'lastName'): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    const stripped = text.replace(/\s/g, '');
+    if (!stripped) {
+      event.preventDefault();
+      return;
+    }
+    event.preventDefault();
+    const input = event.target as HTMLInputElement | null;
+    if (!input) return;
+    const start = input.selectionStart ?? 0;
+    const end = input.selectionEnd ?? 0;
+    const current = target === 'firstName' ? this.formFirstName() : this.formLastName();
+    const merged = current.substring(0, start) + stripped + current.substring(end);
+    // Let onNameInput handle further cleaning and error state
+    this.onNameInput(merged, target);
+  }
+
+  // ── Req 6 + space control: block whitespace in email ───────────────
+  onEmailKeyDown(event: KeyboardEvent): void {
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+
+    if (event.key === ' ') {
+      const input = event.target as HTMLInputElement | null;
+      if (!input) return;
+      const selectionStart = input.selectionStart ?? 0;
+      const selectionEnd = input.selectionEnd ?? 0;
+      const hasSelection = selectionStart !== selectionEnd;
+
+      // Leading space (cursor at 0, no selection) → silent block
+      if (!hasSelection && selectionStart === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      // Middle/end space → block with toast
+      event.preventDefault();
+      this.showErrorToast(this.copy.emailError, 'email');
+    }
+  }
+
   onNameInput(value: string, target: 'firstName' | 'lastName'): void {
-    // Spec 2 R1: drop \s from the allowed-character regex so inner spaces
-    // are stripped, not preserved. Outer spaces are trimmed by the template
-    // binding via `trimOuterSpaces($event)` before this handler runs.
-    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]/g, '');
+    // Safety net: strip invalid chars + enforce max length for paste/edge cases
+    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]/g, '').slice(0, 100);
     if (target === 'firstName') this.formFirstName.set(cleaned);
     else this.formLastName.set(cleaned);
     if (value !== cleaned) this.nameFieldError.set(target);
@@ -370,8 +478,8 @@ export class CustomerFormModalComponent {
     }
   }
 
-  // ── Spec 2 R2: hard digit-only keydown + paste rejection ────────────
-  onNumericKeyDown(event: KeyboardEvent): void {
+  // ── Req 1.2 + 4: numeric keydown with toast for full-field / space ──
+  onNumericKeyDown(event: KeyboardEvent, fieldType: 'cedula' | 'phone'): void {
     const allowedKeys = new Set([
       'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
       'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -380,13 +488,35 @@ export class CustomerFormModalComponent {
     if (allowedKeys.has(event.key)) return;
     if (event.ctrlKey || event.metaKey) return;
     if (/^[0-9]$/.test(event.key)) return;
+
+    const errorMsg = fieldType === 'cedula' ? this.copy.cedulaError : this.copy.phoneError;
+
+    // Req 4.1: space at middle/end → toast (leading space handled by blockOuterSpace)
+    if (event.key === ' ' && !event.defaultPrevented) {
+      this.showErrorToast(errorMsg, fieldType);
+    } else if (event.key !== ' ') {
+      // Req 1.2: invalid char at max length → toast
+      const input = event.target as HTMLInputElement | null;
+      if (input && input.value.length >= 10) {
+        this.showErrorToast(errorMsg, fieldType);
+      }
+    }
+
     event.preventDefault();
   }
 
-  onNumericPaste(event: ClipboardEvent): void {
+  // ── Req 4.3/4.4: paste rejection + visual error state ──────────────
+  onNumericPaste(event: ClipboardEvent, fieldType: 'cedula' | 'phone'): void {
     const text = event.clipboardData?.getData('text') ?? '';
     if (!/^\s*\d+\s*$/.test(text)) {
       event.preventDefault();
+      // Req 4.4: show visual error by setting raw signal to paste text;
+      // form signal stays unchanged → formXxxError computed triggers mismatch
+      if (fieldType === 'cedula') {
+        this.lastRawCedula.set(text);
+      } else {
+        this.lastRawPhone.set(text);
+      }
     }
   }
 }
