@@ -52,6 +52,15 @@
           (input)="searchQueryChange.emit($any($event.target).value)"
         />
       </div>
+
+      <billflow-date-range-picker
+        [fromDate]="createdFrom"
+        [toDate]="createdTo"
+        [fromLabel]="locale() === 'es' ? 'Desde' : 'From'"
+        [toLabel]="locale() === 'es' ? 'Hasta' : 'To'"
+        (fromDateChange)="createdFromChange.emit($event)"
+        (toDateChange)="createdToChange.emit($event)"
+      ></billflow-date-range-picker>
     </div>
   </div>
 

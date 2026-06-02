@@ -84,12 +84,16 @@ export class ProductRemoteDataSource {
     page: number,
     limit = 10,
     signal?: AbortSignal,
+    createdFrom?: string,
+    createdTo?: string,
   ): Promise<PaginatedRawDto<ProductRawDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
 
     if (q.trim()) params.set('q', q.trim());
     if (categoryId && categoryId !== 'all') params.set('categoryId', categoryId);
     if (isActive && isActive !== 'all') params.set('isActive', isActive === 'active' ? 'true' : 'false');
+    if (createdFrom) params.set('createdFrom', createdFrom);
+    if (createdTo) params.set('createdTo', createdTo);
 
     const init: RequestInit = {};
     if (signal) init.signal = signal;

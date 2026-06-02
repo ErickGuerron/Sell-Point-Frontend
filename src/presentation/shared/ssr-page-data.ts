@@ -327,8 +327,8 @@ export async function loadCategoriesInitialData(astro: AstroLike, locale: AppLoc
 
   return {
     categories,
-    totalCategoriesCount,
-    activeCategoriesCount: kpis?.activeCount ?? 0,
+    totalCategoriesCount: kpis?.totalCategories ?? totalCategoriesCount,
+    activeCategoriesCount: kpis?.activeCount ?? totalCategoriesCount,
     page,
     pageSize,
   };

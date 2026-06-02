@@ -9,6 +9,8 @@ export interface CustomerListParams {
   // URL-serialises this with URLSearchParams.set which always emits
   // a string. 'all' means "do not send the query param at all".
   isActive?: 'true' | 'false' | 'all';
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export interface CustomerPagination {

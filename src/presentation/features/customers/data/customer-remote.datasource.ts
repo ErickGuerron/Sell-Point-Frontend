@@ -71,7 +71,7 @@ export class CustomerRemoteDataSource {
     return (await res.json()) as CustomerKpis;
   }
 
-  async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; }): Promise<PaginatedResponse<BackendCustomer>> {
+  async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; createdFrom?: string; createdTo?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
     if (USE_MOCK) {
       // Spec 4 R2: honour the isActive filter on the mock slice too,
       // so dev-mode smoke tests see the same active-only subset.
@@ -103,6 +103,8 @@ export class CustomerRemoteDataSource {
     // explicit string-literal union in the param type is what the
     // backend contract requires.
     if (params.isActive && params.isActive !== 'all') searchParams.set('isActive', params.isActive);
+    if (params.createdFrom) searchParams.set('createdFrom', params.createdFrom);
+    if (params.createdTo) searchParams.set('createdTo', params.createdTo);
 
     const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?${searchParams.toString()}`);
     return await res.json() as PaginatedResponse<BackendCustomer>;

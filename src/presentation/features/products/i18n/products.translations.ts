@@ -67,6 +67,8 @@ export interface ProductsCopy {
   goToLabel: string;
   loadingText: string;
   allLabel: string;
+  fromLabel: string;
+  toLabel: string;
   modalCreateTitle: string;
   modalCreateSubtitle: string;
   modalEditTitle: string;
@@ -174,6 +176,8 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     goToLabel: 'Ir a:',
     loadingText: 'Cargando productos...',
     allLabel: 'Todos',
+    fromLabel: 'Desde',
+    toLabel: 'Hasta',
     modalCreateTitle: 'Nuevo Producto',
     modalCreateSubtitle: 'Completa los datos del nuevo producto',
     modalEditTitle: 'Editar Producto',
@@ -274,6 +278,8 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     goToLabel: 'Go to:',
     loadingText: 'Loading products...',
     allLabel: 'All',
+    fromLabel: 'From',
+    toLabel: 'To',
     modalCreateTitle: 'New Product',
     modalCreateSubtitle: 'Fill in the new product details',
     modalEditTitle: 'Edit Product',

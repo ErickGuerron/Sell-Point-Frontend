@@ -15,6 +15,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import type { InvoicesInitialData } from '../../shared/ssr-page-data';
 
 type InvoiceStatus = 'issued' | 'cancelled';
@@ -101,6 +102,8 @@ interface InvoiceCopy {
   noProductsText: string;
   rangeFrom: string;
   rangeOf: string;
+  fromLabel: string;
+  toLabel: string;
 }
 
 const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
@@ -176,6 +179,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     noProductsText: 'No hay productos registrados en esta factura.',
     rangeFrom: 'a',
     rangeOf: 'de',
+    fromLabel: 'Desde',
+    toLabel: 'Hasta',
   },
   en: {
     moduleLabel: 'Billing Module',
@@ -249,6 +254,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     noProductsText: 'No products registered in this invoice.',
     rangeFrom: 'to',
     rangeOf: 'of',
+    fromLabel: 'From',
+    toLabel: 'To',
   },
 };
 
@@ -256,7 +263,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 @Component({
   selector: 'billflow-invoice-page',
   standalone: true,
-  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent, BillflowComboboxComponent],
+  imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent, BillflowComboboxComponent, BillflowDateRangePickerComponent],
   template: `
     <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
@@ -369,9 +376,9 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
               </section>
             }
 
-            @defer (on idle) {
+@defer (on idle) {
               <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-                <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div class="dashboard-table-card__head p-6 md:p-7 flex flex-col gap-4">
                   <div class="flex flex-wrap items-center gap-3">
                     <billflow-combobox
                       [options]="statusFilterOptions()"
@@ -402,35 +409,46 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                         [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
                       >refresh</span>
                     </button>
-
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-                      (click)="startNewInvoice()"
-                    >
-                      <span class="material-symbols-outlined text-[18px]">add</span>
-                      {{ copy().emitInvoice }}
-                    </button>
                   </div>
 
-                  <div class="flex items-center gap-3 w-full lg:w-auto">
-                    <billflow-combobox
-                      [options]="filterFieldOptions()"
-                      [value]="invoiceFilterField()"
-                      placeholder="{{ copy().filterAll }}"
-                      searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
-                      [compact]="true"
-                      (valueChange)="setInvoiceFilterField($event)"
-                    ></billflow-combobox>
-
-                    <div class="relative flex-1 lg:w-72">
-                      <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-                      <input
-                        class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
-                        [placeholder]="copy().searchPlaceholder"
-                        [value]="searchQuery()"
-                        (input)="setSearchQuery(($any($event.target).value))"
-                      />
+                  <div class="flex items-center justify-between gap-3 w-full">
+                    <div class="flex items-stretch w-80">
+                      <billflow-combobox
+                        [options]="filterFieldOptions()"
+                        [value]="invoiceFilterField()"
+                        placeholder="{{ copy().filterAll }}"
+                        searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                        [compact]="true"
+                        (valueChange)="setInvoiceFilterField($event)"
+                        class="rounded-r-none"
+                      ></billflow-combobox>
+                      <div class="relative flex-1">
+                        <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
+                        <input
+                          class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                          [placeholder]="copy().searchPlaceholder"
+                          [value]="searchQuery()"
+                          (input)="setSearchQuery(($any($event.target).value))"
+                        />
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <billflow-date-range-picker
+                        [fromDate]="startDate()"
+                        [toDate]="endDate()"
+                        [fromLabel]="copy().fromLabel"
+                        [toLabel]="copy().toLabel"
+                        (fromDateChange)="startDate.set($event); page.set(1); void reloadInvoices()"
+                        (toDateChange)="endDate.set($event); page.set(1); void reloadInvoices()"
+                      ></billflow-date-range-picker>
+                      <button
+                        type="button"
+                        class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
+                        (click)="startNewInvoice()"
+                      >
+                        <span class="material-symbols-outlined text-[18px]">add</span>
+                        {{ copy().emitInvoice }}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -721,6 +739,8 @@ export class InvoicePageComponent implements OnInit {
     last30DaysCount: 0,
   });
   searchQuery = signal('');
+  startDate = signal<string | null>(null);
+  endDate = signal<string | null>(null);
   invoiceFilterField = signal<'all' | 'invoiceNumber' | 'customerName' | 'total'>('all');
   statusFilter = signal<'all' | InvoiceStatus>('all');
   rangeFilter = signal<InvoiceRange>('all');
@@ -828,7 +848,7 @@ export class InvoicePageComponent implements OnInit {
     this.loading.set(true);
     try {
       const [response, kpis] = await Promise.all([
-        this.api.listInvoices(150),
+        this.api.listInvoices(150, this.startDate() ?? undefined, this.endDate() ?? undefined),
         this.api.getInvoiceKpis(),
       ]);
       const mapped = response.data

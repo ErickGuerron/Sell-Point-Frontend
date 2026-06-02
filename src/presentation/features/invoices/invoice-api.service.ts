@@ -186,8 +186,21 @@ function createIdempotencyKey(): string {
 export class InvoiceApiService {
   private readonly authHttp = inject(AuthHttpService);
 
-  async listInvoices(limit = 150): Promise<PaginatedResponse<InvoiceRowDto>> {
-    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices?page=1&limit=${limit}`);
+  async listInvoices(
+    limit = 150,
+    startDate?: string,
+    endDate?: string,
+    status?: string,
+    invoiceNumber?: string,
+    branchId?: string,
+  ): Promise<PaginatedResponse<InvoiceRowDto>> {
+    const params = new URLSearchParams({ page: '1', limit: String(limit) });
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (status) params.set('status', status);
+    if (invoiceNumber) params.set('invoiceNumber', invoiceNumber);
+    if (branchId) params.set('branchId', branchId);
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoices?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
     const body = await response.json() as any;

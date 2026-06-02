@@ -10,6 +10,7 @@ import { type BillflowSidebarItem } from '../../shared/components/billflow-sideb
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import type { ComboboxOption } from '../../shared/components/billflow-combobox.component';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-particles-background.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -35,7 +36,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
     CommonModule, FormsModule,
     BillflowPageShellComponent, DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
-    BillflowUserMenuComponent,
+    BillflowUserMenuComponent, BillflowDateRangePickerComponent,
     CustomerKpiCardsComponent, CustomerTableComponent, CustomerFormModalComponent,
   ],
   providers: [
@@ -140,8 +141,12 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
           (searchFieldChange)="setSearchField($event)"
           (statusFilterChange)="setStatusFilter($event)"
           (refresh)="reloadCustomers()"
-          (openCreate)="openCreateModal()">
-        </billflow-customer-table>
+          (openCreate)="openCreateModal()"
+          [createdFrom]="createdFrom()"
+          [createdTo]="createdTo()"
+          (createdFromChange)="createdFrom.set($event); scheduleReload({ resetPage: true })"
+          (createdToChange)="createdTo.set($event); scheduleReload({ resetPage: true })"
+        ></billflow-customer-table>
       } @placeholder {
         <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
           <div class="p-4 md:p-5 border-b border-outline-variant/30 flex items-center gap-3">
@@ -219,6 +224,8 @@ export class CustomersPageComponent implements OnInit {
   totalKpi = signal(0);
   activeKpi = signal(0);
   inactiveKpi = signal(0);
+  createdFrom = signal<string | null>(null);
+  createdTo = signal<string | null>(null);
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Computeds ──────────────────────────────────────────────────────────────
@@ -334,6 +341,11 @@ export class CustomersPageComponent implements OnInit {
       page: this.page(),
       limit: this.pageSize(),
     };
+
+    const from = this.createdFrom();
+    const to = this.createdTo();
+    if (from) params.createdFrom = from;
+    if (to) params.createdTo = to;
 
     if (!query) return params;
     if (field === 'cedula') {

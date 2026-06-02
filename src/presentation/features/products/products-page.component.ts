@@ -13,6 +13,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import { ProductKpiCardsComponent } from './components/product-kpi-cards.component';
 import { ProductTableComponent } from './components/product-table.component';
 import { ProductFormModalComponent } from './components/product-form-modal.component';
@@ -45,6 +46,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
     BillflowComboboxComponent,
+    BillflowDateRangePickerComponent,
     ProductKpiCardsComponent,
     ProductTableComponent,
     ProductFormModalComponent,
@@ -221,6 +223,15 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                     />
                   </div>
                 </div>
+
+                <billflow-date-range-picker
+                  [fromDate]="createdFrom()"
+                  [toDate]="createdTo()"
+                  [fromLabel]="copy().fromLabel || 'Desde'"
+                  [toLabel]="copy().toLabel || 'Hasta'"
+                  (fromDateChange)="createdFrom.set($event); page.set(1); void reloadProducts()"
+                  (toDateChange)="createdTo.set($event); page.set(1); void reloadProducts()"
+                ></billflow-date-range-picker>
               </div>
             </div>
 
@@ -396,6 +407,8 @@ export class ProductsPageComponent implements OnInit {
   searchField = signal<'all' | 'code' | 'name'>('all');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   categoryFilter = signal<string>('all');
+  createdFrom = signal<string | null>(null);
+  createdTo = signal<string | null>(null);
 
   readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
     { value: 'all', label: this.copy().allStatuses },

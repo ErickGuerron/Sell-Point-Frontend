@@ -377,7 +377,6 @@ export class CategoriesPageComponent implements OnInit {
   page = signal(1);
   pageSize = signal(5);
   totalCategoriesCount = signal(0);
-  // TODO(backend): fetch from /categories/aggregates endpoint
   activeCategoriesCount = signal(0);
 
   readonly pageSizeOptions: ComboboxOption[] = [

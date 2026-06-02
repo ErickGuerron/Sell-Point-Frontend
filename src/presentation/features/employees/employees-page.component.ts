@@ -16,6 +16,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import type { EmployeesInitialData } from '../../shared/ssr-page-data';
 import { EmployeesKpiCardsComponent } from './components/employees-kpi-cards.component';
 import { EmployeesTableComponent } from './components/employees-table.component';
@@ -99,6 +100,8 @@ interface EmployeesCopy {
   usernameLabel: string;
   roleLabel: string;
   employeeIdLabel: string;
+  fromLabel: string;
+  toLabel: string;
   // Validation messages
   firstNameOnlyLetters: string;
   lastNameOnlyLetters: string;
@@ -193,6 +196,8 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     emailInvalidFormat: 'Formato de email inválido',
     usernameNoSpaces: 'No se permiten espacios',
     charCountLabel: '',
+    fromLabel: 'Desde',
+    toLabel: 'Hasta',
   },
   en: {
     moduleLabel: 'Employees Module',
@@ -277,6 +282,8 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     emailInvalidFormat: 'Invalid email format',
     usernameNoSpaces: 'No spaces allowed',
     charCountLabel: '',
+    fromLabel: 'From',
+    toLabel: 'To',
   },
 };
 
@@ -287,6 +294,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   standalone: true,
   imports: [
     CommonModule, FormsModule, BillflowComboboxComponent,
+    BillflowDateRangePickerComponent,
     BillflowPageShellComponent, DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
     BillflowUserMenuComponent, BillflowModalShellComponent,
@@ -379,48 +387,60 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           (onPageSizeChange)="onPageSizeCombo($event)"
         >
           <ng-container toolbar-left>
-            <billflow-combobox
-              [options]="statusFilterOptions()"
-              [value]="statusFilter()"
-              [placeholder]="copy().allStatuses"
-              searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
-              [compact]="true"
-              (valueChange)="setStatusFilter($event)"
-            ></billflow-combobox>
-            <billflow-combobox
-              [options]="roleFilterOptions()"
-              [value]="roleFilter()"
-              [placeholder]="copy().allRoles"
-              searchPlaceholder="{{ copy().searchRolePlaceholder }}"
-              [compact]="true"
-              (valueChange)="setRoleFilter($event)"
-            ></billflow-combobox>
-            <button type="button" title="Refresh" class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="void reloadEmployees()">
-              <span class="material-symbols-outlined text-[20px] transition-transform" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
-            </button>
-            <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
-              <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
-            </button>
-            <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
-              <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
-            </button>
-          </ng-container>
-          <ng-container toolbar-right>
-            <div class="flex items-stretch w-80 ml-auto">
+            <div class="flex flex-wrap items-center gap-3">
               <billflow-combobox
-                [options]="searchFieldOptionsList()"
-                [value]="searchFieldValue()"
-                placeholder="{{ copy().allFields }}"
-                searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                [options]="statusFilterOptions()"
+                [value]="statusFilter()"
+                [placeholder]="copy().allStatuses"
+                searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
                 [compact]="true"
-                (valueChange)="onSearchFieldSelected($event)"
-                class="rounded-r-none"
+                (valueChange)="setStatusFilter($event)"
               ></billflow-combobox>
-              <div class="relative flex-1">
-                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
-                <input class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                  [placeholder]="copy().searchPlaceholder"
-                  [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+              <billflow-combobox
+                [options]="roleFilterOptions()"
+                [value]="roleFilter()"
+                [placeholder]="copy().allRoles"
+                searchPlaceholder="{{ copy().searchRolePlaceholder }}"
+                [compact]="true"
+                (valueChange)="setRoleFilter($event)"
+              ></billflow-combobox>
+              <billflow-date-range-picker
+                [fromDate]="createdFrom()"
+                [toDate]="createdTo()"
+                [fromLabel]="copy().fromLabel"
+                [toLabel]="copy().toLabel"
+                (fromDateChange)="createdFrom.set($event); page.set(1); void reloadEmployees()"
+                (toDateChange)="createdTo.set($event); page.set(1); void reloadEmployees()"
+              ></billflow-date-range-picker>
+              <button type="button" title="Refresh" class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="void reloadEmployees()">
+                <span class="material-symbols-outlined text-[20px] transition-transform" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
+              </button>
+            </div>
+            <div class="flex items-center justify-between gap-3 mt-3 w-full">
+              <div class="flex items-stretch w-80">
+                <billflow-combobox
+                  [options]="searchFieldOptionsList()"
+                  [value]="searchFieldValue()"
+                  placeholder="{{ copy().allFields }}"
+                  searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                  [compact]="true"
+                  (valueChange)="onSearchFieldSelected($event)"
+                  class="rounded-r-none"
+                ></billflow-combobox>
+                <div class="relative flex-1">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
+                  <input class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                    [placeholder]="copy().searchPlaceholder"
+                    [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
+                  <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
+                </button>
+                <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
+                  <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
+                </button>
               </div>
             </div>
           </ng-container>
@@ -563,6 +583,8 @@ export class EmployeesPageComponent implements OnInit {
   searchQuery = signal('');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   roleFilter = signal('all');
+  createdFrom = signal<string | null>(null);
+  createdTo = signal<string | null>(null);
   page = signal(1);
   pageSize = signal(5);
 
@@ -724,6 +746,8 @@ export class EmployeesPageComponent implements OnInit {
         q: this.searchQuery().trim() || undefined,
         role: this.roleFilter() !== 'all' ? this.roleFilter() : undefined,
         status: this.statusFilter() !== 'all' ? this.statusFilter() : undefined,
+        createdFrom: this.createdFrom() ?? undefined,
+        createdTo: this.createdTo() ?? undefined,
       });
       this.employees.set(result.data || []);
       this.totalCount.set(result.total || 0);

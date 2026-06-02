@@ -26,6 +26,8 @@ export class ProductImplRepository extends ProductRepository {
       filters.page,
       filters.limit,
       signal,
+      filters.createdFrom,
+      filters.createdTo,
     );
     return {
       data: page.data.map(toProductEntity),
