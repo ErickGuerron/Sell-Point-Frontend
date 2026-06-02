@@ -323,7 +323,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
         </aside>
       </div>
 
-      <billflow-sidebar [items]="sidebarItems()" [actionLabel]="copy().newSale" actionIcon="add" (actionClick)="startNewSale()"></billflow-sidebar>
+      <billflow-sidebar [items]="sidebarItems()" [locale]="locale()" [actionLabel]="copy().newSale" actionIcon="add" (actionClick)="startNewSale()"></billflow-sidebar>
 
       <main class="app-dashboard-main">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-30 isolate overflow-visible min-w-0">
