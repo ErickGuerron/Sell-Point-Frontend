@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, EventEmitter, inject, Input, Output, signal } from '@angular/core';
+import { Component, computed, EventEmitter, inject, Input, Output, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   InvoiceApiService,
@@ -18,12 +18,14 @@ import { customersCopy, type CustomersLocale } from '../customers/i18n/customers
   imports: [CommonModule, FormsModule, BillflowModalShellComponent],
   template: `
     <billflow-modal-shell
+      #shell
       *ngIf="open"
       title="{{ locale === 'es' ? 'Nuevo Cliente' : 'New Customer' }}"
       subtitle="{{ locale === 'es' ? 'Completá los datos del nuevo cliente' : 'Fill in the new customer details' }}"
       icon="person_add"
       maxWidth="xl"
       [hasFooter]="true"
+      [formHasChanges]="formHasChanges"
       (close)="doClose()"
     >
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -150,7 +152,7 @@ import { customersCopy, type CustomersLocale } from '../customers/i18n/customers
         <button
           type="button"
           class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-          (click)="doClose()"
+          (click)="requestClose()"
         >
           {{ locale === 'es' ? 'Cancelar' : 'Cancel' }}
         </button>
@@ -169,6 +171,10 @@ import { customersCopy, type CustomersLocale } from '../customers/i18n/customers
 export class NewCustomerModalComponent {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
+
+  // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
+  // through the shell's `requestClose()` (which owns the unsaved-changes guard).
+  private readonly shell = viewChild(BillflowModalShellComponent);
 
   @Input({ required: true }) open = false;
 
@@ -203,6 +209,18 @@ export class NewCustomerModalComponent {
   private readonly lastRawCedula = signal('');
   private readonly lastRawPhone = signal('');
 
+  // Spec 3 R6: initial-value snapshot for the unsaved-changes guard. The
+  // modal is *ngIf'd, so the empty strings captured at field-declaration
+  // time are the correct baseline for every open. Re-capturing the
+  // snapshot on `open` flips would be a future polish if the modal is
+  // ever kept mounted between opens.
+  private readonly initialFirstName = signal('');
+  private readonly initialLastName = signal('');
+  private readonly initialCedula = signal('');
+  private readonly initialEmail = signal('');
+  private readonly initialPhone = signal('');
+  private readonly initialAddress = signal('');
+
   readonly newCustomerFormValid = computed(() =>
     this.newCustomerFirstName().trim().length > 0
     && this.newCustomerLastName().trim().length > 0
@@ -225,6 +243,28 @@ export class NewCustomerModalComponent {
     if (!v) return null;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy().emailError;
   });
+
+  // Spec 3 R6: dirty signal — true when any form field diverges from the
+  // initial empty baseline. The modal is *ngIf'd, so the baseline is
+  // always the empty form.
+  readonly formHasChanges = computed(() =>
+    this.newCustomerFirstName() !== this.initialFirstName()
+    || this.newCustomerLastName() !== this.initialLastName()
+    || this.newCustomerCedula() !== this.initialCedula()
+    || this.newCustomerEmail() !== this.initialEmail()
+    || this.newCustomerPhone() !== this.initialPhone()
+    || this.formAddress() !== this.initialAddress()
+  );
+
+  /**
+   * Host-side helper that routes the Cancel button through the shell's
+   * `requestClose()`. The shell owns the unsaved-changes guard, so all
+   * four close paths (X, backdrop, Escape, Cancel) share the same
+   * decision matrix.
+   */
+  async requestClose(): Promise<void> {
+    await this.shell()?.requestClose();
+  }
 
   onNameInput(value: string, target: 'firstName' | 'lastName') {
     // Spec 2 R1: drop the literal space from the allowed set so inner

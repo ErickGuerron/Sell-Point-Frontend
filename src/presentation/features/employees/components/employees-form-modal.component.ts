@@ -1,6 +1,7 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, computed, Input, Output, EventEmitter, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -174,6 +175,30 @@ export class EmployeesFormModalComponent {
   username = signal('');
   role = signal('');
 
+  // Spec 3 R6: initial-value snapshot for the unsaved-changes guard.
+  // The modal is *ngIf'd by the parent (employees-page) and re-created
+  // on every open, so the snapshot is captured exactly once at ngOnInit.
+  private readonly initialFirstName = signal('');
+  private readonly initialLastName = signal('');
+  private readonly initialCedula = signal('');
+  private readonly initialEmail = signal('');
+  private readonly initialUsername = signal('');
+  private readonly initialRole = signal('');
+
+  // Spec 3 R6: dirty signal — true when any form field diverges from the
+  // initial baseline. Read by the parent (employees-page) which threads
+  // the signal into the surrounding `<billflow-modal-shell>` via
+  // `[formHasChanges]`. (The shell lives in the parent because this
+  // modal is rendered as `<ng-content>` inside the page's shell.)
+  readonly formHasChanges = computed(() =>
+    this.firstName() !== this.initialFirstName()
+    || this.lastName() !== this.initialLastName()
+    || this.cedula() !== this.initialCedula()
+    || this.email() !== this.initialEmail()
+    || this.username() !== this.initialUsername()
+    || this.role() !== this.initialRole()
+  );
+
   private localeState = signal<EmployeesLocale>('es');
 
   get isEdit() { return !!this.employee; }
@@ -188,6 +213,16 @@ export class EmployeesFormModalComponent {
       this.username.set(this.employee.email?.split('@')[0] ?? '');
       this.role.set(this.employee.role);
     }
+    this.captureSnapshot();
+  }
+
+  private captureSnapshot(): void {
+    this.initialFirstName.set(this.firstName());
+    this.initialLastName.set(this.lastName());
+    this.initialCedula.set(this.cedula());
+    this.initialEmail.set(this.email());
+    this.initialUsername.set(this.username());
+    this.initialRole.set(this.role());
   }
 
   readonly copy = computed(() => FORM_COPY[this.localeState()]);

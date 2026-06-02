@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, model, input, output } from '@angular/core';
+import { Component, model, input, output, computed, signal, viewChild, type OnInit } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import type { CategoryEntity } from '../domain/category.entity';
 import type { CategoriesCopy } from '../i18n/categories.translations';
@@ -11,11 +11,13 @@ import type { CategoriesCopy } from '../i18n/categories.translations';
   imports: [CommonModule, FormsModule, BillflowModalShellComponent],
   template: `
     <billflow-modal-shell
+      #shell
       title="{{ editing() ? copy().modalEditTitle : copy().modalCreateTitle }}"
       subtitle="{{ editing() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}"
       icon="category"
       maxWidth="md"
       [hasFooter]="true"
+      [formHasChanges]="formHasChanges"
       (close)="close.emit()"
     >
       <div class="p-6 grid grid-cols-1 gap-5">
@@ -50,7 +52,7 @@ import type { CategoriesCopy } from '../i18n/categories.translations';
         <button
           type="button"
           class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-          (click)="close.emit()"
+          (click)="requestClose()"
         >
           {{ copy().cancel }}
         </button>
@@ -66,11 +68,38 @@ import type { CategoriesCopy } from '../i18n/categories.translations';
     </billflow-modal-shell>
   `,
 })
-export class CategoryFormModalComponent {
+export class CategoryFormModalComponent implements OnInit {
+  // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
+  // through the shell's `requestClose()` (which owns the unsaved-changes guard).
+  private readonly shell = viewChild(BillflowModalShellComponent);
+
   copy = input.required<CategoriesCopy>();
   editing = input<CategoryEntity | null>(null);
   name = model.required<string>();
   description = model.required<string>();
   close = output<void>();
   save = output<void>();
+
+  // Spec 3 R6: initial-value snapshot. The modal is *ngIf'd by the parent
+  // (categories-page) and re-created on every open, so the snapshot is
+  // captured exactly once at ngOnInit (after inputs are bound).
+  private readonly initialName = signal('');
+  private readonly initialDescription = signal('');
+
+  readonly formHasChanges = computed(() =>
+    this.name() !== this.initialName() || this.description() !== this.initialDescription()
+  );
+
+  ngOnInit(): void {
+    this.initialName.set(this.name());
+    this.initialDescription.set(this.description());
+  }
+
+  /**
+   * Host-side helper that routes the Cancel button through the shell's
+   * `requestClose()`. The shell owns the unsaved-changes guard.
+   */
+  async requestClose(): Promise<void> {
+    await this.shell()?.requestClose();
+  }
 }

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input, viewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
@@ -426,13 +426,13 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
       }
     </main>
     @defer (on interaction) {
-        <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" (close)="closeEmployeeModal()">
+        <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" [formHasChanges]="employeeFormModal()?.formHasChanges ?? null" (close)="closeEmployeeModal()">
           <billflow-employees-form-modal
             [locale]="locale"
             [employee]="editingEmployee() ?? undefined"
             [roleOptions]="roleOptions"
             [submitting]="formSubmitting"
-            (onCancel)="closeEmployeeModal()"
+            (onCancel)="requestEmployeeModalClose()"
             (onSave)="saveEmployeeFromModal($event)"
           ></billflow-employees-form-modal>
         </billflow-modal-shell>
@@ -496,6 +496,15 @@ export class EmployeesPageComponent implements OnInit {
   private gradientCache = new Map<string, string>();
   @ViewChild('firstNameInput') firstNameInput?: ElementRef<HTMLInputElement>;
   @ViewChild('lastNameInput') lastNameInput?: ElementRef<HTMLInputElement>;
+
+  // Spec 3 R6: viewChild to the employee-form-modal so the parent can
+  // thread its `formHasChanges` signal into the surrounding shell. The
+  // shell is the dialog owner (X, backdrop, Escape) and reads the
+  // signal to decide whether to show the unsaved-changes SweetAlert.
+  private readonly employeeFormModal = viewChild(EmployeesFormModalComponent);
+  // Spec 3 R6: viewChild to the shell so the modal's Cancel button can
+  // route through `requestClose()` (which honors the guard).
+  private readonly employeeShell = viewChild(BillflowModalShellComponent);
 
   locale = this.localeService.locale;
   copy = computed(() => EMPLOYEES_TEXT[this.locale()]);
@@ -871,6 +880,16 @@ export class EmployeesPageComponent implements OnInit {
     this.employeeModalOpen.set(false);
     this.editingEmployee.set(null);
     this.resetForm();
+  }
+
+  /**
+   * Spec 3 R6: route the form modal's Cancel button through the shell's
+   * `requestClose()` so the unsaved-changes guard runs. The shell emits
+   * `close` only after the user confirms, which then triggers
+   * `closeEmployeeModal()`.
+   */
+  async requestEmployeeModalClose(): Promise<void> {
+    await this.employeeShell()?.requestClose();
   }
 
   private resetForm() {

@@ -19,6 +19,7 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
       icon="manage_accounts"
       maxWidth="lg"
       [hasFooter]="true"
+      [disableUnsavedGuard]="true"
       (close)="doClose()"
     >
       <!-- Search bar + filter -->
