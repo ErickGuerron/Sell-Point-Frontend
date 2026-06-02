@@ -76,60 +76,94 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+      <!-- First Name -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
-        <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-          [ngClass]="firstNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-          [maxLength]="100" placeholder="Ej: Carlos" [value]="firstName()" (input)="firstName.set($any($event.target).value)" />
+        <div class="relative">
+          <input type="text" data-form="firstName"
+            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': firstNameError()}"
+            [maxLength]="100" placeholder="Ej: Carlos" [value]="firstName()"
+            (keydown.space)="blockOuterSpace($event)"
+            (input)="onFirstNameInput($any($event.target).value)" />
+          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ firstName().length }}/100</span>
+        </div>
         @if (firstNameError()) {
-          <span class="text-xs text-error mt-1 block">{{ firstNameError() }}</span>
+          <p class="mt-1 text-xs text-error">{{ firstNameError() }}</p>
         }
-        <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ firstName().length }}/100</span>
       </div>
+      <!-- Last Name -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().lastNameLabel }} <span class="text-error">*</span></label>
-        <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-          [ngClass]="lastNameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-          [maxLength]="100" placeholder="Ej: González" [value]="lastName()" (input)="lastName.set($any($event.target).value)" />
+        <div class="relative">
+          <input type="text" data-form="lastName"
+            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': lastNameError()}"
+            [maxLength]="100" placeholder="Ej: González" [value]="lastName()"
+            (keydown.space)="blockOuterSpace($event)"
+            (input)="onLastNameInput($any($event.target).value)" />
+          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ lastName().length }}/100</span>
+        </div>
         @if (lastNameError()) {
-          <span class="text-xs text-error mt-1 block">{{ lastNameError() }}</span>
+          <p class="mt-1 text-xs text-error">{{ lastNameError() }}</p>
         }
-        <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ lastName().length }}/100</span>
       </div>
+      <!-- Cédula -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-        <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-          [ngClass]="cedulaError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-          [maxLength]="10" placeholder="Ej: 1234567890" [value]="cedula()" (input)="cedula.set($any($event.target).value)" />
+        <div class="relative">
+          <input type="text" data-form="cedula" inputmode="numeric"
+            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': cedulaError()}"
+            [maxLength]="10" placeholder="10 dígitos" [value]="cedula()"
+            (keydown.space)="blockOuterSpace($event)"
+            (keydown)="onNumericKeyDown($event)"
+            (paste)="onNumericPaste($event)"
+            (input)="onCedulaInput($any($event.target).value)" />
+          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ cedula().length }}/10</span>
+        </div>
         @if (cedulaError()) {
-          <span class="text-xs text-error mt-1 block">{{ cedulaError() }}</span>
+          <p class="mt-1 text-xs text-error">{{ cedulaError() }}</p>
         }
-        <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ cedula().length }}/10</span>
       </div>
+      <!-- Email -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
-        <input type="email" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-          [ngClass]="emailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-          [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [value]="email()" (input)="email.set($any($event.target).value)" />
+        <div class="relative">
+          <input type="email" data-form="email"
+            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': emailError()}"
+            [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [value]="email()"
+            (keydown.space)="blockOuterSpace($event)"
+            (input)="onEmailInput($any($event.target).value)" />
+          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ email().length }}/255</span>
+        </div>
         @if (emailError()) {
-          <span class="text-xs text-error mt-1 block">{{ emailError() }}</span>
+          <p class="mt-1 text-xs text-error">{{ emailError() }}</p>
         }
-        <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ email().length }}/255</span>
       </div>
+      <!-- Username -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().usernameLabel }} <span class="text-error">*</span></label>
-        <input type="text" class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-          [ngClass]="usernameError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
-          [maxLength]="50" placeholder="Ej: carlos.gonzalez" [value]="username()" (input)="username.set($any($event.target).value)" />
+        <div class="relative">
+          <input type="text" data-form="username"
+            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': usernameError()}"
+            [maxLength]="50" placeholder="Ej: carlos.gonzalez" [value]="username()"
+            (keydown.space)="blockOuterSpace($event)"
+            (input)="onUsernameInput($any($event.target).value)" />
+          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ username().length }}/50</span>
+        </div>
         @if (usernameError()) {
-          <span class="text-xs text-error mt-1 block">{{ usernameError() }}</span>
+          <p class="mt-1 text-xs text-error">{{ usernameError() }}</p>
         }
-        <span class="text-xs text-outline ml-auto mt-1 block text-right">{{ username().length }}/50</span>
       </div>
+      <!-- Role -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
-        <select class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
-                [value]="role()" (change)="role.set($any($event.target).value)">
+        <select
+          class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
+          [value]="role()" (change)="role.set($any($event.target).value)">
           <option value="">{{ copy().selectPlaceholder }}</option>
           @for (opt of roleOptions(); track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
@@ -138,9 +172,12 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
       </div>
     </div>
     <div footer class="flex w-full items-center justify-end gap-3">
-      <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="onCancel.emit()">{{ copy().cancel }}</button>
-      <button type="button" class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-              [disabled]="!isValid() || submitting()" (click)="onSave.emit(buildPayload())">
+      <button type="button"
+        class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-all border border-outline-variant/50"
+        (click)="onCancel.emit()">{{ copy().cancel }}</button>
+      <button type="button"
+        class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
+        [disabled]="!isValid() || submitting()" (click)="onSave.emit(buildPayload())">
         @if (submitting()) {
           <span class="inline-flex items-center gap-2">
             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -227,16 +264,78 @@ export class EmployeesFormModalComponent {
 
   readonly copy = computed(() => FORM_COPY[this.localeState()]);
 
+  // ── Input handlers ────────────────────────────────────────────────────────
+
+  onFirstNameInput(value: string) {
+    // Solo letras, sin espacios ni números ni caracteres especiales
+    this.firstName.set(value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, ''));
+  }
+
+  onLastNameInput(value: string) {
+    // Solo letras, sin espacios ni números ni caracteres especiales
+    this.lastName.set(value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/g, ''));
+  }
+
+  onCedulaInput(value: string) {
+    // Solo dígitos, máximo 10
+    this.cedula.set(value.replace(/\D/g, '').slice(0, 10));
+  }
+
+  onEmailInput(value: string) {
+    // Los emails no pueden contener espacios en ninguna posición
+    this.email.set(value.replace(/\s/g, ''));
+  }
+
+  onUsernameInput(value: string) {
+    // Sin espacios en el username
+    this.username.set(value.replace(/\s/g, ''));
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  trimOuterSpaces(value: string): string {
+    return typeof value === 'string' ? value.replace(/^\s+|\s+$/g, '') : value;
+  }
+
+  blockOuterSpace(event: KeyboardEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+    const selectionStart = target.selectionStart ?? 0;
+    const selectionEnd = target.selectionEnd ?? 0;
+    const hasSelection = selectionStart !== selectionEnd;
+    if (!hasSelection && selectionStart === 0) {
+      event.preventDefault();
+    }
+  }
+
+  onNumericKeyDown(event: KeyboardEvent): void {
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+    if (/^[0-9]$/.test(event.key)) return;
+    event.preventDefault();
+  }
+
+  onNumericPaste(event: ClipboardEvent): void {
+    const text = event.clipboardData?.getData('text') ?? '';
+    if (!/^\s*\d+\s*$/.test(text)) {
+      event.preventDefault();
+    }
+  }
+
   readonly firstNameError = computed(() => {
     const v = this.firstName();
     if (!v) return '';
-    return /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(v) ? '' : FORM_COPY[this.localeState()].firstNameError;
+    return /^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/.test(v) ? '' : FORM_COPY[this.localeState()].firstNameError;
   });
   readonly lastNameError = computed(() => {
     const v = this.lastName();
     if (!v) return '';
-    if (/\s/.test(v)) return FORM_COPY[this.localeState()].lastNameNoSpaces;
-    return /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(v) ? '' : FORM_COPY[this.localeState()].lastNameError;
+    return /^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+$/.test(v) ? '' : FORM_COPY[this.localeState()].lastNameError;
   });
   readonly cedulaError = computed(() => {
     const v = this.cedula();

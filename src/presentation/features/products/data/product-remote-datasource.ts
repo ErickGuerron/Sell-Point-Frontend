@@ -254,6 +254,13 @@ export class ProductRemoteDataSource {
     return body.data;
   }
 
+  // ─── KPIs ──────────────────────────────────────────────────────────────────────
+
+  async getKpis(): Promise<{ totalProducts: number; activeCount: number; lowStockCount: number }> {
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/products/kpis`);
+    return (await res.json()) as { totalProducts: number; activeCount: number; lowStockCount: number };
+  }
+
   // ─── Mapper helper ───────────────────────────────────────────────────────────
 
   /** Normalise a raw `any` backend response into a typed ProductRawDto. */

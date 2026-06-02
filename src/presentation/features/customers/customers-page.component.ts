@@ -15,6 +15,7 @@ import { BillflowMobileSidebarComponent } from '../../shared/components/billflow
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import type { CustomerEntity, CreateCustomerPayload } from './domain/customer.entity';
+import { CustomerRemoteDataSource } from './data/customer-remote.datasource';
 import { CustomerRepository, type CustomerListParams } from './domain/customer.repository';
 import { CustomerImplRepository } from './data/customer-impl.repository';
 import { ListCustomersUseCase } from './domain/use-cases/list-customers.use-case';
@@ -194,6 +195,7 @@ export class CustomersPageComponent implements OnInit {
   private readonly toggleActive = inject(ToggleCustomerActiveUseCase);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
+  private readonly customerDs = inject(CustomerRemoteDataSource);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
 
@@ -214,6 +216,9 @@ export class CustomersPageComponent implements OnInit {
   searchField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email' | 'phone'>('all');
   page = signal(1);
   pageSize = signal(5);
+  totalKpi = signal(0);
+  activeKpi = signal(0);
+  inactiveKpi = signal(0);
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Computeds ──────────────────────────────────────────────────────────────
@@ -256,8 +261,8 @@ export class CustomersPageComponent implements OnInit {
   ]);
 
   readonly totalCustomersCount = computed(() => this.totalCustomers());
-  readonly activeCustomersCount = computed(() => this.customers().filter((c) => c.isActive).length);
-  readonly inactiveCustomersCount = computed(() => this.customers().filter((c) => !c.isActive).length);
+  readonly activeCustomersCount = computed(() => this.activeKpi());
+  readonly inactiveCustomersCount = computed(() => this.inactiveKpi());
 
   readonly filteredCustomers = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
@@ -305,6 +310,9 @@ export class CustomersPageComponent implements OnInit {
     this.totalPages.set(value.totalPages);
     this.page.set(value.page);
     this.pageSize.set(value.pageSize);
+    this.totalKpi.set(value.totalKpi);
+    this.activeKpi.set(value.activeKpi);
+    this.inactiveKpi.set(value.inactiveKpi);
     this.loading.set(false);
   }
 
@@ -313,7 +321,10 @@ export class CustomersPageComponent implements OnInit {
     this.themeService.init();
     this.session.init();
     if (this.hasInitialData) return;
-    await this.reloadCustomers();
+    await Promise.all([
+      this.reloadCustomers(),
+      this.reloadKpis(),
+    ]);
   }
 
   private buildListParams(): CustomerListParams {
@@ -353,6 +364,17 @@ export class CustomersPageComponent implements OnInit {
         this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async reloadKpis() {
+    try {
+      const kpis = await this.customerDs.getKpis();
+      this.totalKpi.set(kpis.totalCustomers);
+      this.activeKpi.set(kpis.activeCustomers);
+      this.inactiveKpi.set(kpis.inactiveCustomers);
+    } catch (err) {
+      console.error('[customers] kpis load error:', err);
     }
   }
 
@@ -432,6 +454,7 @@ export class CustomersPageComponent implements OnInit {
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'Error al guardar el cliente' : 'Error saving customer');
     }
+    void this.reloadKpis();
   }
 
   async handleToggleActive(customer: CustomerEntity) {
@@ -446,6 +469,7 @@ export class CustomersPageComponent implements OnInit {
       await this.toggleActive.execute(customer.id, isActive);
       await this.feedback.toast('success', isActive ? this.copy().toggledInactive : this.copy().toggledActive);
       await this.reloadCustomers();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[toggle active]', err);
       await this.feedback.alert('error',

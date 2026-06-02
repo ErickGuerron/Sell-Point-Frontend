@@ -83,6 +83,7 @@ interface EmployeesCopy {
   cancel: string;
   searchStatusPlaceholder: string;
   searchRolePlaceholder: string;
+  searchFieldPlaceholder: string;
   loadingText: string;
   blockedUsersSubtitle: string;
   blockedUsersEmptyTitle: string;
@@ -169,6 +170,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cancel: 'Cancelar',
     searchStatusPlaceholder: 'Buscar estado...',
     searchRolePlaceholder: 'Buscar rol...',
+    searchFieldPlaceholder: 'Buscar campo...',
     loadingText: 'Cargando empleados...',
     blockedUsersSubtitle: 'Usuarios bloqueados del sistema',
     blockedUsersEmptyTitle: 'No hay usuarios bloqueados',
@@ -245,6 +247,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     sessionLabel: 'Session',
     searchStatusPlaceholder: 'Search status...',
     searchRolePlaceholder: 'Search role...',
+    searchFieldPlaceholder: 'Search field...',
     loadingText: 'Loading employees...',
     blockedUsersSubtitle: 'Blocked system users',
     blockedUsersEmptyTitle: 'No blocked users',
@@ -373,6 +376,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           (onPrevPage)="previousPage()"
           (onNextPage)="nextPage()"
           (onPageClick)="goToPage($event)"
+          (onPageSizeChange)="onPageSizeCombo($event)"
         >
           <ng-container toolbar-left>
             <billflow-combobox
@@ -402,9 +406,22 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             </button>
           </ng-container>
           <ng-container toolbar-right>
-            <div class="relative flex-1 lg:w-64">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-              <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+            <div class="flex items-stretch w-80 ml-auto">
+              <billflow-combobox
+                [options]="searchFieldOptionsList()"
+                [value]="searchFieldValue()"
+                placeholder="{{ copy().allFields }}"
+                searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                [compact]="true"
+                (valueChange)="onSearchFieldSelected($event)"
+                class="rounded-r-none"
+              ></billflow-combobox>
+              <div class="relative flex-1">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
+                <input class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                  [placeholder]="copy().searchPlaceholder"
+                  [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+              </div>
             </div>
           </ng-container>
         </billflow-employees-table>
@@ -714,17 +731,11 @@ export class EmployeesPageComponent implements OnInit {
 
   async reloadKpis() {
     try {
-      const [totalResult, activeResult, inactiveResult, blockedResult] = await Promise.all([
-        this.api.listUsers({ limit: 1 }),
-        this.api.listUsers({ limit: 1, status: 'ACTIVE' }),
-        this.api.listUsers({ limit: 1, status: 'INACTIVE' }),
-        this.api.listUsers({ limit: 1, status: 'BLOCKED' }),
-      ]);
-
-      this.totalEmployeesKpi.set(totalResult.total || 0);
-      this.activeEmployeesKpi.set(activeResult.total || 0);
-      this.inactiveEmployeesKpi.set(inactiveResult.total || 0);
-      this.blockedEmployeesKpi.set(blockedResult.total || 0);
+      const kpis = await this.api.getKpis();
+      this.totalEmployeesKpi.set(kpis.totalEmployees);
+      this.activeEmployeesKpi.set(kpis.activeEmployees);
+      this.inactiveEmployeesKpi.set(kpis.inactiveEmployees);
+      this.blockedEmployeesKpi.set(kpis.blockedEmployees);
     } catch (err) {
       console.error('[employees] kpis load error:', err);
     }

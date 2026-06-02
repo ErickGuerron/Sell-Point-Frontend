@@ -170,7 +170,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsTableHeaderRank: '#',
     productsTableHeaderCode: 'Código',
     productsTableHeaderName: 'Nombre',
-    productsTableHeaderUnits: 'Unidades',
+    productsTableHeaderUnits: 'Stock Existente',
     productsTableHeaderPrice: 'Precio',
     settingsLabel: 'Configuración',
     noEmailText: 'Sin email',
@@ -242,7 +242,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsTableHeaderRank: '#',
     productsTableHeaderCode: 'Code',
     productsTableHeaderName: 'Name',
-    productsTableHeaderUnits: 'Units',
+    productsTableHeaderUnits: 'Available Stock',
     productsTableHeaderPrice: 'Price',
     settingsLabel: 'Settings',
     noEmailText: 'No email',
@@ -411,6 +411,62 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
 
             <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
               <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().productsTableHeaderRank }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderCode }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderName }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderUnits }}</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ copy().productsTableHeaderPrice }}</th>
+                    </tr>
+                  </thead>
+                  <tbody class="font-body-sm text-body-sm">
+                    <tr *ngFor="let product of topProducts()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectProduct(product)">
+                      <td class="p-4 pl-7 font-semibold text-on-surface">{{ product.rank }}</td>
+                      <td class="p-4 text-on-surface font-medium">{{ product.code }}</td>
+                      <td class="p-4 text-on-surface font-medium">{{ product.name }}</td>
+                      <td class="p-4 font-semibold" [ngClass]="product.units <= 5 ? 'text-error' : product.units <= 15 ? 'text-[#f59e0b]' : 'text-[#10b981]'">{{ product.units }}</td>
+                      <td class="p-4 pr-7 text-on-surface font-semibold">{{ formatMoney(product.price) }}</td>
+                    </tr>
+                    <tr *ngIf="topProducts().length === 0">
+                      <td colspan="5" class="p-8">
+                        <div class="dashboard-table-card__empty">
+                          <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
+                          <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
+                          <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-8">
+            <div class="dashboard-glass-card rounded-2xl p-7">
+              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
+              <div class="flex flex-col gap-3.5">
+                <button *ngFor="let action of quickActions()" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
+                    {{ action.label }}
+                  </div>
+                  <span class="material-symbols-outlined app-dashboard-quick-action__arrow">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 relative z-10">
+          <div class="lg:col-span-2">
+            <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
                 <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().invoicesTitle }}</h3>
                 <button type="button" class="text-sm font-button text-primary hover:text-indigo-700 transition-colors flex items-center gap-1 group" (click)="showInvoiceOverview()">{{ copy().invoicesViewAll }} <span class="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">arrow_forward</span></button>
               </div>
@@ -447,20 +503,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </div>
           </div>
 
-          <div class="space-y-8">
-            <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
-              <div class="flex flex-col gap-3.5">
-                <button *ngFor="let action of quickActions()" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
-                    {{ action.label }}
-                  </div>
-                  <span class="material-symbols-outlined app-dashboard-quick-action__arrow">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-
+          <div>
             <div class="dashboard-glass-card rounded-2xl p-7">
               <div class="flex items-center justify-between mb-6 gap-3">
                 <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ recentActiveClientsTitle() }}</h3>
@@ -485,43 +528,6 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
                 </div>
               </ng-template>
             </div>
-          </div>
-        </div>
-
-        <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden mt-6">
-          <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
-            <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
-          </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                  <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().productsTableHeaderRank }}</th>
-                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderCode }}</th>
-                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderName }}</th>
-                  <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderUnits }}</th>
-                  <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ copy().productsTableHeaderPrice }}</th>
-                </tr>
-              </thead>
-              <tbody class="font-body-sm text-body-sm">
-                <tr *ngFor="let product of topProducts()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectProduct(product)">
-                  <td class="p-4 pl-7 font-semibold text-on-surface">{{ product.rank }}</td>
-                  <td class="p-4 text-on-surface font-medium">{{ product.code }}</td>
-                  <td class="p-4 text-on-surface font-medium">{{ product.name }}</td>
-                  <td class="p-4 text-on-surface font-medium">{{ product.units }}</td>
-                  <td class="p-4 pr-7 text-on-surface font-semibold">{{ formatMoney(product.price) }}</td>
-                </tr>
-                <tr *ngIf="topProducts().length === 0">
-                  <td colspan="5" class="p-8">
-                    <div class="dashboard-table-card__empty">
-                      <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
-                      <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
-                      <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </main>
@@ -638,7 +644,7 @@ export class DashboardPageComponent implements OnInit {
     rank: String(index + 1).padStart(2, '0'),
     code: product.code,
     name: product.name,
-    units: product.availableQuantity,
+    units: product.units,
     price: product.price,
   })));
 
@@ -652,7 +658,6 @@ export class DashboardPageComponent implements OnInit {
     this.themeService.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
-
     // Try to restore session: check localStorage → refresh via API → redirect if fails
     const restored = await this.session.restoreSession();
     if (!restored) return; // restoreSession already redirected to /auth
@@ -825,9 +830,6 @@ export class DashboardPageComponent implements OnInit {
 
   private mapProduct(product: ProductRowDto): DashboardProduct {
     const rawPrice = product.unitPrice ?? product.price ?? 0;
-    // M6-M8-R2a tripwire — dev-only. Fires when the rendered price is 0/NaN
-    // so the next regression (e.g. a backend field rename) is loud, not silent.
-    // Enable in DevTools: `window.__BILLFLOW_DASHBOARD_DEBUG__ = true`.
     if (!Number.isFinite(rawPrice) || rawPrice === 0) {
       if (typeof window !== 'undefined' && (window as any).__BILLFLOW_DASHBOARD_DEBUG__) {
         console.warn('[dashboard] mapProduct produced 0/NaN — backend field name may have changed', { source: (product as any).salePrice, mapped: rawPrice });

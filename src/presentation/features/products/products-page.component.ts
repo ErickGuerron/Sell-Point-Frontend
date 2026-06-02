@@ -501,6 +501,7 @@ export class ProductsPageComponent implements OnInit {
       if (this.hasInitialData) return;
       await this.loadCategories();
       await this.reloadProducts();
+      void this.reloadKpis();
     }
   }
 
@@ -541,6 +542,17 @@ export class ProductsPageComponent implements OnInit {
         this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async reloadKpis() {
+    try {
+      const kpis = await this.dataSource.getKpis();
+      this.totalProductsCount.set(kpis.totalProducts);
+      this.activeCount.set(kpis.activeCount);
+      this.lowStockCount.set(kpis.lowStockCount);
+    } catch (err) {
+      console.error('[products] kpis load error:', err);
     }
   }
 
@@ -665,6 +677,7 @@ export class ProductsPageComponent implements OnInit {
       }
       this.closeProductModal();
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err: any) {
       console.error('[save product]', err);
       const errMsg = err.message || (this.locale() === 'es' ? 'Error al guardar el producto' : 'Error saving product');
@@ -691,6 +704,7 @@ export class ProductsPageComponent implements OnInit {
       const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[toggle active]', err);
       await this.feedback.alert('error',
@@ -757,6 +771,7 @@ export class ProductsPageComponent implements OnInit {
       this.mvtPage.set(1);
       await this.loadMovements();
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[handleAdjustStock]', err);
       const msg = err instanceof Error ? err.message : String(err);

@@ -27,6 +27,13 @@ export interface EmployeeListResponse {
   limit: number;
 }
 
+export interface EmployeeKpis {
+  totalEmployees: number;
+  activeEmployees: number;
+  inactiveEmployees: number;
+  blockedEmployees: number;
+}
+
 export interface UpdateUserPayload {
   firstName?: string;
   lastName?: string;
@@ -88,6 +95,14 @@ export class EmployeeApiService {
       page: body.pagination?.page ?? body.page ?? params.page ?? 1,
       limit: body.pagination?.limit ?? body.limit ?? params.limit ?? 10,
     };
+  }
+
+  // ─── User KPIs ──────────────────────────────────────────────────────────────
+
+  async getKpis(): Promise<EmployeeKpis> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/users/kpis`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return (await response.json()) as EmployeeKpis;
   }
 
   // ─── Register user ─────────────────────────────────────────────────────────

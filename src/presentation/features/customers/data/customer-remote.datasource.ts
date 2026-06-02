@@ -30,6 +30,12 @@ interface PaginatedResponse<T> {
   };
 }
 
+export interface CustomerKpis {
+  totalCustomers: number;
+  activeCustomers: number;
+  inactiveCustomers: number;
+}
+
 export { type BackendCustomer, type PaginatedResponse };
 
 // ─── Mock data (migrated from InvoiceApiService) ─────────────────────────────
@@ -54,6 +60,16 @@ export class CustomerRemoteDataSource {
   private readonly authHttp = inject(AuthHttpService);
 
   // ── Public API ──────────────────────────────────────────────────────────────
+
+  async getKpis(): Promise<CustomerKpis> {
+    if (USE_MOCK) {
+      const total = MOCK_CUSTOMERS.length;
+      const active = MOCK_CUSTOMERS.filter((c) => c.isActive === true || c.isActive === 1).length;
+      return { totalCustomers: total, activeCustomers: active, inactiveCustomers: total - active };
+    }
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers/kpis`);
+    return (await res.json()) as CustomerKpis;
+  }
 
   async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; }): Promise<PaginatedResponse<BackendCustomer>> {
     if (USE_MOCK) {
