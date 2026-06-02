@@ -14,8 +14,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
     <billflow-modal-shell
       #shell
       *ngIf="open"
-      title="{{ editing ? copy.modalEditTitle : copy.modalCreateTitle }}"
-      subtitle="{{ editing ? copy.modalEditSubtitle : copy.modalCreateSubtitle }}"
+      title="{{ editing ? (locale() === 'es' ? 'Editar Cliente' : 'Edit Customer') : (locale() === 'es' ? 'Nuevo Cliente' : 'New Customer') }}"
+      subtitle="{{ editing ? (locale() === 'es' ? 'Modificá los datos del cliente' : 'Edit customer details') : (locale() === 'es' ? 'Completá los datos del nuevo cliente' : 'Fill in the new customer details') }}"
       icon="person_add"
       maxWidth="xl"
       [hasFooter]="true"
@@ -26,14 +26,14 @@ import type { CustomersCopy } from '../i18n/customers.translations';
         <!-- First Name -->
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5"
-            >{{ copy.firstNameLabel }} <span class="text-error">*</span></label
+            >{{ locale() === 'es' ? 'Nombre' : 'First Name' }} <span class="text-error">*</span></label
           >
           <div class="relative">
             <input
               type="text"
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [maxLength]="100"
-              placeholder="Ej: Carlos"
+              [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
               [ngModel]="formFirstName()"
               (keydown.space)="blockOuterSpace($event)"
               (ngModelChange)="onNameInput(trimOuterSpaces($event), 'firstName')"
@@ -50,14 +50,14 @@ import type { CustomersCopy } from '../i18n/customers.translations';
         <!-- Last Name -->
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5"
-            >{{ copy.lastNameLabel }} <span class="text-error">*</span></label
+            >{{ locale() === 'es' ? 'Apellido' : 'Last Name' }} <span class="text-error">*</span></label
           >
           <div class="relative">
             <input
               type="text"
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [maxLength]="100"
-              placeholder="Ej: Rodríguez"
+              [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
               [ngModel]="formLastName()"
               (keydown.space)="blockOuterSpace($event)"
               (ngModelChange)="onNameInput(trimOuterSpaces($event), 'lastName')"
@@ -74,7 +74,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
         <!-- Document (Cédula) -->
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5"
-            >{{ copy.docLabel }} <span class="text-error">*</span></label
+            >{{ locale() === 'es' ? 'Cédula' : 'ID Number' }} <span class="text-error">*</span></label
           >
           <div class="relative">
             <input
@@ -82,7 +82,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [ngClass]="cedulaDisabled() ? 'cursor-not-allowed opacity-60' : ''"
               [maxLength]="10"
-              [placeholder]="copy.cedulaPlaceholder"
+              [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formCedula()"
               [disabled]="cedulaDisabled()"
               (keydown.space)="blockOuterSpace($event)"
@@ -101,13 +101,13 @@ import type { CustomersCopy } from '../i18n/customers.translations';
 
         <!-- Phone -->
         <div class="md:col-span-1">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.phoneLabel }}</label>
+          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Teléfono' : 'Phone' }}</label>
           <div class="relative">
             <input
               type="tel"
               class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [maxLength]="10"
-              [placeholder]="copy.phonePlaceholder"
+              [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formPhone()"
               (keydown.space)="blockOuterSpace($event)"
               (keydown)="onNumericKeyDown($event)"
@@ -142,14 +142,14 @@ import type { CustomersCopy } from '../i18n/customers.translations';
 
         <!-- Email -->
         <div class="md:col-span-2">
-          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.emailLabel }}</label>
+          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ locale() === 'es' ? 'Email' : 'Email' }}</label>
           <div class="relative">
             <input
               type="email"
               class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
               [ngClass]="formEmailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="255"
-              [placeholder]="copy.emailPlaceholder"
+              [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="formEmail()"
               (ngModelChange)="formEmail.set($event)"
             />
@@ -169,7 +169,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
           (click)="requestClose()"
         >
-          {{ copy.cancel }}
+          {{ locale() === 'es' ? 'Cancelar' : 'Cancel' }}
         </button>
         <button
           type="button"
@@ -177,7 +177,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           [disabled]="!formValid()"
           (click)="onSave()"
         >
-          {{ editing ? copy.saveEdit : copy.save }}
+          {{ editing ? (locale() === 'es' ? 'Guardar Cambios' : 'Save Changes') : (locale() === 'es' ? 'Guardar Cliente' : 'Save Customer') }}
         </button>
       </div>
     </billflow-modal-shell>
