@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, Input, Output, EventEmitter, computed, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { LocaleService } from '../../../shared/services/locale.service';
 import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
@@ -11,6 +11,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
   selector: 'billflow-customer-form-modal',
   standalone: true,
   imports: [CommonModule, FormsModule, BillflowModalShellComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-modal-shell
       #shell
@@ -32,7 +33,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              class="w-full pr-16 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
               [ngClass]="nameFieldError() === 'firstName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
@@ -58,7 +59,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              class="w-full pr-16 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
               [ngClass]="nameFieldError() === 'lastName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
@@ -84,8 +85,11 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-              [ngClass]="cedulaDisabled() ? 'cursor-not-allowed opacity-60' : ''"
+              class="w-full pr-14 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              [ngClass]="[
+                cedulaDisabled() ? 'cursor-not-allowed opacity-60' : '',
+                formCedulaError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'
+              ].join(' ')"
               [maxLength]="10"
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formCedula()"
@@ -110,7 +114,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="tel"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              class="w-full pr-14 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              [ngClass]="formPhoneError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="10"
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formPhone()"
@@ -136,13 +141,16 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              class="w-full pr-20 px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
               [maxLength]="200"
               placeholder="Ej: Av. Principal 123, Asunción"
               [ngModel]="formAddress()"
               (keydown.space)="blockOuterSpace($event)"
-              (ngModelChange)="formAddress.set(trimOuterSpaces($event))"
+              (ngModelChange)="formAddress.set($event)"
             />
+            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
+              >{{ formAddress().length }}/200</span
+            >
           </div>
         </div>
 
@@ -152,13 +160,13 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="email"
-              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
+              class="w-full pr-20 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
               [ngClass]="formEmailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
               [maxLength]="255"
               [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="formEmail()"
               (keydown)="onEmailKeyDown($event)"
-              (ngModelChange)="formEmail.set(trimOuterSpaces($event).replace(/\s/g, ''))"
+              (ngModelChange)="formEmail.set($event.replace(/\s/g, ''))"
             />
             <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline"
               >{{ formEmail().length }}/255</span
@@ -294,12 +302,15 @@ export class CustomerFormModalComponent {
   });
 
   private captureSnapshot(): void {
-    this.initialFirstName.set(this.formFirstName());
-    this.initialLastName.set(this.formLastName());
-    this.initialCedula.set(this.formCedula());
-    this.initialPhone.set(this.formPhone());
-    this.initialEmail.set(this.formEmail());
-    this.initialAddress.set(this.formAddress());
+    // untracked() prevents the effect() that calls captureSnapshot() from
+    // tracking these form signals as reactive dependencies. Without it, any
+    // keystroke would re-trigger the effect → resetForm() → counter resets to 0.
+    this.initialFirstName.set(untracked(() => this.formFirstName()));
+    this.initialLastName.set(untracked(() => this.formLastName()));
+    this.initialCedula.set(untracked(() => this.formCedula()));
+    this.initialPhone.set(untracked(() => this.formPhone()));
+    this.initialEmail.set(untracked(() => this.formEmail()));
+    this.initialAddress.set(untracked(() => this.formAddress()));
   }
 
   // ── Modal control ──────────────────────────────────────────────────────
@@ -329,7 +340,7 @@ export class CustomerFormModalComponent {
       cedula: this.formCedula().trim(),
       email: this.formEmail().trim() || undefined,
       phone: this.formPhone().trim() || undefined,
-      address: this.formAddress().trim() || undefined,
+      address: this.formAddress().trim() || undefined,  // trim deferred to save
     };
 
     this.save.emit(payload);
