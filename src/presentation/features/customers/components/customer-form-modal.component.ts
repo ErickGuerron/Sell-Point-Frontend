@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, Input, Output, EventEmitter, computed, effect, inject, signal } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { LocaleService } from '../../../shared/services/locale.service';
 import type { CustomerEntity, CreateCustomerPayload } from '../domain/customer.entity';
@@ -12,12 +12,14 @@ import type { CustomersCopy } from '../i18n/customers.translations';
   imports: [CommonModule, FormsModule, BillflowModalShellComponent],
   template: `
     <billflow-modal-shell
+      #shell
       *ngIf="open"
       title="{{ editing ? copy.modalEditTitle : copy.modalCreateTitle }}"
       subtitle="{{ editing ? copy.modalEditSubtitle : copy.modalCreateSubtitle }}"
       icon="person_add"
       maxWidth="xl"
       [hasFooter]="true"
+      [formHasChanges]="formHasChanges"
       (close)="closeModal()"
     >
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -165,7 +167,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
         <button
           type="button"
           class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-          (click)="closeModal()"
+          (click)="requestClose()"
         >
           {{ copy.cancel }}
         </button>
@@ -184,6 +186,10 @@ import type { CustomersCopy } from '../i18n/customers.translations';
 export class CustomerFormModalComponent {
   private readonly localeService = inject(LocaleService);
   protected readonly locale = this.localeService.locale;
+
+  // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
+  // through the shell's `requestClose()` (which owns the unsaved-changes guard).
+  private readonly shell = viewChild(BillflowModalShellComponent);
 
   // ── Inputs ─────────────────────────────────────────────────────────────
   @Input({ required: true }) open = false;
@@ -206,6 +212,14 @@ export class CustomerFormModalComponent {
   // ── Spec 2 R2: raw input tracking for the red-error feedback ──────────
   private readonly lastRawCedula = signal('');
   private readonly lastRawPhone = signal('');
+
+  // ── Spec 3 R6: initial-value snapshot for the unsaved-changes guard ───
+  private readonly initialFirstName = signal('');
+  private readonly initialLastName = signal('');
+  private readonly initialCedula = signal('');
+  private readonly initialPhone = signal('');
+  private readonly initialEmail = signal('');
+  private readonly initialAddress = signal('');
 
   readonly formValid = computed(() =>
     this.formFirstName().trim().length > 0
@@ -232,6 +246,17 @@ export class CustomerFormModalComponent {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy().emailError;
   });
 
+  // ── Spec 3 R6: dirty signal — true when any form field diverges from ──
+  // the snapshot captured at modal-open time.
+  readonly formHasChanges = computed(() =>
+    this.formFirstName() !== this.initialFirstName()
+    || this.formLastName() !== this.initialLastName()
+    || this.formCedula() !== this.initialCedula()
+    || this.formPhone() !== this.initialPhone()
+    || this.formEmail() !== this.initialEmail()
+    || this.formAddress() !== this.initialAddress()
+  );
+
   // ── Sync form fields when `editing` input changes ──────────────────────
   private readonly syncEffect = effect(() => {
     const customer = this.editing;
@@ -243,17 +268,38 @@ export class CustomerFormModalComponent {
       this.formEmail.set(customer.email ?? '');
       this.formAddress.set(customer.address ?? '');
       this.nameFieldError.set(null);
+      this.captureSnapshot();
     } else if (this.open) {
       // Only reset when opening for create (not when closing)
       this.resetForm();
+      this.captureSnapshot();
     }
   });
+
+  private captureSnapshot(): void {
+    this.initialFirstName.set(this.formFirstName());
+    this.initialLastName.set(this.formLastName());
+    this.initialCedula.set(this.formCedula());
+    this.initialPhone.set(this.formPhone());
+    this.initialEmail.set(this.formEmail());
+    this.initialAddress.set(this.formAddress());
+  }
 
   // ── Modal control ──────────────────────────────────────────────────────
   closeModal(): void {
     this.close.emit();
     this.editing = null;
     this.resetForm();
+  }
+
+  /**
+   * Host-side helper that routes the Cancel button through the shell's
+   * `requestClose()`. The shell owns the unsaved-changes guard, so all
+   * four close paths (X, backdrop, Escape, Cancel) share the same
+   * decision matrix.
+   */
+  async requestClose(): Promise<void> {
+    await this.shell()?.requestClose();
   }
 
   // ── Save ───────────────────────────────────────────────────────────────
