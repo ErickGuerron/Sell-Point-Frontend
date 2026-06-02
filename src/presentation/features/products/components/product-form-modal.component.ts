@@ -16,7 +16,6 @@ import {
 } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../../shared/components/billflow-combobox.component';
-import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import type { ProductEntity, CreateProductPayload, UpdateProductPayload } from '../domain/product.entity';
 import type { CategoryDto } from '../product-api.service';
 import type { ProductsCopy } from '../i18n/products.translations';
@@ -182,8 +181,6 @@ import type { ProductsCopy } from '../i18n/products.translations';
   `,
 })
 export class ProductFormModalComponent implements OnChanges {
-  private readonly feedback = inject(UiFeedbackService);
-
   // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
   // through the shell's `requestClose()` (which owns the unsaved-changes guard).
   private readonly shell = viewChild(BillflowModalShellComponent);
