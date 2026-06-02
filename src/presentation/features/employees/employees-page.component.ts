@@ -625,14 +625,8 @@ export class EmployeesPageComponent implements OnInit {
   private hasInitialData = false;
 
   private initBranchId(): void {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw);
-      const id = session?.defaultBranchId ?? '';
-      if (id) this.currentBranchId.set(id);
-    } catch { /* ignore */ }
+    // Hardcoded default branch — replace with real value from auth/me when available
+    this.currentBranchId.set('3fa85f64-5717-4562-b3fc-2c963f66afa6');
   }
 
   @Input() set initialData(value: EmployeesInitialData | null | undefined) {
