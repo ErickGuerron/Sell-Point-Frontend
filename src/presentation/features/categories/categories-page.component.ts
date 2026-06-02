@@ -144,54 +144,53 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
           <!-- Table Card -->
           @defer (on idle) {
             <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-              <!-- Toolbar -->
-              <div class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-outline-variant/20">
-                <!-- Search -->
-                <div class="relative flex-1 min-w-[220px] max-w-md">
-                  <span
-                    class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none"
-                    >search</span
+              <!-- Toolbar: misma estética que productos — una sola fila -->
+              <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/20">
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Refresh -->
+                  <button
+                    type="button"
+                    [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
+                    class="inline-flex items-center justify-center h-10 w-10 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
+                    (click)="void reloadCategories()"
                   >
-                  <input
-                    class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-                    [placeholder]="copy().searchPlaceholder"
-                    [value]="searchQuery()"
-                    (input)="setSearchQuery(($any($event.target).value))"
-                  />
+                    <span
+                      class="material-symbols-outlined text-[20px] transition-transform"
+                      [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                      >refresh</span
+                    >
+                  </button>
+
+                  <!-- Back to Products -->
+                  <a
+                    href="/products"
+                    class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                    {{ copy().goBackToProducts }}
+                  </a>
+
+                  <!-- New -->
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+                    (click)="openCreateModal()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">add</span>
+                    {{ copy().newCategory }}
+                  </button>
+
+                  <!-- Search (empujado a la derecha, ancho fijo sin flex) -->
+                  <div class="relative w-56 ml-auto">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none">search</span>
+                    <input
+                      class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                      [placeholder]="copy().searchPlaceholder"
+                      [value]="searchQuery()"
+                      (input)="setSearchQuery(($any($event.target).value))"
+                    />
+                  </div>
                 </div>
-
-                <!-- Refresh -->
-                <button
-                  type="button"
-                  [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
-                  class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
-                  (click)="void reloadCategories()"
-                >
-                  <span
-                    class="material-symbols-outlined text-[20px]"
-                    [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
-                    >refresh</span
-                  >
-                </button>
-
-                <!-- Back to Products -->
-                <a
-                  href="/products"
-                  class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
-                >
-                  <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-                  {{ copy().goBackToProducts }}
-                </a>
-
-                <!-- New -->
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-                  (click)="openCreateModal()"
-                >
-                  <span class="material-symbols-outlined text-[18px]">add</span>
-                  {{ copy().newCategory }}
-                </button>
               </div>
 
               <!-- Table -->

@@ -145,99 +145,83 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
         @defer (on idle) {
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-            <!-- Toolbar: lupa toggle filters on left, actions on right -->
-            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/20">
+            <!-- Header: actions + filters + search en una sola fila (como imagen) -->
+            <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/20">
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  [title]="copy().reloadLabel"
+                  class="inline-flex items-center justify-center h-10 w-10 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
+                  (click)="void reloadProducts()"
+                >
+                  <span
+                    class="material-symbols-outlined text-[20px] transition-transform"
+                    [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                  >refresh</span>
+                </button>
 
-              <!-- Search toggle (lupa) — ALWAYS visible -->
-              <button
-                type="button"
-                [title]="showFilters() ? copy().hideFilters : copy().showFilters"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
-                (click)="toggleFilters()"
-              >
-                <span class="material-symbols-outlined text-[20px]">search</span>
-              </button>
+                <a
+                  href="/categories"
+                  class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap"
+                >
+                  <span class="material-symbols-outlined text-[18px]">category</span>
+                  <span class="hidden sm:inline">{{ copy().categoriesLabel }}</span>
+                </a>
 
-              <!-- Filters (only when toggled) -->
-              <ng-container *ngIf="showFilters()">
-<div class="flex items-center gap-2 flex-wrap">
-                  <!-- Status -->
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+                  (click)="openCreateModal()"
+                >
+                  <span class="material-symbols-outlined text-[18px]">add</span>
+                  {{ copy().newProduct }}
+                </button>
+
+                <div class="w-px h-7 bg-outline-variant/30 mx-1"></div>
+
+                <billflow-combobox
+                  [options]="statusFilterOptions()"
+                  [value]="statusFilter()"
+                  placeholder="{{ copy().allStatuses }}"
+                  searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                  emptyLabel="{{ copy().noResultsText }}"
+                  [compact]="true"
+                  (valueChange)="setStatusFilter($event)"
+                ></billflow-combobox>
+
+                <billflow-combobox
+                  [options]="categoryFilterOptions()"
+                  [value]="categoryFilter()"
+                  placeholder="{{ copy().allCategories }}"
+                  searchPlaceholder="{{ copy().searchCategoryPlaceholder }}"
+                  emptyLabel="{{ copy().noResultsText }}"
+                  [compact]="true"
+                  (valueChange)="setCategoryFilter($event)"
+                ></billflow-combobox>
+
+                <!-- Search Group: Joined Combobox + Input (empujado a la derecha, ancho fijo sin flex) -->
+                <div class="flex items-stretch w-80 ml-auto">
                   <billflow-combobox
-                    [options]="statusFilterOptions()"
-                    [value]="statusFilter()"
-                    placeholder="{{ copy().allStatuses }}"
-                    searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                    [options]="searchFieldOptions()"
+                    [value]="searchField()"
+                    placeholder="{{ copy().allLabel }}"
+                    searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
                     emptyLabel="{{ copy().noResultsText }}"
                     [compact]="true"
-                    (valueChange)="setStatusFilter($event)"
+                    (valueChange)="searchField.set($event)"
+                    class="rounded-r-none"
                   ></billflow-combobox>
-
-                  <!-- Category -->
-                  <billflow-combobox
-                    [options]="categoryFilterOptions()"
-                    [value]="categoryFilter()"
-                    placeholder="{{ copy().allCategories }}"
-                    searchPlaceholder="{{ copy().searchCategoryPlaceholder }}"
-                    emptyLabel="{{ copy().noResultsText }}"
-                    [compact]="true"
-                    (valueChange)="setCategoryFilter($event)"
-                  ></billflow-combobox>
-
-                  <!-- Search field type + text input -->
-                  <div class="flex items-stretch min-w-[200px] flex-1 max-w-[320px]">
-                    <billflow-combobox
-                      [options]="searchFieldOptions()"
-                      [value]="searchField()"
-                      placeholder="{{ copy().allLabel }}"
-                      searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
-                      emptyLabel="{{ copy().noResultsText }}"
-                      [compact]="true"
-                      (valueChange)="searchField.set($event)"
-                    ></billflow-combobox>
-                    <div class="relative flex-1">
-                      <span class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
-                      <input
-                        class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                        [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
-                        [value]="searchQuery()"
-                        (input)="setSearchQuery(($any($event.target).value))"
-                      />
-                    </div>
+                  <div class="relative flex-1">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
+                    <input
+                      class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                      [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
+                      [value]="searchQuery()"
+                      (input)="setSearchQuery(($any($event.target).value))"
+                    />
                   </div>
                 </div>
-              </ng-container>
-
-              <!-- Spacer pushes actions to the right -->
-              <div class="flex-1"></div>
-
-              <!-- Refresh — ALWAYS visible -->
-              <button
-                type="button"
-                [title]="copy().reloadLabel"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
-                (click)="void reloadProducts()"
-              >
-                <span class="material-symbols-outlined text-[18px]" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
-              </button>
-
-              <!-- Go to Categories — ALWAYS visible -->
-              <a
-                href="/categories"
-                class="inline-flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap shrink-0"
-              >
-                <span class="material-symbols-outlined text-[16px]">category</span>
-                <span class="hidden sm:inline">{{ copy().categoriesLabel }}</span>
-              </a>
-
-              <!-- New Product — ALWAYS visible -->
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 bg-primary text-on-primary rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap shrink-0"
-                (click)="openCreateModal()"
-              >
-                <span class="material-symbols-outlined text-[16px]">add</span>
-                <span class="hidden sm:inline">{{ copy().newProduct }}</span>
-              </button>
+              </div>
             </div>
 
             <billflow-product-table
@@ -408,7 +392,6 @@ export class ProductsPageComponent implements OnInit {
   categories = signal<CategoryRawDto[]>([]);
 
   // Filters
-  showFilters = signal(false);
   searchQuery = signal('');
   searchField = signal<'all' | 'code' | 'name'>('all');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
@@ -441,7 +424,7 @@ export class ProductsPageComponent implements OnInit {
 
   // Pagination
   page = signal(1);
-  pageSize = signal(10);
+  pageSize = signal(5);
   totalProductsCount = signal(0);
 
   // TODO(backend): fetch these from a /products/aggregates endpoint
@@ -562,10 +545,6 @@ export class ProductsPageComponent implements OnInit {
   }
 
   // ─── Search & Filters ──────────────────────────────────────────────────────
-  toggleFilters() {
-    this.showFilters.update((v) => !v);
-  }
-
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
     this.page.set(1);
