@@ -32,8 +32,10 @@ export interface ProductRowDto {
 
 export interface CustomerRowDto {
   id: string;
-  name: string;
-  lastName: string;
+  // Legacy: backend never emits this; kept for source-compat with old call sites.
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   cedula: string;
   email?: string;
 }
@@ -84,13 +86,22 @@ export class DashboardApiService {
         id: p.id,
         code: p.code,
         name: p.name,
+        // TODO(M6-M8-R2a): confirm backend price field — see design §1.2
+        // Assumed canonical: `salePrice`. If the Network-tab capture proves
+        // otherwise, change this line AND the SSR mapper at
+        // `ssr-page-data.ts:188` to use the actual field name.
         unitPrice: Number(p.salePrice),
         availableQuantity: Number(p.currentStock),
       })),
     };
   }
 
-  listCustomers(limit = 6): Promise<PaginatedResponse<CustomerRowDto>> {
-    return this.request<PaginatedResponse<CustomerRowDto>>(`/customers?page=1&limit=${limit}`);
+  listCustomers(limit = 6, isActive: 'true' | 'false' | 'all' | null = null): Promise<PaginatedResponse<CustomerRowDto>> {
+    // Spec 4 R3: thread isActive through the URL as a STRING (not a
+    // boolean). The null / 'all' branch preserves the legacy behaviour
+    // (no isActive query param) for existing call sites.
+    const params = new URLSearchParams({ page: '1', limit: String(limit) });
+    if (isActive && isActive !== 'all') params.set('isActive', isActive);
+    return this.request<PaginatedResponse<CustomerRowDto>>(`/customers?${params.toString()}`);
   }
 }
