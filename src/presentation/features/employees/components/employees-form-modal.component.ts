@@ -30,6 +30,7 @@ interface EmployeesFormCopy {
   emailLabel: string;
   usernameLabel: string;
   roleLabel: string;
+  branchLabel: string;
   firstNameError: string;
   lastNameError: string;
   lastNameNoSpaces: string;
@@ -48,6 +49,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     save: 'Guardar Empleado', saveEdit: 'Actualizar Empleado', cancel: 'Cancelar',
     firstNameLabel: 'Nombre', lastNameLabel: 'Apellido', docLabel: 'Cédula',
     emailLabel: 'Email', usernameLabel: 'Usuario', roleLabel: 'Rol',
+    branchLabel: 'Sucursal',
     firstNameError: 'Solo letras permitidas', lastNameError: 'Solo letras permitidas',
     lastNameNoSpaces: 'No se permiten espacios', cedulaExact10: 'Debe tener exactamente 10 dígitos',
     emailInvalidFormat: 'Formato de email inválido', usernameNoSpaces: 'No se permiten espacios',
@@ -61,6 +63,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
     save: 'Save Employee', saveEdit: 'Update Employee', cancel: 'Cancel',
     firstNameLabel: 'First Name', lastNameLabel: 'Last Name', docLabel: 'ID Number',
     emailLabel: 'Email', usernameLabel: 'Username', roleLabel: 'Role',
+    branchLabel: 'Branch',
     firstNameError: 'Only letters allowed', lastNameError: 'Only letters allowed',
     lastNameNoSpaces: 'No spaces allowed', cedulaExact10: 'Must be exactly 10 digits',
     emailInvalidFormat: 'Invalid email format', usernameNoSpaces: 'No spaces allowed',
@@ -170,6 +173,14 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
           }
         </select>
       </div>
+      <!-- Branch -->
+      <div class="md:col-span-1">
+        <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().branchLabel }}</label>
+        <div class="inline-flex items-center gap-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-500 px-3 py-1 text-[10px] font-bold tracking-wide select-none">
+          <span class="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+          {{ branchLabel() | uppercase }}
+        </div>
+      </div>
     </div>
     <div footer class="flex w-full items-center justify-end gap-3">
       <button type="button"
@@ -198,11 +209,12 @@ export class EmployeesFormModalComponent {
   @Input() employee?: EmployeeRowDto;
   @Input() roleOptions: () => { value: string; label: string }[] = () => [];
   @Input() submitting = () => false;
+  @Input() defaultBranchId: () => string = () => '';
 
   @Output() onCancel = new EventEmitter<void>();
   @Output() onSave = new EventEmitter<{
     firstName: string; lastName: string; cedula: string; email: string;
-    username: string; role: string;
+    username: string; role: string; defaultBranchId: string;
   }>();
 
   firstName = signal('');
@@ -211,6 +223,11 @@ export class EmployeesFormModalComponent {
   email = signal('');
   username = signal('');
   role = signal('');
+  branchId = signal('');
+
+  readonly branchLabel = computed(() =>
+    this.localeState() === 'es' ? 'Sucursal actual' : 'Current branch'
+  );
 
   // Spec 3 R6: initial-value snapshot for the unsaved-changes guard.
   // The modal is *ngIf'd by the parent (employees-page) and re-created
@@ -221,6 +238,7 @@ export class EmployeesFormModalComponent {
   private readonly initialEmail = signal('');
   private readonly initialUsername = signal('');
   private readonly initialRole = signal('');
+  private readonly initialBranchId = signal('');
 
   // Spec 3 R6: dirty signal — true when any form field diverges from the
   // initial baseline. Read by the parent (employees-page) which threads
@@ -234,6 +252,7 @@ export class EmployeesFormModalComponent {
     || this.email() !== this.initialEmail()
     || this.username() !== this.initialUsername()
     || this.role() !== this.initialRole()
+    || this.branchId() !== this.initialBranchId()
   );
 
   private localeState = signal<EmployeesLocale>('es');
@@ -250,6 +269,7 @@ export class EmployeesFormModalComponent {
       this.username.set(this.employee.email?.split('@')[0] ?? '');
       this.role.set(this.employee.role);
     }
+    this.branchId.set(this.defaultBranchId());
     this.captureSnapshot();
   }
 
@@ -260,6 +280,7 @@ export class EmployeesFormModalComponent {
     this.initialEmail.set(this.email());
     this.initialUsername.set(this.username());
     this.initialRole.set(this.role());
+    this.initialBranchId.set(this.branchId());
   }
 
   readonly copy = computed(() => FORM_COPY[this.localeState()]);
@@ -372,6 +393,7 @@ export class EmployeesFormModalComponent {
       email: this.email(),
       username: this.username(),
       role: this.role(),
+      defaultBranchId: this.branchId(),
     };
   }
 }

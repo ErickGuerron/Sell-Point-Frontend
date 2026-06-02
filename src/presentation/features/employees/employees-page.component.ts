@@ -449,6 +449,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
             [employee]="editingEmployee() ?? undefined"
             [roleOptions]="roleOptions"
             [submitting]="formSubmitting"
+            [defaultBranchId]="currentBranchId"
             (onCancel)="requestEmployeeModalClose()"
             (onSave)="saveEmployeeFromModal($event)"
           ></billflow-employees-form-modal>
@@ -620,7 +621,19 @@ export class EmployeesPageComponent implements OnInit {
   employeeModalOpen = signal(false);
   editingEmployee = signal<EmployeeRowDto | null>(null);
   reactivateModalOpen = signal(false);
+  currentBranchId = signal('');
   private hasInitialData = false;
+
+  private initBranchId(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('billflow-session');
+      if (!raw) return;
+      const session = JSON.parse(raw);
+      const id = session?.defaultBranchId ?? '';
+      if (id) this.currentBranchId.set(id);
+    } catch { /* ignore */ }
+  }
 
   @Input() set initialData(value: EmployeesInitialData | null | undefined) {
     if (!value) return;
@@ -679,6 +692,7 @@ export class EmployeesPageComponent implements OnInit {
     if (typeof window === 'undefined') return;
 
     this.session.init();
+    this.initBranchId();
     this.applyStoredTheme();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
@@ -1003,7 +1017,7 @@ export class EmployeesPageComponent implements OnInit {
 
   async saveEmployeeFromModal(payload: {
     firstName: string; lastName: string; cedula: string; email: string;
-    username: string; role: string;
+    username: string; role: string; defaultBranchId: string;
   }) {
     this.formSubmitting.set(true);
     try {
@@ -1027,7 +1041,7 @@ export class EmployeesPageComponent implements OnInit {
           cedula: payload.cedula.trim(),
           role: payload.role,
           username: payload.username.trim(),
-          defaultBranchId: '',
+          defaultBranchId: payload.defaultBranchId,
         });
         this.employees.update(emps => [created, ...emps]);
         this.totalCount.update(c => c + 1);
