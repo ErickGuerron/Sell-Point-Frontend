@@ -1,5 +1,5 @@
 ﻿import { CommonModule } from '@angular/common';
-import { Component, computed, Input, Output, EventEmitter, signal } from '@angular/core';
+import { Component, computed, Input, Output, EventEmitter, signal, ElementRef, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 
@@ -87,7 +87,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
             [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': firstNameError()}"
             [maxLength]="100" placeholder="Ej: Carlos" [value]="firstName()"
-            (keydown.space)="blockOuterSpace($event)"
+            (keydown)="onNameKeyDown($event)"
             (input)="onFirstNameInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ firstName().length }}/100</span>
         </div>
@@ -103,7 +103,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
             [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': lastNameError()}"
             [maxLength]="100" placeholder="Ej: González" [value]="lastName()"
-            (keydown.space)="blockOuterSpace($event)"
+            (keydown)="onNameKeyDown($event)"
             (input)="onLastNameInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ lastName().length }}/100</span>
         </div>
@@ -325,6 +325,25 @@ export class EmployeesFormModalComponent {
     const selectionEnd = target.selectionEnd ?? 0;
     const hasSelection = selectionStart !== selectionEnd;
     if (!hasSelection && selectionStart === 0) {
+      event.preventDefault();
+    }
+  }
+
+  onNameKeyDown(event: KeyboardEvent): void {
+    // Allow: backspace, delete, tab, escape, enter, arrows, home, end, ctrl/cmd
+    const allowedKeys = new Set([
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End', 'Shift', 'Control', 'Alt', 'Meta',
+    ]);
+    if (allowedKeys.has(event.key)) return;
+    if (event.ctrlKey || event.metaKey) return;
+    // Block all digits and other non-letter characters
+    if (/^[0-9]$/.test(event.key)) {
+      event.preventDefault();
+      return;
+    }
+    if (/[^a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(event.key)) {
       event.preventDefault();
     }
   }
