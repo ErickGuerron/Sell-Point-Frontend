@@ -316,16 +316,19 @@ export async function loadProductsInitialData(astro: AstroLike, locale: AppLocal
 
 export async function loadCategoriesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CategoriesInitialData> {
   void locale;
-  const response = await fetchJsonWithAuth<{ data: CategoryBackendDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number; totalPages: number } }>(astro, '/categories?page=1&limit=5');
-  const categories = response?.data?.map(mapCategoryToEntity) ?? [];
-  const totalCategoriesCount = response?.pagination?.total ?? response?.total ?? categories.length;
-  const page = response?.pagination?.page ?? response?.page ?? 1;
-  const pageSize = response?.pagination?.limit ?? response?.limit ?? 5;
+  const [categoriesResponse, kpis] = await Promise.all([
+    fetchJsonWithAuth<{ data: CategoryBackendDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number; totalPages: number } }>(astro, '/categories?page=1&limit=5'),
+    fetchJsonWithAuth<{ totalCategories: number; activeCount: number }>(astro, '/categories/kpis'),
+  ]);
+  const categories = categoriesResponse?.data?.map(mapCategoryToEntity) ?? [];
+  const totalCategoriesCount = categoriesResponse?.pagination?.total ?? categoriesResponse?.total ?? categories.length;
+  const page = categoriesResponse?.pagination?.page ?? categoriesResponse?.page ?? 1;
+  const pageSize = categoriesResponse?.pagination?.limit ?? categoriesResponse?.limit ?? 5;
 
   return {
     categories,
     totalCategoriesCount,
-    activeCategoriesCount: 0,
+    activeCategoriesCount: kpis?.activeCount ?? 0,
     page,
     pageSize,
   };

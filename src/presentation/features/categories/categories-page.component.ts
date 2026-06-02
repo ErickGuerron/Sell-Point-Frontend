@@ -337,6 +337,7 @@ export class CategoriesPageComponent implements OnInit {
   private readonly createCategory = inject(CreateCategoryUseCase);
   private readonly updateCategory = inject(UpdateCategoryUseCase);
   private readonly toggleCategoryActive = inject(ToggleCategoryActiveUseCase);
+  private readonly dataSource = inject(CategoryRemoteDataSource);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
@@ -456,6 +457,16 @@ export class CategoriesPageComponent implements OnInit {
     }
   }
 
+  async reloadKpis() {
+    try {
+      const kpis = await this.dataSource.getKpis();
+      this.totalCategoriesCount.set(kpis.totalCategories);
+      this.activeCategoriesCount.set(kpis.activeCount);
+    } catch (err) {
+      console.error('[categories] kpis load error:', err);
+    }
+  }
+
   // ── Search & Filters ───────────────────────────────────────────────────────
 
   setSearchQuery(value: string) {
@@ -535,15 +546,19 @@ export class CategoriesPageComponent implements OnInit {
           description: this.formDescription().trim() || undefined,
         });
         await this.feedback.toast('success', this.copy().updatedToast);
+        void this.reloadKpis();
+        this.closeCategoryModal();
+        await this.reloadCategories();
       } else {
         await this.createCategory.execute({
           name: this.formName().trim(),
           description: this.formDescription().trim() || undefined,
         });
         await this.feedback.toast('success', this.copy().createdToast);
+        void this.reloadKpis();
+        this.closeCategoryModal();
+        await this.reloadCategories();
       }
-      this.closeCategoryModal();
-      await this.reloadCategories();
     } catch (err: any) {
       console.error('[save category]', err);
       const errMsg =
@@ -573,6 +588,7 @@ export class CategoriesPageComponent implements OnInit {
       await this.toggleCategoryActive.execute(cat.id, isActive);
       const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
+      void this.reloadKpis();
       await this.reloadCategories();
     } catch (err) {
       console.error('[toggle active]', err);
