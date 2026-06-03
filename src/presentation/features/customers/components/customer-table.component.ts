@@ -2,6 +2,7 @@ import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BillflowComboboxComponent } from '../../../shared/components/billflow-combobox.component';
+import { BillflowDateRangePickerComponent } from '../../../shared/components/billflow-date-range-picker.component';
 import type { ComboboxOption } from '../../../shared/components/billflow-combobox.component';
 import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../../shared/services/locale.service';
@@ -10,7 +11,7 @@ import type { CustomerEntity } from '../domain/customer.entity';
 @Component({
   selector: 'billflow-customer-table',
   standalone: true,
-  imports: [CommonModule, FormsModule, BillflowComboboxComponent],
+  imports: [CommonModule, FormsModule, BillflowComboboxComponent, BillflowDateRangePickerComponent],
   templateUrl: './customer-table.component.html',
 })
 export class CustomerTableComponent {
@@ -34,6 +35,8 @@ export class CustomerTableComponent {
   @Input({ required: true }) statusFilterOptions: ComboboxOption[] = [];
   @Input({ required: true }) searchFieldOptions: ComboboxOption[] = [];
   @Input({ required: true }) pageSizeOptions: ComboboxOption[] = [];
+  @Input() createdFrom: string | null = null;
+  @Input() createdTo: string | null = null;
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() edit = new EventEmitter<CustomerEntity>();
@@ -46,6 +49,8 @@ export class CustomerTableComponent {
   @Output() statusFilterChange = new EventEmitter<string>();
   @Output() refresh = new EventEmitter<void>();
   @Output() openCreate = new EventEmitter<void>();
+  @Output() createdFromChange = new EventEmitter<string | null>();
+  @Output() createdToChange = new EventEmitter<string | null>();
 
   // ── Helpers (extraídos del componente padre actual) ───────────────────
   customerFullName(customer: CustomerEntity): string {

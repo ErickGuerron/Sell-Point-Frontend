@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input } from '@angular/core';
+import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input, viewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
@@ -16,6 +16,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import type { EmployeesInitialData } from '../../shared/ssr-page-data';
 import { EmployeesKpiCardsComponent } from './components/employees-kpi-cards.component';
 import { EmployeesTableComponent } from './components/employees-table.component';
@@ -83,6 +84,7 @@ interface EmployeesCopy {
   cancel: string;
   searchStatusPlaceholder: string;
   searchRolePlaceholder: string;
+  searchFieldPlaceholder: string;
   loadingText: string;
   blockedUsersSubtitle: string;
   blockedUsersEmptyTitle: string;
@@ -98,6 +100,8 @@ interface EmployeesCopy {
   usernameLabel: string;
   roleLabel: string;
   employeeIdLabel: string;
+  fromLabel: string;
+  toLabel: string;
   // Validation messages
   firstNameOnlyLetters: string;
   lastNameOnlyLetters: string;
@@ -169,6 +173,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cancel: 'Cancelar',
     searchStatusPlaceholder: 'Buscar estado...',
     searchRolePlaceholder: 'Buscar rol...',
+    searchFieldPlaceholder: 'Buscar campo...',
     loadingText: 'Cargando empleados...',
     blockedUsersSubtitle: 'Usuarios bloqueados del sistema',
     blockedUsersEmptyTitle: 'No hay usuarios bloqueados',
@@ -191,6 +196,8 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     emailInvalidFormat: 'Formato de email inválido',
     usernameNoSpaces: 'No se permiten espacios',
     charCountLabel: '',
+    fromLabel: 'Desde',
+    toLabel: 'Hasta',
   },
   en: {
     moduleLabel: 'Employees Module',
@@ -245,6 +252,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     sessionLabel: 'Session',
     searchStatusPlaceholder: 'Search status...',
     searchRolePlaceholder: 'Search role...',
+    searchFieldPlaceholder: 'Search field...',
     loadingText: 'Loading employees...',
     blockedUsersSubtitle: 'Blocked system users',
     blockedUsersEmptyTitle: 'No blocked users',
@@ -274,6 +282,8 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     emailInvalidFormat: 'Invalid email format',
     usernameNoSpaces: 'No spaces allowed',
     charCountLabel: '',
+    fromLabel: 'From',
+    toLabel: 'To',
   },
 };
 
@@ -284,6 +294,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   standalone: true,
   imports: [
     CommonModule, FormsModule, BillflowComboboxComponent,
+    BillflowDateRangePickerComponent,
     BillflowPageShellComponent, DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
     BillflowUserMenuComponent, BillflowModalShellComponent,
@@ -373,38 +384,64 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           (onPrevPage)="previousPage()"
           (onNextPage)="nextPage()"
           (onPageClick)="goToPage($event)"
+          (onPageSizeChange)="onPageSizeCombo($event)"
         >
           <ng-container toolbar-left>
-            <billflow-combobox
-              [options]="statusFilterOptions()"
-              [value]="statusFilter()"
-              [placeholder]="copy().allStatuses"
-              searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
-              [compact]="true"
-              (valueChange)="setStatusFilter($event)"
-            ></billflow-combobox>
-            <billflow-combobox
-              [options]="roleFilterOptions()"
-              [value]="roleFilter()"
-              [placeholder]="copy().allRoles"
-              searchPlaceholder="{{ copy().searchRolePlaceholder }}"
-              [compact]="true"
-              (valueChange)="setRoleFilter($event)"
-            ></billflow-combobox>
-            <button type="button" title="Refresh" class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="void reloadEmployees()">
-              <span class="material-symbols-outlined text-[20px] transition-transform" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
-            </button>
-            <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
-              <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
-            </button>
-            <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
-              <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
-            </button>
-          </ng-container>
-          <ng-container toolbar-right>
-            <div class="relative flex-1 lg:w-64">
-              <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant">search</span>
-              <input class="w-full min-w-0 pl-12 pr-4 py-2.5 bg-surface-container-lowest border border-outline-variant/60 rounded-full text-sm focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [placeholder]="copy().searchPlaceholder" [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+            <div class="flex flex-wrap items-center gap-3">
+              <billflow-combobox
+                [options]="statusFilterOptions()"
+                [value]="statusFilter()"
+                [placeholder]="copy().allStatuses"
+                searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                [compact]="true"
+                (valueChange)="setStatusFilter($event)"
+              ></billflow-combobox>
+              <billflow-combobox
+                [options]="roleFilterOptions()"
+                [value]="roleFilter()"
+                [placeholder]="copy().allRoles"
+                searchPlaceholder="{{ copy().searchRolePlaceholder }}"
+                [compact]="true"
+                (valueChange)="setRoleFilter($event)"
+              ></billflow-combobox>
+              <billflow-date-range-picker
+                [fromDate]="createdFrom()"
+                [toDate]="createdTo()"
+                [fromLabel]="copy().fromLabel"
+                [toLabel]="copy().toLabel"
+                (fromDateChange)="createdFrom.set($event); page.set(1); void reloadEmployees()"
+                (toDateChange)="createdTo.set($event); page.set(1); void reloadEmployees()"
+              ></billflow-date-range-picker>
+              <button type="button" title="Refresh" class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary" (click)="void reloadEmployees()">
+                <span class="material-symbols-outlined text-[20px] transition-transform" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
+              </button>
+            </div>
+            <div class="flex items-center justify-between gap-3 mt-3 w-full">
+              <div class="flex items-stretch w-80">
+                <billflow-combobox
+                  [options]="searchFieldOptionsList()"
+                  [value]="searchFieldValue()"
+                  placeholder="{{ copy().allFields }}"
+                  searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                  [compact]="true"
+                  (valueChange)="onSearchFieldSelected($event)"
+                  class="rounded-r-none"
+                ></billflow-combobox>
+                <div class="relative flex-1">
+                  <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
+                  <input class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                    [placeholder]="copy().searchPlaceholder"
+                    [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
+                </div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
+                  <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
+                </button>
+                <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
+                  <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
+                </button>
+              </div>
             </div>
           </ng-container>
         </billflow-employees-table>
@@ -426,13 +463,14 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
       }
     </main>
     @defer (on interaction) {
-        <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" (close)="closeEmployeeModal()">
+        <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" [formHasChanges]="employeeFormModal()?.formHasChanges ?? null" (close)="closeEmployeeModal()">
           <billflow-employees-form-modal
             [locale]="locale"
             [employee]="editingEmployee() ?? undefined"
             [roleOptions]="roleOptions"
             [submitting]="formSubmitting"
-            (onCancel)="closeEmployeeModal()"
+            [defaultBranchId]="currentBranchId"
+            (onCancel)="requestEmployeeModalClose()"
             (onSave)="saveEmployeeFromModal($event)"
           ></billflow-employees-form-modal>
         </billflow-modal-shell>
@@ -497,6 +535,15 @@ export class EmployeesPageComponent implements OnInit {
   @ViewChild('firstNameInput') firstNameInput?: ElementRef<HTMLInputElement>;
   @ViewChild('lastNameInput') lastNameInput?: ElementRef<HTMLInputElement>;
 
+  // Spec 3 R6: viewChild to the employee-form-modal so the parent can
+  // thread its `formHasChanges` signal into the surrounding shell. The
+  // shell is the dialog owner (X, backdrop, Escape) and reads the
+  // signal to decide whether to show the unsaved-changes SweetAlert.
+  private readonly employeeFormModal = viewChild(EmployeesFormModalComponent);
+  // Spec 3 R6: viewChild to the shell so the modal's Cancel button can
+  // route through `requestClose()` (which honors the guard).
+  private readonly employeeShell = viewChild(BillflowModalShellComponent);
+
   locale = this.localeService.locale;
   copy = computed(() => EMPLOYEES_TEXT[this.locale()]);
 
@@ -536,6 +583,8 @@ export class EmployeesPageComponent implements OnInit {
   searchQuery = signal('');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   roleFilter = signal('all');
+  createdFrom = signal<string | null>(null);
+  createdTo = signal<string | null>(null);
   page = signal(1);
   pageSize = signal(5);
 
@@ -594,7 +643,13 @@ export class EmployeesPageComponent implements OnInit {
   employeeModalOpen = signal(false);
   editingEmployee = signal<EmployeeRowDto | null>(null);
   reactivateModalOpen = signal(false);
+  currentBranchId = signal('');
   private hasInitialData = false;
+
+  private initBranchId(): void {
+    // Hardcoded default branch — replace with real value from auth/me when available
+    this.currentBranchId.set('3fa85f64-5717-4562-b3fc-2c963f66afa6');
+  }
 
   @Input() set initialData(value: EmployeesInitialData | null | undefined) {
     if (!value) return;
@@ -653,6 +708,7 @@ export class EmployeesPageComponent implements OnInit {
     if (typeof window === 'undefined') return;
 
     this.session.init();
+    this.initBranchId();
     this.applyStoredTheme();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
 
@@ -690,6 +746,8 @@ export class EmployeesPageComponent implements OnInit {
         q: this.searchQuery().trim() || undefined,
         role: this.roleFilter() !== 'all' ? this.roleFilter() : undefined,
         status: this.statusFilter() !== 'all' ? this.statusFilter() : undefined,
+        createdFrom: this.createdFrom() ?? undefined,
+        createdTo: this.createdTo() ?? undefined,
       });
       this.employees.set(result.data || []);
       this.totalCount.set(result.total || 0);
@@ -705,17 +763,11 @@ export class EmployeesPageComponent implements OnInit {
 
   async reloadKpis() {
     try {
-      const [totalResult, activeResult, inactiveResult, blockedResult] = await Promise.all([
-        this.api.listUsers({ limit: 1 }),
-        this.api.listUsers({ limit: 1, status: 'ACTIVE' }),
-        this.api.listUsers({ limit: 1, status: 'INACTIVE' }),
-        this.api.listUsers({ limit: 1, status: 'BLOCKED' }),
-      ]);
-
-      this.totalEmployeesKpi.set(totalResult.total || 0);
-      this.activeEmployeesKpi.set(activeResult.total || 0);
-      this.inactiveEmployeesKpi.set(inactiveResult.total || 0);
-      this.blockedEmployeesKpi.set(blockedResult.total || 0);
+      const kpis = await this.api.getKpis();
+      this.totalEmployeesKpi.set(kpis.totalEmployees);
+      this.activeEmployeesKpi.set(kpis.activeEmployees);
+      this.inactiveEmployeesKpi.set(kpis.inactiveEmployees);
+      this.blockedEmployeesKpi.set(kpis.blockedEmployees);
     } catch (err) {
       console.error('[employees] kpis load error:', err);
     }
@@ -873,6 +925,16 @@ export class EmployeesPageComponent implements OnInit {
     this.resetForm();
   }
 
+  /**
+   * Spec 3 R6: route the form modal's Cancel button through the shell's
+   * `requestClose()` so the unsaved-changes guard runs. The shell emits
+   * `close` only after the user confirms, which then triggers
+   * `closeEmployeeModal()`.
+   */
+  async requestEmployeeModalClose(): Promise<void> {
+    await this.employeeShell()?.requestClose();
+  }
+
   private resetForm() {
     this.formFirstName.set('');
     this.formLastName.set('');
@@ -973,7 +1035,7 @@ export class EmployeesPageComponent implements OnInit {
 
   async saveEmployeeFromModal(payload: {
     firstName: string; lastName: string; cedula: string; email: string;
-    username: string; role: string;
+    username: string; role: string; defaultBranchId: string;
   }) {
     this.formSubmitting.set(true);
     try {
@@ -997,7 +1059,7 @@ export class EmployeesPageComponent implements OnInit {
           cedula: payload.cedula.trim(),
           role: payload.role,
           username: payload.username.trim(),
-          defaultBranchId: '',
+          defaultBranchId: payload.defaultBranchId,
         });
         this.employees.update(emps => [created, ...emps]);
         this.totalCount.update(c => c + 1);

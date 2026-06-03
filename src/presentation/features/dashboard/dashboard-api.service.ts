@@ -32,8 +32,10 @@ export interface ProductRowDto {
 
 export interface CustomerRowDto {
   id: string;
-  name: string;
-  lastName: string;
+  // Legacy: backend never emits this; kept for source-compat with old call sites.
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   cedula: string;
   email?: string;
 }
@@ -90,7 +92,12 @@ export class DashboardApiService {
     };
   }
 
-  listCustomers(limit = 6): Promise<PaginatedResponse<CustomerRowDto>> {
-    return this.request<PaginatedResponse<CustomerRowDto>>(`/customers?page=1&limit=${limit}`);
+  listCustomers(limit = 6, isActive: 'true' | 'false' | 'all' | null = null): Promise<PaginatedResponse<CustomerRowDto>> {
+    // Spec 4 R3: thread isActive through the URL as a STRING (not a
+    // boolean). The null / 'all' branch preserves the legacy behaviour
+    // (no isActive query param) for existing call sites.
+    const params = new URLSearchParams({ page: '1', limit: String(limit) });
+    if (isActive && isActive !== 'all') params.set('isActive', isActive);
+    return this.request<PaginatedResponse<CustomerRowDto>>(`/customers?${params.toString()}`);
   }
 }

@@ -10,6 +10,7 @@ import {
   type OnChanges,
   type SimpleChanges,
   type Signal,
+  viewChild,
 } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../../shared/components/billflow-combobox.component';
@@ -23,12 +24,14 @@ import type { ProductsCopy } from '../i18n/products.translations';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-modal-shell
+      #shell
       *ngIf="open"
       title="{{ product?.name }} ({{ product?.code }})"
       subtitle="{{ copy.modalMovementsSubtitle }}"
       icon="history"
       maxWidth="2xl"
       [hasFooter]="false"
+      [formHasChanges]="formHasChanges"
       (close)="closeModal()"
     >
       <div class="p-6">
@@ -182,6 +185,11 @@ import type { ProductsCopy } from '../i18n/products.translations';
   `,
 })
 export class ProductMovementsModalComponent implements OnChanges {
+  // Spec 3 R6: viewChild to the shell so the host can route the close
+  // paths through the shell's `requestClose()` (which owns the
+  // unsaved-changes guard).
+  private readonly shell = viewChild(BillflowModalShellComponent);
+
   // ── Inputs ─────────────────────────────────────────────────────────────
   @Input({ required: true }) open = false;
   @Input() product: ProductEntity | null = null;
@@ -208,8 +216,29 @@ export class ProductMovementsModalComponent implements OnChanges {
   mvtFormQuantity = signal<number | null>(null);
   mvtFormDescription = signal('');
 
+  // Spec 3 R6 LOCKED CONSTRAINT: the `formHasChanges` signal MUST derive
+  // ONLY from the stock-adjust form fields (`mvtFormType`,
+  // `mvtFormQuantity`, `mvtFormDescription`). It MUST NOT include
+  // `movements.length`, `mvtPage`, `mvtTotalCount`, scroll position, or
+  // any other "view state" of the movement-history table. The snapshot
+  // signals below are captured at modal-open time and on successful
+  // adjustment (via `resetFormTrigger`), so scrolling the history
+  // table or paginating does NOT set `formHasChanges()` to `true`.
+  private readonly initialMvtFormType = signal<'IN' | 'OUT' | 'ADJUST'>('IN');
+  private readonly initialMvtFormQuantity = signal<number | null>(null);
+  private readonly initialMvtFormDescription = signal('');
+
   readonly mvtFormValid = computed(() =>
     this.mvtFormQuantity() !== null && this.mvtFormQuantity()! > 0
+  );
+
+  // Spec 3 R6: dirty signal — true when the stock-adjust form differs
+  // from the initial baseline. Table scroll / pagination / item
+  // selection in the history table are EXCLUDED.
+  readonly formHasChanges = computed(() =>
+    this.mvtFormType() !== this.initialMvtFormType()
+    || this.mvtFormQuantity() !== this.initialMvtFormQuantity()
+    || this.mvtFormDescription() !== this.initialMvtFormDescription()
   );
 
   readonly movementTypeOptions: Signal<ComboboxOption[]> = computed(() => [
@@ -230,6 +259,14 @@ export class ProductMovementsModalComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['resetFormTrigger'] && !changes['resetFormTrigger'].firstChange) {
       this.resetFormInternal();
+      return;
+    }
+    // Spec 3 R6: capture the snapshot when the modal flips from closed
+    // to open. The form fields start at the same defaults the snapshot
+    // signals hold, so `formHasChanges()` is `false` on a clean open.
+    if (changes['open'] && changes['open'].currentValue === true
+        && changes['open'].previousValue === false) {
+      this.captureSnapshot();
     }
   }
 
@@ -282,6 +319,16 @@ export class ProductMovementsModalComponent implements OnChanges {
     this.mvtFormType.set('IN');
     this.mvtFormQuantity.set(null);
     this.mvtFormDescription.set('');
+    // Spec 3 R6: after a successful adjustment, the form is back to the
+    // initial baseline — re-capture the snapshot so the guard doesn't
+    // trip on a clean form.
+    this.captureSnapshot();
+  }
+
+  private captureSnapshot(): void {
+    this.initialMvtFormType.set(this.mvtFormType());
+    this.initialMvtFormQuantity.set(this.mvtFormQuantity());
+    this.initialMvtFormDescription.set(this.mvtFormDescription());
   }
 
   onPrevPage(): void {

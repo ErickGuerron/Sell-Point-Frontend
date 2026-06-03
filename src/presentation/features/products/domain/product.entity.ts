@@ -31,6 +31,8 @@ export interface ProductFilters {
   isActive: string; // 'all' | 'active' | 'inactive'
   page: number;
   limit: number;
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export interface PaginatedProducts {

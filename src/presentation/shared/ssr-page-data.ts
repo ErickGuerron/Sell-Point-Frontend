@@ -66,6 +66,9 @@ export interface CustomersInitialData {
   totalPages: number;
   page: number;
   pageSize: number;
+  totalKpi: number;
+  activeKpi: number;
+  inactiveKpi: number;
 }
 
 export interface ProductsInitialData {
@@ -185,7 +188,13 @@ function mapDashboardInvoice(invoice: DashboardInvoiceRowDto, unknownCustomerLab
 }
 
 function mapDashboardProduct(product: DashboardProductRowDto): DashboardProductEntry {
-  const rawPrice = product.unitPrice ?? product.price ?? 0;
+  // R2a fix — SSR reads the raw backend field directly. The CSR layer
+  // translates `p.salePrice` to `unitPrice` at dashboard-api.service.ts:87
+  // and then `mapProduct` reads `unitPrice ?? price`. The SSR path skips
+  // that translation, so it must read the raw field name. If the canonical
+  // backend field changes (see docs/milestones/M6-M8/products-endpoint-shape.md),
+  // update BOTH this line and the CSR line.
+  const rawPrice = product.salePrice;
   return {
     rank: '00',
     code: product.code,
@@ -195,10 +204,11 @@ function mapDashboardProduct(product: DashboardProductRowDto): DashboardProductE
   };
 }
 
-function mapDashboardCustomer(customer: DashboardCustomerRowDto): DashboardCustomerEntry {
+function mapDashboardCustomer(customer: DashboardCustomerRowDto, unknownCustomerLabel: string): DashboardCustomerEntry {
+  const fullName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
   return {
     id: customer.id,
-    name: `${customer.name} ${customer.lastName}`.trim(),
+    name: fullName || unknownCustomerLabel,
     cedula: customer.cedula,
     email: customer.email ?? undefined,
   };
@@ -252,34 +262,43 @@ export async function loadDashboardInitialData(astro: AstroLike, locale: AppLoca
     fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas'),
     fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5'),
     fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=3'),
-    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4'),
+    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4&isActive=true'),
   ]);
 
   return {
     stats,
     invoices: invoices?.data?.map((invoice) => mapDashboardInvoice(invoice, ssr.unknownCustomer)) ?? [],
     products: products?.data?.map(mapDashboardProduct) ?? [],
-    customers: customers?.data?.map(mapDashboardCustomer) ?? [],
+    customers: customers?.data?.map((customer) => mapDashboardCustomer(customer, ssr.unknownCustomer)) ?? [],
   };
 }
 
 export async function loadCustomersInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CustomersInitialData> {
   void locale;
-  const response = await fetchJsonWithAuth<{ data: BackendCustomer[]; total?: number; page?: number; limit?: number; pagination?: { total: number; totalPages: number; page: number; limit: number } }>(astro, '/customers?page=1&limit=5');
-  const data = response?.data?.map(mapBackendToEntity) ?? [];
-  const totalCustomers = response?.pagination?.total ?? response?.total ?? data.length;
-  const page = response?.pagination?.page ?? response?.page ?? 1;
-  const pageSize = response?.pagination?.limit ?? response?.limit ?? 5;
-  const totalPages = response?.pagination?.totalPages ?? Math.max(1, Math.ceil(totalCustomers / pageSize));
+  const [customersResponse, kpisResponse] = await Promise.all([
+    fetchJsonWithAuth<{ data: BackendCustomer[]; total?: number; page?: number; limit?: number; pagination?: { total: number; totalPages: number; page: number; limit: number } }>(astro, '/customers?page=1&limit=5'),
+    fetchJsonWithAuth<{ totalCustomers: number; activeCustomers: number; inactiveCustomers: number }>(astro, '/customers/kpis'),
+  ]);
+  const data = customersResponse?.data?.map(mapBackendToEntity) ?? [];
+  const totalCustomers = customersResponse?.pagination?.total ?? customersResponse?.total ?? data.length;
+  const page = customersResponse?.pagination?.page ?? customersResponse?.page ?? 1;
+  const pageSize = customersResponse?.pagination?.limit ?? customersResponse?.limit ?? 5;
+  const totalPages = customersResponse?.pagination?.totalPages ?? Math.max(1, Math.ceil(totalCustomers / pageSize));
 
-  return { customers: data, totalCustomers, totalPages, page, pageSize };
+  return {
+    customers: data, totalCustomers, totalPages, page, pageSize,
+    totalKpi: kpisResponse?.totalCustomers ?? totalCustomers,
+    activeKpi: kpisResponse?.activeCustomers ?? 0,
+    inactiveKpi: kpisResponse?.inactiveCustomers ?? 0,
+  };
 }
 
 export async function loadProductsInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<ProductsInitialData> {
   void locale;
-  const [productsResponse, categoriesResponse] = await Promise.all([
+  const [productsResponse, categoriesResponse, kpisResponse] = await Promise.all([
     fetchJsonWithAuth<{ data: ProductRawDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number } }>(astro, '/products?page=1&limit=10'),
     fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?page=1&limit=20&isActive=true'),
+    fetchJsonWithAuth<{ totalProducts: number; activeCount: number; lowStockCount: number }>(astro, '/products/kpis'),
   ]);
 
   const products = productsResponse?.data?.map(toProductEntity) ?? [];
@@ -289,24 +308,27 @@ export async function loadProductsInitialData(astro: AstroLike, locale: AppLocal
     categories: categoriesResponse?.data ?? [],
     totalProductsCount: productsResponse?.pagination?.total ?? productsResponse?.total ?? products.length,
     page: productsResponse?.pagination?.page ?? productsResponse?.page ?? 1,
-    pageSize: productsResponse?.pagination?.limit ?? productsResponse?.limit ?? 10,
-    activeCount: 0,
-    lowStockCount: 0,
+    pageSize: productsResponse?.pagination?.limit ?? productsResponse?.limit ?? 5,
+    activeCount: kpisResponse?.activeCount ?? 0,
+    lowStockCount: kpisResponse?.lowStockCount ?? 0,
   };
 }
 
 export async function loadCategoriesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CategoriesInitialData> {
   void locale;
-  const response = await fetchJsonWithAuth<{ data: CategoryBackendDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number; totalPages: number } }>(astro, '/categories?page=1&limit=5');
-  const categories = response?.data?.map(mapCategoryToEntity) ?? [];
-  const totalCategoriesCount = response?.pagination?.total ?? response?.total ?? categories.length;
-  const page = response?.pagination?.page ?? response?.page ?? 1;
-  const pageSize = response?.pagination?.limit ?? response?.limit ?? 5;
+  const [categoriesResponse, kpis] = await Promise.all([
+    fetchJsonWithAuth<{ data: CategoryBackendDto[]; total?: number; page?: number; limit?: number; pagination?: { total: number; page: number; limit: number; totalPages: number } }>(astro, '/categories?page=1&limit=5'),
+    fetchJsonWithAuth<{ totalCategories: number; activeCount: number }>(astro, '/categories/kpis'),
+  ]);
+  const categories = categoriesResponse?.data?.map(mapCategoryToEntity) ?? [];
+  const totalCategoriesCount = categoriesResponse?.pagination?.total ?? categoriesResponse?.total ?? categories.length;
+  const page = categoriesResponse?.pagination?.page ?? categoriesResponse?.page ?? 1;
+  const pageSize = categoriesResponse?.pagination?.limit ?? categoriesResponse?.limit ?? 5;
 
   return {
     categories,
-    totalCategoriesCount,
-    activeCategoriesCount: 0,
+    totalCategoriesCount: kpis?.totalCategories ?? totalCategoriesCount,
+    activeCategoriesCount: kpis?.activeCount ?? totalCategoriesCount,
     page,
     pageSize,
   };
@@ -344,12 +366,10 @@ export async function loadProfileInitialData(astro: AstroLike, locale: AppLocale
 
 export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<EmployeesInitialData> {
   void locale;
-  const [employeesResponse, rolesResponse, activeResponse, inactiveResponse, blockedResponse] = await Promise.all([
+  const [employeesResponse, rolesResponse, kpisResponse] = await Promise.all([
     fetchJsonWithAuth<{ data: any[]; total?: number; page?: number; limit?: number }>(astro, '/users?page=1&limit=5'),
     fetchJsonWithAuth<RoleDto[] | { data: RoleDto[] }>(astro, '/roles'),
-    fetchJsonWithAuth<{ data: any[]; total?: number }>(astro, '/users?limit=1&status=ACTIVE'),
-    fetchJsonWithAuth<{ data: any[]; total?: number }>(astro, '/users?limit=1&status=INACTIVE'),
-    fetchJsonWithAuth<{ data: any[]; total?: number }>(astro, '/users?limit=1&status=BLOCKED'),
+    fetchJsonWithAuth<{ totalEmployees: number; activeEmployees: number; inactiveEmployees: number; blockedEmployees: number }>(astro, '/users/kpis'),
   ]);
 
   const employees = employeesResponse?.data?.map(mapEmployee) ?? [];
@@ -362,10 +382,10 @@ export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLoca
     employees,
     roles,
     totalCount,
-    totalEmployeesKpi: totalCount,
-    activeEmployeesKpi: activeResponse?.total ?? 0,
-    inactiveEmployeesKpi: inactiveResponse?.total ?? 0,
-    blockedEmployeesKpi: blockedResponse?.total ?? 0,
+    totalEmployeesKpi: kpisResponse?.totalEmployees ?? totalCount,
+    activeEmployeesKpi: kpisResponse?.activeEmployees ?? 0,
+    inactiveEmployeesKpi: kpisResponse?.inactiveEmployees ?? 0,
+    blockedEmployeesKpi: kpisResponse?.blockedEmployees ?? 0,
     page,
     pageSize,
   };

@@ -27,6 +27,13 @@ export interface EmployeeListResponse {
   limit: number;
 }
 
+export interface EmployeeKpis {
+  totalEmployees: number;
+  activeEmployees: number;
+  inactiveEmployees: number;
+  blockedEmployees: number;
+}
+
 export interface UpdateUserPayload {
   firstName?: string;
   lastName?: string;
@@ -67,6 +74,8 @@ export class EmployeeApiService {
     q?: string;
     role?: string;
     status?: string;
+    createdFrom?: string;
+    createdTo?: string;
   } = {}): Promise<EmployeeListResponse> {
     const search = new URLSearchParams();
     if (params.page) search.set('page', String(params.page));
@@ -74,6 +83,8 @@ export class EmployeeApiService {
     if (params.q?.trim()) search.set('q', params.q.trim());
     if (params.role && params.role !== 'all') search.set('role', params.role);
     if (params.status && params.status !== 'all') search.set('status', params.status);
+    if (params.createdFrom) search.set('createdFrom', params.createdFrom);
+    if (params.createdTo) search.set('createdTo', params.createdTo);
 
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/users?${search.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
@@ -88,6 +99,14 @@ export class EmployeeApiService {
       page: body.pagination?.page ?? body.page ?? params.page ?? 1,
       limit: body.pagination?.limit ?? body.limit ?? params.limit ?? 10,
     };
+  }
+
+  // ─── User KPIs ──────────────────────────────────────────────────────────────
+
+  async getKpis(): Promise<EmployeeKpis> {
+    const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/users/kpis`);
+    if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+    return (await response.json()) as EmployeeKpis;
   }
 
   // ─── Register user ─────────────────────────────────────────────────────────

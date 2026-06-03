@@ -92,6 +92,17 @@ export class CategoryRemoteDataSource {
     return this.mapRaw(body);
   }
 
+  // ── KPIs ─────────────────────────────────────────────────────────────────────
+
+  async getKpis(): Promise<{ totalCategories: number; activeCount: number }> {
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/categories/kpis`);
+    const body = await res.json();
+    return {
+      totalCategories: body.totalCategories ?? 0,
+      activeCount: body.activeCount ?? 0,
+    };
+  }
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   private mapRaw(c: any): CategoryRawDto {

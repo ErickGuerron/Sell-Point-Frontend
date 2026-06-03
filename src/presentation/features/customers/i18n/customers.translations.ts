@@ -55,6 +55,11 @@ export interface CustomersCopy {
   phoneLabel: string;
   emailLabel: string;
   nameError: string;
+  lastNameError: string;
+  cedulaError: string;
+  phoneError: string;
+  emailError: string;
+  recentActiveClientsTitle: string;
   cedulaPlaceholder: string;
   phonePlaceholder: string;
   emailPlaceholder: string;
@@ -122,6 +127,11 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phoneLabel: 'Teléfono',
     emailLabel: 'Email',
     nameError: 'Los nombres no deben contener números',
+    lastNameError: 'El apellido no debe contener números ni espacios',
+    cedulaError: 'La cédula solo puede contener dígitos',
+    phoneError: 'El teléfono solo puede contener dígitos',
+    emailError: 'Formato de email inválido',
+    recentActiveClientsTitle: 'Clientes activos recientes',
     cedulaPlaceholder: 'Ej: 1234567',
     phonePlaceholder: 'Ej: +595 981 123456',
     emailPlaceholder: 'Ej: cliente@ejemplo.com',
@@ -185,6 +195,11 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     phoneLabel: 'Phone',
     emailLabel: 'Email',
     nameError: 'Names must not contain numbers',
+    lastNameError: 'Last name must not contain numbers or spaces',
+    cedulaError: 'ID number must contain digits only',
+    phoneError: 'Phone must contain digits only',
+    emailError: 'Invalid email format',
+    recentActiveClientsTitle: 'Recent active clients',
     cedulaPlaceholder: 'e.g. 1234567',
     phonePlaceholder: 'e.g. +1 555 123 4567',
     emailPlaceholder: 'e.g. john@example.com',
@@ -201,6 +216,12 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
 
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
-export function customersCopy(locale: Signal<CustomersLocale>): Signal<CustomersCopy> {
+// The function accepts a `Signal<'es' | 'en'>` (the bare union) rather than
+// `Signal<CustomersLocale>` so any feature that has its own locale type alias
+// (e.g. `AppLocale` in `shared/services/locale.service.ts`) can pass its signal
+// without a structural cast. `CustomersLocale` and `AppLocale` are both
+// `'es' | 'en'`, so widening the parameter to the bare union is a no-op for
+// the CUSTOMERS_TEXT lookup but removes the `as unknown as Signal<...>` hack.
+export function customersCopy(locale: Signal<'es' | 'en'>): Signal<CustomersCopy> {
   return computed(() => CUSTOMERS_TEXT[locale()]);
 }

@@ -19,6 +19,7 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
       icon="inventory_2"
       maxWidth="lg"
       [hasFooter]="true"
+      [disableUnsavedGuard]="true"
       (close)="doClose()"
     >
       <!-- Search + filter -->

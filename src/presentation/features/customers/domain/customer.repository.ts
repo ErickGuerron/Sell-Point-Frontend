@@ -5,6 +5,12 @@ export interface CustomerListParams {
   limit: number;
   q?: string;
   cedula?: string;
+  // Spec 4 R2: string-literal union (NOT boolean). The data source
+  // URL-serialises this with URLSearchParams.set which always emits
+  // a string. 'all' means "do not send the query param at all".
+  isActive?: 'true' | 'false' | 'all';
+  createdFrom?: string;
+  createdTo?: string;
 }
 
 export interface CustomerPagination {

@@ -15,9 +15,17 @@ export interface SharedSsrFallbackCopy {
   invoiceCancelledLabel: string;
 }
 
+export interface SharedFormsCopy {
+  unsavedChangesTitle: string;
+  unsavedChangesText: string;
+  unsavedChangesConfirm: string;
+  unsavedChangesCancel: string;
+}
+
 export interface SharedTranslations {
   session: SharedSessionCopy;
   ssr: SharedSsrFallbackCopy;
+  forms: SharedFormsCopy;
 }
 
 const SHARED_TRANSLATIONS: Record<AppLocale, SharedTranslations> = {
@@ -35,6 +43,12 @@ const SHARED_TRANSLATIONS: Record<AppLocale, SharedTranslations> = {
       invoiceIssuedLabel: 'ISSUED',
       invoiceCancelledLabel: 'CANCELLED',
     },
+    forms: {
+      unsavedChangesTitle: 'Unsaved changes',
+      unsavedChangesText: 'You have unsaved changes. Close anyway?',
+      unsavedChangesConfirm: 'Close anyway',
+      unsavedChangesCancel: 'Keep editing',
+    },
   },
   es: {
     session: {
@@ -49,6 +63,12 @@ const SHARED_TRANSLATIONS: Record<AppLocale, SharedTranslations> = {
       unknownCustomer: 'Cliente sin nombre',
       invoiceIssuedLabel: 'EMITIDA',
       invoiceCancelledLabel: 'CANCELADA',
+    },
+    forms: {
+      unsavedChangesTitle: 'Cambios sin guardar',
+      unsavedChangesText: 'Tenés cambios sin guardar. ¿Cerrar de todas formas?',
+      unsavedChangesConfirm: 'Cerrar igual',
+      unsavedChangesCancel: 'Seguir editando',
     },
   },
 };

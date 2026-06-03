@@ -8,15 +8,14 @@ import {
   computed,
   type OnChanges,
   type SimpleChanges,
-  HostListener,
   signal,
   ChangeDetectionStrategy,
   type Signal,
   inject,
+  viewChild,
 } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../../shared/components/billflow-combobox.component';
-import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import type { ProductEntity, CreateProductPayload, UpdateProductPayload } from '../domain/product.entity';
 import type { CategoryDto } from '../product-api.service';
 import type { ProductsCopy } from '../i18n/products.translations';
@@ -28,6 +27,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-modal-shell
+      #shell
       *ngIf="open"
       title="{{ editingProduct ? copy.modalEditTitle : copy.modalCreateTitle }}"
       subtitle="{{ editingProduct ? copy.modalEditSubtitle : copy.modalCreateSubtitle }}"
@@ -35,7 +35,8 @@ import type { ProductsCopy } from '../i18n/products.translations';
       maxWidth="xl"
       [hasFooter]="true"
       [disableClose]="saving"
-      (close)="requestClose()"
+      [formHasChanges]="hasUnsavedChanges"
+      (close)="closeModal()"
     >
       <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
         <!-- Code -->
@@ -180,7 +181,9 @@ import type { ProductsCopy } from '../i18n/products.translations';
   `,
 })
 export class ProductFormModalComponent implements OnChanges {
-  private readonly feedback = inject(UiFeedbackService);
+  // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
+  // through the shell's `requestClose()` (which owns the unsaved-changes guard).
+  private readonly shell = viewChild(BillflowModalShellComponent);
 
   // ── Inputs ─────────────────────────────────────────────────────────────
   @Input({ required: true }) open = false;
@@ -285,12 +288,6 @@ export class ProductFormModalComponent implements OnChanges {
     }
   }
 
-  @HostListener('document:keydown.escape')
-  async onEscape(): Promise<void> {
-    if (!this.open) return;
-    await this.requestClose();
-  }
-
   // ── Modal control ──────────────────────────────────────────────────────
   closeModal(): void {
     this.close.emit();
@@ -298,18 +295,16 @@ export class ProductFormModalComponent implements OnChanges {
     this.resetForm();
   }
 
+  /**
+   * Host-side helper that routes the Cancel button through the shell's
+   * `requestClose()`. The shell owns the unsaved-changes guard, so all
+   * four close paths (X, backdrop, Escape, Cancel) share the same
+   * decision matrix. The shell's `requestClose()` also honors the
+   * `[disableClose]` input, which the host binds to `saving`, so the
+   * saving-in-flight guard is preserved.
+   */
   async requestClose(): Promise<void> {
-    if (this.saving) return;
-    if (this.hasUnsavedChanges()) {
-      const confirmed = await this.feedback.confirm(
-        this.locale === 'es' ? 'Se perderán los cambios' : 'Changes will be lost',
-        this.locale === 'es' ? '¿Salir sin guardar?' : 'Leave without saving?',
-        this.locale === 'es' ? 'Sí' : 'Yes',
-        this.locale === 'es' ? 'No' : 'No',
-      );
-      if (!confirmed) return;
-    }
-    this.closeModal();
+    await this.shell()?.requestClose();
   }
 
   // ── Save ───────────────────────────────────────────────────────────────

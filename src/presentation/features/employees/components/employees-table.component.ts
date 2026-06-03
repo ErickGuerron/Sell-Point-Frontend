@@ -177,6 +177,14 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
       <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
         <div class="flex items-center gap-3 text-sm text-on-surface-variant">
           <span>{{ copy().showText }} <span class="font-semibold text-on-surface">{{ visibleStart() }}</span> {{ copy().toText }} <span class="font-semibold text-on-surface">{{ visibleEnd() }}</span> {{ copy().ofText }} <span class="font-semibold text-on-surface">{{ total() }}</span> {{ copy().entriesText }}</span>
+          <select class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
+            [value]="pageSize()" (change)="onPageSizeChange.emit(+($any($event.target).value))">
+            <option [value]="5">5</option>
+            <option [value]="10">10</option>
+            <option [value]="15">15</option>
+            <option [value]="20">20</option>
+            <option [value]="30">30</option>
+          </select>
         </div>
         <div class="flex items-center gap-2">
           <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
@@ -215,6 +223,7 @@ export class EmployeesTableComponent {
   @Output() onPrevPage = new EventEmitter<void>();
   @Output() onNextPage = new EventEmitter<void>();
   @Output() onPageClick = new EventEmitter<number>();
+  @Output() onPageSizeChange = new EventEmitter<number>();
 
   readonly copy = computed(() => TABLE_COPY[this.locale() === 'en' ? 'en' : 'es']);
 

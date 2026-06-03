@@ -30,6 +30,12 @@ interface PaginatedResponse<T> {
   };
 }
 
+export interface CustomerKpis {
+  totalCustomers: number;
+  activeCustomers: number;
+  inactiveCustomers: number;
+}
+
 export { type BackendCustomer, type PaginatedResponse };
 
 // ─── Mock data (migrated from InvoiceApiService) ─────────────────────────────
@@ -55,17 +61,34 @@ export class CustomerRemoteDataSource {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  async list(params: { page: number; limit: number; q?: string; cedula?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
+  async getKpis(): Promise<CustomerKpis> {
     if (USE_MOCK) {
+      const total = MOCK_CUSTOMERS.length;
+      const active = MOCK_CUSTOMERS.filter((c) => c.isActive === true || c.isActive === 1).length;
+      return { totalCustomers: total, activeCustomers: active, inactiveCustomers: total - active };
+    }
+    const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers/kpis`);
+    return (await res.json()) as CustomerKpis;
+  }
+
+  async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; createdFrom?: string; createdTo?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
+    if (USE_MOCK) {
+      // Spec 4 R2: honour the isActive filter on the mock slice too,
+      // so dev-mode smoke tests see the same active-only subset.
+      const filtered = params.isActive === 'true'
+        ? MOCK_CUSTOMERS.filter((c) => c.isActive === true)
+        : params.isActive === 'false'
+          ? MOCK_CUSTOMERS.filter((c) => c.isActive === false)
+          : MOCK_CUSTOMERS;
       const start = (Math.max(1, params.page) - 1) * params.limit;
-      const data = MOCK_CUSTOMERS.slice(start, start + params.limit);
+      const data = filtered.slice(start, start + params.limit);
       return {
         data,
         pagination: {
-          total: MOCK_CUSTOMERS.length,
+          total: filtered.length,
           page: Math.max(1, params.page),
           limit: params.limit,
-          totalPages: Math.max(1, Math.ceil(MOCK_CUSTOMERS.length / params.limit)),
+          totalPages: Math.max(1, Math.ceil(filtered.length / params.limit)),
         },
       };
     }
@@ -76,6 +99,12 @@ export class CustomerRemoteDataSource {
 
     if (params.q) searchParams.set('q', params.q);
     if (params.cedula) searchParams.set('cedula', params.cedula);
+    // String, not boolean. URLSearchParams.set coerces anyway, but the
+    // explicit string-literal union in the param type is what the
+    // backend contract requires.
+    if (params.isActive && params.isActive !== 'all') searchParams.set('isActive', params.isActive);
+    if (params.createdFrom) searchParams.set('createdFrom', params.createdFrom);
+    if (params.createdTo) searchParams.set('createdTo', params.createdTo);
 
     const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?${searchParams.toString()}`);
     return await res.json() as PaginatedResponse<BackendCustomer>;
