@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input, viewChild } from '@angular/core';
 import type { OnInit } from '@angular/core';
-import { EmployeeApiService, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
+import { EmployeeApiService, ApiRequestError, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
@@ -109,6 +109,9 @@ interface EmployeesCopy {
   cedulaExact10: string;
   emailInvalidFormat: string;
   usernameNoSpaces: string;
+  duplicateCedula: string;
+  duplicateEmail: string;
+  duplicateUsername: string;
   charCountLabel: string;
 }
 
@@ -195,6 +198,9 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Debe tener exactamente 10 dígitos',
     emailInvalidFormat: 'Formato de email inválido',
     usernameNoSpaces: 'No se permiten espacios',
+    duplicateCedula: 'La cédula ya está registrada',
+    duplicateEmail: 'El correo ya está registrado',
+    duplicateUsername: 'El usuario ya está registrado',
     charCountLabel: '',
     fromLabel: 'Desde',
     toLabel: 'Hasta',
@@ -281,6 +287,9 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     cedulaExact10: 'Must be exactly 10 digits',
     emailInvalidFormat: 'Invalid email format',
     usernameNoSpaces: 'No spaces allowed',
+    duplicateCedula: 'The ID number is already registered',
+    duplicateEmail: 'The email is already registered',
+    duplicateUsername: 'The username is already registered',
     charCountLabel: '',
     fromLabel: 'From',
     toLabel: 'To',
@@ -417,7 +426,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
               </button>
             </div>
             <div class="flex items-center justify-between gap-3 mt-3 w-full">
-              <div class="flex items-stretch w-80">
+              <div class="flex items-stretch w-full max-w-[32rem]">
                 <billflow-combobox
                   [options]="searchFieldOptionsList()"
                   [value]="searchFieldValue()"
@@ -425,7 +434,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
                   searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
                   [compact]="true"
                   (valueChange)="onSearchFieldSelected($event)"
-                  class="rounded-r-none"
+                  class="rounded-r-none mr-4"
                 ></billflow-combobox>
                 <div class="relative flex-1">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
@@ -464,12 +473,18 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     </main>
     @defer (on interaction) {
         <billflow-modal-shell *ngIf="employeeModalOpen()" title="{{ editingEmployee() ? copy().modalEditTitle : copy().modalCreateTitle }}" subtitle="{{ editingEmployee() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}" icon="badge" maxWidth="xl" [hasFooter]="true" [formHasChanges]="employeeFormModal()?.formHasChanges ?? null" (close)="closeEmployeeModal()">
-          <billflow-employees-form-modal
+        <billflow-employees-form-modal
             [locale]="locale"
             [employee]="editingEmployee() ?? undefined"
             [roleOptions]="roleOptions"
             [submitting]="formSubmitting"
             [defaultBranchId]="currentBranchId"
+            [serverCedulaError]="serverCedulaError"
+            [serverEmailError]="serverEmailError"
+            [serverUsernameError]="serverUsernameError"
+            [clearServerCedulaError]="clearServerCedulaError"
+            [clearServerEmailError]="clearServerEmailError"
+            [clearServerUsernameError]="clearServerUsernameError"
             (onCancel)="requestEmployeeModalClose()"
             (onSave)="saveEmployeeFromModal($event)"
           ></billflow-employees-form-modal>
@@ -691,6 +706,9 @@ export class EmployeesPageComponent implements OnInit {
   formCedulaError = signal('');
   formEmailError = signal('');
   formUsernameError = signal('');
+  serverCedulaError = signal('');
+  serverEmailError = signal('');
+  serverUsernameError = signal('');
   readonly formFirstNameValid = computed(() => this.formFirstNameError() === '');
   readonly formLastNameValid = computed(() => this.formLastNameError() === '');
   readonly formCedulaValid = computed(() => this.formCedulaError() === '');
@@ -896,12 +914,14 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Employee modals ──
   openCreateModal() {
+    this.clearServerErrors();
     this.resetForm();
     this.editingEmployee.set(null);
     this.employeeModalOpen.set(true);
   }
 
   openEditModal(employee: EmployeeRowDto) {
+    this.clearServerErrors();
     this.formFirstName.set(employee.firstName);
     this.formLastName.set(employee.lastName);
     this.formEmployeeId.set(employee.employeeId);
@@ -923,6 +943,7 @@ export class EmployeesPageComponent implements OnInit {
     this.employeeModalOpen.set(false);
     this.editingEmployee.set(null);
     this.resetForm();
+    this.clearServerErrors();
   }
 
   /**
@@ -950,6 +971,16 @@ export class EmployeesPageComponent implements OnInit {
     this.formEmailError.set('');
     this.formUsernameError.set('');
   }
+
+  private clearServerErrors() {
+    this.serverCedulaError.set('');
+    this.serverEmailError.set('');
+    this.serverUsernameError.set('');
+  }
+
+  clearServerCedulaError = () => this.serverCedulaError.set('');
+  clearServerEmailError = () => this.serverEmailError.set('');
+  clearServerUsernameError = () => this.serverUsernameError.set('');
 
   // ── Input handlers ──
   onFirstNameInput(value: string) {
@@ -1038,6 +1069,7 @@ export class EmployeesPageComponent implements OnInit {
     username: string; role: string; defaultBranchId: string;
   }) {
     this.formSubmitting.set(true);
+    this.clearServerErrors();
     try {
       if (this.editingEmployee()) {
         const updated = await this.api.updateUser(this.editingEmployee()!.id, {
@@ -1052,7 +1084,7 @@ export class EmployeesPageComponent implements OnInit {
         await this.feedback.toast('success',
           this.locale() === 'es' ? 'Empleado actualizado correctamente' : 'Employee updated successfully');
       } else {
-        const created = await this.api.registerUser({
+        await this.api.registerUser({
           email: payload.email.trim(),
           firstName: payload.firstName.trim(),
           lastName: payload.lastName.trim(),
@@ -1061,8 +1093,7 @@ export class EmployeesPageComponent implements OnInit {
           username: payload.username.trim(),
           defaultBranchId: payload.defaultBranchId,
         });
-        this.employees.update(emps => [created, ...emps]);
-        this.totalCount.update(c => c + 1);
+        await this.reloadEmployees();
         void this.reloadKpis();
         await this.feedback.toast('success',
           this.locale() === 'es' ? 'Empleado creado y credenciales enviadas' : 'Employee created and credentials sent');
@@ -1070,11 +1101,101 @@ export class EmployeesPageComponent implements OnInit {
       this.closeEmployeeModal();
     } catch (err) {
       console.error('[save employee]', err);
+      if (this.applyDuplicateFieldError(err)) {
+        return;
+      }
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'Error al guardar empleado' : 'Error saving employee');
     } finally {
       this.formSubmitting.set(false);
     }
+  }
+
+  private applyDuplicateFieldError(err: unknown): boolean {
+    const text = this.extractErrorText(err).toLowerCase();
+    const status = err instanceof ApiRequestError ? err.status : undefined;
+    const body = err instanceof ApiRequestError ? err.body : undefined;
+    const bodyText = this.extractErrorText(body).toLowerCase();
+    const combined = `${text} ${bodyText}`;
+
+    const structuredErrors = this.extractStructuredDuplicateErrors(body);
+    let matched = this.applyStructuredDuplicateErrors(structuredErrors);
+    if (matched) return true;
+
+    const looksDuplicate = status === 409
+      || /already|exist|unique|duplic|registrad/.test(combined);
+    if (!looksDuplicate) return false;
+
+    const isEmail = /email|correo|mail/.test(combined);
+    const isCedula = /cedula|c[eé]dula|document|dni|id number/.test(combined);
+    const isUsername = /username|usuario|usr/.test(combined);
+
+    if (isEmail && !isCedula) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      return true;
+    }
+
+    if (isCedula && !isEmail) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      return true;
+    }
+
+    if (isUsername) {
+      this.serverUsernameError.set(this.copy().duplicateUsername);
+      return true;
+    }
+
+    if (isEmail) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      return true;
+    }
+
+    if (isCedula) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      return true;
+    }
+
+    return false;
+  }
+
+  private extractStructuredDuplicateErrors(body: unknown): Record<string, string> {
+    if (!body || typeof body !== 'object') return {};
+    const value = body as Record<string, unknown>;
+    const errors = value.errors;
+    if (!errors || typeof errors !== 'object') return {};
+    return errors as Record<string, string>;
+  }
+
+  private applyStructuredDuplicateErrors(errors: Record<string, string>): boolean {
+    let matched = false;
+
+    if (errors.email) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      matched = true;
+    }
+
+    if (errors.cedula) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      matched = true;
+    }
+
+    if (errors.username) {
+      this.serverUsernameError.set(this.copy().duplicateUsername);
+      matched = true;
+    }
+
+    return matched;
+  }
+
+  private extractErrorText(err: unknown): string {
+    if (typeof err === 'string') return err;
+    if (err instanceof Error) return err.message || '';
+    if (!err || typeof err !== 'object') return '';
+    const value = err as Record<string, unknown>;
+    if (typeof value.message === 'string') return value.message;
+    if (typeof value.error === 'string') return value.error;
+    if (typeof value.body === 'string') return value.body;
+    return '';
   }
 
   openReactivateModal() {

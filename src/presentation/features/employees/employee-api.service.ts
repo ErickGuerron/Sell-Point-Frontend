@@ -42,9 +42,34 @@ export interface UpdateUserPayload {
   cedula?: string;
 }
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly body?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class EmployeeApiService {
   private readonly authHttp = inject(AuthHttpService);
+
+  private async throwApiError(response: Response): Promise<never> {
+    const text = await response.text().catch(() => '');
+    let body: unknown = text;
+    try {
+      body = text ? JSON.parse(text) : '';
+    } catch {
+      body = text;
+    }
+    const message = typeof body === 'object' && body !== null
+      ? ((body as { message?: string }).message?.trim() || `Request failed: ${response.status}`)
+      : (typeof body === 'string' && body.trim() ? body.trim() : `Request failed: ${response.status}`);
+    throw new ApiRequestError(message, response.status, body);
+  }
 
   private mapUser(u: any): EmployeeRowDto {
     return {
@@ -124,10 +149,7 @@ export class EmployeeApiService {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({ message: 'Request failed' }))) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
+    if (!response.ok) await this.throwApiError(response);
     const body = await response.json();
     return this.mapUser(body);
   }
@@ -139,10 +161,7 @@ export class EmployeeApiService {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({ message: 'Request failed' }))) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
+    if (!response.ok) await this.throwApiError(response);
     const body = await response.json();
     return this.mapUser(body);
   }

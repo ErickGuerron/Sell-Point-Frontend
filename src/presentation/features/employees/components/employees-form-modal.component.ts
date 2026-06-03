@@ -117,7 +117,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         <div class="relative">
           <input type="text" data-form="cedula" inputmode="numeric"
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': cedulaError()}"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': cedulaDisplayError()}"
             [maxLength]="10" placeholder="10 dígitos" [value]="cedula()"
             (keydown.space)="blockOuterSpace($event)"
             (keydown)="onNumericKeyDown($event)"
@@ -125,8 +125,8 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
             (input)="onCedulaInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ cedula().length }}/10</span>
         </div>
-        @if (cedulaError()) {
-          <p class="mt-1 text-xs text-error">{{ cedulaError() }}</p>
+        @if (cedulaDisplayError()) {
+          <p class="mt-1 text-xs text-error">{{ cedulaDisplayError() }}</p>
         }
       </div>
       <!-- Email -->
@@ -135,14 +135,14 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         <div class="relative">
           <input type="email" data-form="email"
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': emailError()}"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': emailDisplayError()}"
             [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [value]="email()"
             (keydown.space)="blockOuterSpace($event)"
             (input)="onEmailInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ email().length }}/255</span>
         </div>
-        @if (emailError()) {
-          <p class="mt-1 text-xs text-error">{{ emailError() }}</p>
+        @if (emailDisplayError()) {
+          <p class="mt-1 text-xs text-error">{{ emailDisplayError() }}</p>
         }
       </div>
       <!-- Username -->
@@ -151,14 +151,14 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         <div class="relative">
           <input type="text" data-form="username"
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': usernameError()}"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': usernameDisplayError()}"
             [maxLength]="50" placeholder="Ej: carlos.gonzalez" [value]="username()"
             (keydown.space)="blockOuterSpace($event)"
             (input)="onUsernameInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ username().length }}/50</span>
         </div>
-        @if (usernameError()) {
-          <p class="mt-1 text-xs text-error">{{ usernameError() }}</p>
+        @if (usernameDisplayError()) {
+          <p class="mt-1 text-xs text-error">{{ usernameDisplayError() }}</p>
         }
       </div>
       <!-- Role -->
@@ -210,6 +210,12 @@ export class EmployeesFormModalComponent {
   @Input() roleOptions: () => { value: string; label: string }[] = () => [];
   @Input() submitting = () => false;
   @Input() defaultBranchId: () => string = () => '';
+  @Input() serverCedulaError = () => '';
+  @Input() serverEmailError = () => '';
+  @Input() serverUsernameError = () => '';
+  @Input() clearServerCedulaError: () => void = () => {};
+  @Input() clearServerEmailError: () => void = () => {};
+  @Input() clearServerUsernameError: () => void = () => {};
 
   @Output() onCancel = new EventEmitter<void>();
   @Output() onSave = new EventEmitter<{
@@ -300,16 +306,19 @@ export class EmployeesFormModalComponent {
   onCedulaInput(value: string) {
     // Solo dígitos, máximo 10
     this.cedula.set(value.replace(/\D/g, '').slice(0, 10));
+    this.clearServerCedulaError();
   }
 
   onEmailInput(value: string) {
     // Los emails no pueden contener espacios en ninguna posición
     this.email.set(value.replace(/\s/g, ''));
+    this.clearServerEmailError();
   }
 
   onUsernameInput(value: string) {
     // Sin espacios en el username
     this.username.set(value.replace(/\s/g, ''));
+    this.clearServerUsernameError();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -382,16 +391,19 @@ export class EmployeesFormModalComponent {
     if (!v) return '';
     return /^\d{10}$/.test(v) ? '' : FORM_COPY[this.localeState()].cedulaExact10;
   });
+  readonly cedulaDisplayError = computed(() => this.cedulaError() || this.serverCedulaError());
   readonly emailError = computed(() => {
     const v = this.email();
     if (!v) return '';
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : FORM_COPY[this.localeState()].emailInvalidFormat;
   });
+  readonly emailDisplayError = computed(() => this.emailError() || this.serverEmailError());
   readonly usernameError = computed(() => {
     const v = this.username();
     if (!v) return '';
     return /\s/.test(v) ? FORM_COPY[this.localeState()].usernameNoSpaces : '';
   });
+  readonly usernameDisplayError = computed(() => this.usernameError() || this.serverUsernameError());
 
   isValid() {
     return (
