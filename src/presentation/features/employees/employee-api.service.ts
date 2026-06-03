@@ -72,6 +72,9 @@ export class EmployeeApiService {
   }
 
   private mapUser(u: any): EmployeeRowDto {
+    const status = typeof u.status === 'string' && u.status.trim()
+      ? u.status.trim()
+      : (u.isActive ? 'ACTIVE' : 'INACTIVE');
     return {
       id: u.id,
       employeeId: u.employeeId || '',
@@ -81,7 +84,7 @@ export class EmployeeApiService {
       firstName: u.firstName || '',
       lastName: u.lastName || '',
       cedula: u.cedula ?? u.documentId ?? u.document ?? u.idCard ?? '',
-      status: u.status || (u.isActive ? 'ACTIVE' : 'INACTIVE'),
+      status,
       isActive: u.isActive === true || u.isActive === 1,
       // failedLoginAttempts may not be returned by the new /users endpoint;
       // default to 0 and rely on the unlock endpoint for blocked-user management.

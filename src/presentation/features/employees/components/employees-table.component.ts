@@ -10,6 +10,7 @@ interface EmployeeRowDto {
   lastName: string;
   email?: string;
   role: string;
+  status: string;
   isActive: boolean;
   failedLoginAttempts: number;
 }
@@ -19,6 +20,7 @@ interface EmployeesTableCopy {
   email: string;
   role: string;
   status: string;
+  blocked: string;
   attempts: string;
   actions: string;
   noEmployeesTitle: string;
@@ -38,7 +40,7 @@ interface EmployeesTableCopy {
 
 const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
   es: {
-    employee: 'Empleado', email: 'Email', role: 'Rol', status: 'Estado',
+    employee: 'Empleado', email: 'Email', role: 'Rol', status: 'Estado', blocked: 'Bloqueado',
     attempts: 'Intentos', actions: 'Acciones', noEmployeesTitle: 'No hay empleados',
     noEmployeesText: 'Probá con otro filtro o término de búsqueda.',
     loadingText: 'Cargando empleados...',
@@ -48,7 +50,7 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
     pageText: 'pág.',
   },
   en: {
-    employee: 'Employee', email: 'Email', role: 'Role', status: 'Status',
+    employee: 'Employee', email: 'Email', role: 'Role', status: 'Status', blocked: 'Blocked',
     attempts: 'Attempts', actions: 'Actions', noEmployeesTitle: 'No employees found',
     noEmployeesText: 'Try another filter or search term.',
     loadingText: 'Loading employees...',
@@ -127,18 +129,11 @@ const TABLE_COPY: Record<EmployeesLocale, EmployeesTableCopy> = {
                             (click)="$event.stopPropagation(); onEditClick.emit(employee)">
                       <span class="material-symbols-outlined text-[18px]">edit</span>
                     </button>
-                    @if (employee.failedLoginAttempts >= 3) {
-                      <button type="button" [title]="copy().unlock"
-                              class="inline-flex h-8 w-8 items-center justify-center bg-[#f59e0b] text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                              (click)="$event.stopPropagation(); onUnlockClick.emit(employee)">
-                        <span class="material-symbols-outlined text-[18px]">lock_open</span>
-                      </button>
-                    }
-                    <button type="button" [title]="employee.isActive ? copy().deactivate : copy().activate"
+                    <button type="button" [title]="getActionLabel(employee)"
                             class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                            [ngClass]="employee.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'"
-                            (click)="$event.stopPropagation(); onToggleClick.emit(employee)">
-                      <span class="material-symbols-outlined text-[18px]">{{ employee.isActive ? 'close' : 'check' }}</span>
+                            [ngClass]="isBlocked(employee) ? 'bg-[#f59e0b] hover:opacity-85' : (employee.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85')"
+                            (click)="$event.stopPropagation(); isBlocked(employee) ? onUnlockClick.emit(employee) : onToggleClick.emit(employee)">
+                      <span class="material-symbols-outlined text-[18px]">{{ isBlocked(employee) ? 'lock_open' : (employee.isActive ? 'close' : 'check') }}</span>
                     </button>
                   </div>
                 </td>
@@ -249,20 +244,29 @@ export class EmployeesTableComponent {
   }
 
   getStatusClass(e: EmployeeRowDto): string {
+    if (this.isBlocked(e)) return 'border-red-500/30 bg-red-500/10 text-red-500';
     if (!e.isActive) return 'border-amber-400/30 bg-amber-400/10 text-amber-400';
-    if (e.failedLoginAttempts >= 3) return 'border-red-500/30 bg-red-500/10 text-red-500';
     return 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500';
   }
 
   getStatusDot(e: EmployeeRowDto): string {
+    if (this.isBlocked(e)) return 'bg-red-500';
     if (!e.isActive) return 'bg-amber-400';
-    if (e.failedLoginAttempts >= 3) return 'bg-red-500';
     return 'bg-emerald-500';
   }
 
   getStatusLabel(e: EmployeeRowDto): string {
+    if (this.isBlocked(e)) return this.copy().blocked;
     if (!e.isActive) return this.copy().deactivate;
-    if (e.failedLoginAttempts >= 3) return this.copy().unlock;
     return this.copy().activate;
+  }
+
+  getActionLabel(e: EmployeeRowDto): string {
+    if (this.isBlocked(e)) return this.copy().unlock;
+    return e.isActive ? this.copy().deactivate : this.copy().activate;
+  }
+
+  isBlocked(e: EmployeeRowDto): boolean {
+    return (e.status || '').toUpperCase() === 'BLOCKED';
   }
 }

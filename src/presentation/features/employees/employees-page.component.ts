@@ -181,7 +181,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     blockedUsersSubtitle: 'Usuarios bloqueados del sistema',
     blockedUsersEmptyTitle: 'No hay usuarios bloqueados',
     blockedUsersEmptyText: 'Todos los usuarios pueden acceder al sistema.',
-    selectUsersToUnlock: 'Seleccioná los usuarios que querés desbloquear:',
+    selectUsersToUnlock: 'Selecciona los usuarios que quieres desbloquear:',
     closeLabel: 'Cerrar',
     allFields: 'Cualquier campo',
     firstNameLabel: 'Nombre',
@@ -447,7 +447,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
                 <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
                   <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
                 </button>
-                <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openReactivateModal()">
+                <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" [disabled]="blockedEmployeesCount() === 0" (click)="openReactivateModal()">
                   <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
                 </button>
               </div>
@@ -490,36 +490,63 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
           ></billflow-employees-form-modal>
         </billflow-modal-shell>
         <billflow-modal-shell *ngIf="reactivateModalOpen()" title="{{ copy().reactivateUsers }}" subtitle="{{ copy().blockedUsersSubtitle }}" icon="lock_open" maxWidth="lg" [hasFooter]="true" (close)="closeReactivateModal()">
-          <div class="p-6">
-            @let blockedEmployees = employees().filter(e => e.failedLoginAttempts >= 3);
+          <div class="p-6 md:p-7 space-y-5">
+            @let blockedEmployees = employees().filter(e => isBlockedEmployee(e));
+
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+              <p class="text-base md:text-lg font-semibold text-slate-900 dark:text-slate-100">{{ copy().selectUsersToUnlock }}</p>
+              <p class="mt-1 flex items-center gap-2 text-sm font-semibold text-red-600">
+                <span class="h-2 w-2 rounded-full bg-red-600"></span>
+                {{ blockedEmployees.length }} {{ copy().blockedUsersSubtitle }}
+              </p>
+            </div>
+
             @if (blockedEmployees.length === 0) {
-              <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                <span class="material-symbols-outlined dashboard-table-card__empty-icon">lock_open</span>
-                <p class="dashboard-table-card__empty-title">{{ copy().blockedUsersEmptyTitle }}</p>
-                <p class="dashboard-table-card__empty-text">{{ copy().blockedUsersEmptyText }}</p>
+              <div class="rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                  <span class="material-symbols-outlined">lock_open</span>
+                </div>
+                <p class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ copy().blockedUsersEmptyTitle }}</p>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ copy().blockedUsersEmptyText }}</p>
               </div>
             } @else {
-              <p class="text-sm text-on-surface-variant mb-4">{{ copy().selectUsersToUnlock }}</p>
-              <div class="space-y-2 max-h-80 overflow-y-auto">
+              <div class="space-y-4 max-h-80 overflow-y-auto pr-1">
                 @for (employee of blockedEmployees; track employee.id) {
-                  <div class="flex items-center justify-between p-3 rounded-xl border border-outline-variant/30 bg-surface-container-low/30 hover:bg-surface-container-low transition-colors">
-                    <div class="flex items-center gap-3">
-                      <div class="h-9 w-9 rounded-full bg-gradient-to-br flex items-center justify-center border text-xs font-bold shrink-0 shadow-sm" [ngClass]="getEmployeeGradient(employee)">{{ getEmployeeInitials(employee) }}</div>
-                      <div>
-                        <div class="font-semibold text-sm text-on-background">{{ employeeFullName(employee) }}</div>
-                        <div class="text-[11px] text-outline">{{ employee.email }} · {{ copy().employeeId }}: {{ employee.employeeId }}</div>
+                  <div class="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition-all hover:border-amber-200 hover:shadow-md dark:border-slate-800 dark:bg-slate-950/50 dark:hover:border-amber-500/30">
+                    <div class="flex min-w-0 items-center gap-4">
+                      <div class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-rose-100 text-rose-500 font-bold shadow-inner ring-4 ring-rose-50 dark:bg-rose-500/15 dark:text-rose-300 dark:ring-transparent">
+                        {{ getEmployeeInitials(employee) }}
+                      </div>
+                      <div class="min-w-0">
+                        <div class="flex flex-wrap items-center gap-2">
+                          <div class="truncate text-base font-semibold text-slate-900 dark:text-slate-100">{{ employeeFullName(employee) }}</div>
+                          <span class="inline-flex items-center rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-600 dark:bg-rose-500/15 dark:text-rose-300">{{ copy().blocked }}</span>
+                        </div>
+                        <div class="mt-1 space-y-0.5 text-sm text-slate-500 dark:text-slate-400">
+                          <p class="truncate">{{ employee.email }}</p>
+                          <p class="truncate">{{ copy().employeeId }}: {{ employee.employeeId }}</p>
+                        </div>
                       </div>
                     </div>
-                    <button type="button" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-[#f59e0b] text-white hover:opacity-90 transition-all shadow-sm" (click)="$event.stopPropagation(); void unlockEmployee(employee)">
-                      <span class="material-symbols-outlined text-[16px]">lock_open</span>{{ copy().unlock }}
+                    <button type="button" class="inline-flex shrink-0 items-center gap-2 rounded-xl bg-amber-400 px-4 py-2.5 text-sm font-semibold text-amber-950 shadow-sm transition-all hover:bg-amber-500 active:scale-[0.98]" (click)="$event.stopPropagation(); void unlockEmployee(employee)">
+                      <span class="material-symbols-outlined text-[18px]">lock</span>{{ copy().unlock }}
                     </button>
                   </div>
                 }
               </div>
             }
+
+            <div class="rounded-2xl border border-dashed border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300">
+              <div class="flex items-start gap-3">
+                <span class="material-symbols-outlined mt-0.5 text-slate-400">info</span>
+                  <p class="leading-6">
+                  Al desbloquear a un usuario, recupera inmediatamente el acceso a sus funciones asignadas y puede volver a iniciar sesión en la consola administrativa.
+                </p>
+              </div>
+            </div>
           </div>
-          <div footer class="flex w-full items-center justify-end gap-3">
-            <button type="button" class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50" (click)="closeReactivateModal()">{{ copy().closeLabel }}</button>
+          <div footer class="flex w-full items-center justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4 dark:border-slate-800 dark:bg-slate-900/50 md:px-7">
+            <button type="button" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition-all hover:bg-slate-100 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" (click)="closeReactivateModal()">{{ copy().closeLabel }}</button>
           </div>
         </billflow-modal-shell>
       } @placeholder {
@@ -1207,21 +1234,25 @@ export class EmployeesPageComponent implements OnInit {
   }
 
   getStatusLabel(employee: EmployeeRowDto): string {
+    if (this.isBlockedEmployee(employee)) return this.copy().blocked;
     if (!employee.isActive) return this.copy().inactive;
-    if (employee.failedLoginAttempts >= 3) return this.copy().blocked;
     return this.copy().active;
   }
 
   getStatusClass(employee: EmployeeRowDto): string {
+    if (this.isBlockedEmployee(employee)) return 'border-error/30 bg-error/10 text-error shadow-sm shadow-error/5';
     if (!employee.isActive) return 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant';
-    if (employee.failedLoginAttempts >= 3) return 'border-error/30 bg-error/10 text-error shadow-sm shadow-error/5';
     return 'border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/5';
   }
 
   getStatusDot(employee: EmployeeRowDto): string {
+    if (this.isBlockedEmployee(employee)) return 'bg-error';
     if (!employee.isActive) return 'bg-outline';
-    if (employee.failedLoginAttempts >= 3) return 'bg-error';
     return 'bg-primary animate-pulse';
+  }
+
+  isBlockedEmployee(employee: EmployeeRowDto): boolean {
+    return (employee.status || '').toUpperCase() === 'BLOCKED';
   }
 
   async unlockEmployee(employee: EmployeeRowDto) {
@@ -1247,6 +1278,10 @@ export class EmployeesPageComponent implements OnInit {
 
   // ── Activate / Deactivate user ──
   async toggleActive(employee: EmployeeRowDto) {
+    if (this.isBlockedEmployee(employee)) {
+      await this.unlockEmployee(employee);
+      return;
+    }
     const isActive = employee.isActive;
     const confirmed = await this.feedback.confirm(
       isActive ? this.copy().confirmDeactivateTitle : this.copy().confirmActivateTitle,
