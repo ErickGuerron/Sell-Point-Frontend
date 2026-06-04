@@ -79,7 +79,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="text"
               class="w-full pr-14 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="[cedulaDisabled() ? 'cursor-not-allowed opacity-60' : '', fieldClass('cedula')].join(' ')"
+              [ngClass]="[cedulaDisabled() ? 'cursor-not-allowed opacity-60' : '', fieldClass('cedula'), cedulaDisplayError() ? '!border-error !focus:border-error !focus:ring-error/20' : ''].join(' ')"
               [maxLength]="10"
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formCedula()"
@@ -93,6 +93,9 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formCedula().length }}/10</span
             >
           </div>
+          @if (cedulaDisplayError()) {
+            <p class="mt-1 text-xs text-error">{{ cedulaDisplayError() }}</p>
+          }
         </div>
 
         <!-- Phone -->
@@ -145,7 +148,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="email"
               class="w-full pr-20 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="fieldClass('email')"
+              [ngClass]="[fieldClass('email'), emailDisplayError() ? '!border-error !focus:border-error !focus:ring-error/20' : ''].join(' ')"
               [maxLength]="255"
               [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="formEmail()"
@@ -156,8 +159,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formEmail().length }}/255</span
             >
           </div>
-          @if (formEmailError()) {
-            <p class="mt-1 text-xs text-error">{{ formEmailError() }}</p>
+          @if (emailDisplayError()) {
+            <p class="mt-1 text-xs text-error">{{ emailDisplayError() }}</p>
           }
         </div>
       </div>
@@ -200,6 +203,14 @@ export class CustomerFormModalComponent {
   get editing(): CustomerEntity | null { return this._editing(); }
 
   @Input({ required: true }) copy!: CustomersCopy;
+
+  private readonly _serverCedulaError = signal<string | null>(null);
+  @Input() set serverCedulaError(value: string | null) { this._serverCedulaError.set(value); }
+  get serverCedulaError(): string | null { return this._serverCedulaError(); }
+
+  private readonly _serverEmailError = signal<string | null>(null);
+  @Input() set serverEmailError(value: string | null) { this._serverEmailError.set(value); }
+  get serverEmailError(): string | null { return this._serverEmailError(); }
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() save = new EventEmitter<CreateCustomerPayload>();
@@ -245,6 +256,8 @@ export class CustomerFormModalComponent {
     return raw && raw !== this.formCedula() ? this.copy.cedulaError : null;
   });
 
+  readonly cedulaDisplayError = computed(() => (this.formCedulaError() ?? '') || (this.serverCedulaError ?? ''));
+
   readonly formPhoneError = computed(() => {
     const raw = this.lastRawPhone();
     return raw && raw !== this.formPhone() ? this.copy.phoneError : null;
@@ -255,6 +268,8 @@ export class CustomerFormModalComponent {
     if (!v) return null;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy.emailError;
   });
+
+  readonly emailDisplayError = computed(() => (this.formEmailError() ?? '') || (this.serverEmailError ?? ''));
 
   // ── Spec 3 R6: dirty signal — true when any form field diverges from ──
   // the snapshot captured at modal-open time.
@@ -303,6 +318,8 @@ export class CustomerFormModalComponent {
     this.close.emit();
     this.editing = null;
     this.resetForm();
+    this._serverCedulaError.set(null);
+    this._serverEmailError.set(null);
   }
 
   /**
@@ -340,6 +357,8 @@ export class CustomerFormModalComponent {
     this.formEmail.set('');
     this.formAddress.set('');
     this.nameFieldError.set(null);
+    this.lastRawCedula.set('');
+    this.lastRawPhone.set('');
   }
 
   // ── Req 1.8: debounced toast helper ──────────────────────────────────

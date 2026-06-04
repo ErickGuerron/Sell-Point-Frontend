@@ -17,6 +17,7 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import type { CustomerEntity, CreateCustomerPayload } from './domain/customer.entity';
 import { CustomerRemoteDataSource } from './data/customer-remote.datasource';
+import { ApiRequestError } from '../employees/employee-api.service';
 import { CustomerRepository, type CustomerListParams } from './domain/customer.repository';
 import { CustomerImplRepository } from './data/customer-impl.repository';
 import { ListCustomersUseCase } from './domain/use-cases/list-customers.use-case';
@@ -169,6 +170,8 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
         [open]="customerModalOpen()"
         [editing]="editingCustomer()"
         [copy]="copy()"
+        [serverCedulaError]="serverCedulaError()"
+        [serverEmailError]="serverEmailError()"
         (save)="handleSave($event)"
         (close)="closeCustomerModal()">
       </billflow-customer-form-modal>
@@ -226,6 +229,8 @@ export class CustomersPageComponent implements OnInit {
   inactiveKpi = signal(0);
   createdFrom = signal<string | null>(null);
   createdTo = signal<string | null>(null);
+  serverCedulaError = signal<string | null>(null);
+  serverEmailError = signal<string | null>(null);
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Computeds ──────────────────────────────────────────────────────────────
@@ -447,9 +452,90 @@ export class CustomersPageComponent implements OnInit {
 
   openEditModal(customer: CustomerEntity) { this.editingCustomer.set(customer); this.customerModalOpen.set(true); }
 
-  closeCustomerModal() { this.customerModalOpen.set(false); this.editingCustomer.set(null); }
+  private clearServerErrors(): void {
+    this.serverCedulaError.set(null);
+    this.serverEmailError.set(null);
+  }
+
+  closeCustomerModal() { this.clearServerErrors(); this.customerModalOpen.set(false); this.editingCustomer.set(null); }
+
+  private applyDuplicateFieldError(err: unknown): boolean {
+    const text = this.extractErrorText(err).toLowerCase();
+    const status = err instanceof ApiRequestError ? err.status : undefined;
+    const body = err instanceof ApiRequestError ? err.body : undefined;
+    const bodyText = this.extractErrorText(body).toLowerCase();
+    const combined = `${text} ${bodyText}`;
+
+    const structuredErrors = this.extractStructuredDuplicateErrors(body);
+    const structuredMatched = this.applyStructuredDuplicateErrors(structuredErrors);
+    if (structuredMatched) return true;
+
+    const looksDuplicate = status === 409 || /already|exist|unique|duplic|registrad/.test(combined);
+    if (!looksDuplicate) return false;
+
+    const isEmail = /email|correo|mail/.test(combined);
+    const isCedula = /cedula|c[eé]dula|document|dni|id number/.test(combined);
+
+    if (isEmail && !isCedula) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      return true;
+    }
+
+    if (isCedula && !isEmail) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      return true;
+    }
+
+    if (isEmail) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      return true;
+    }
+
+    if (isCedula) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      return true;
+    }
+
+    return false;
+  }
+
+  private applyStructuredDuplicateErrors(errors: Record<string, string>): boolean {
+    let matched = false;
+
+    if (errors.email) {
+      this.serverEmailError.set(this.copy().duplicateEmail);
+      matched = true;
+    }
+
+    if (errors.cedula) {
+      this.serverCedulaError.set(this.copy().duplicateCedula);
+      matched = true;
+    }
+
+    return matched;
+  }
+
+  private extractStructuredDuplicateErrors(body: unknown): Record<string, string> {
+    if (!body || typeof body !== 'object') return {};
+    const value = body as Record<string, unknown>;
+    const errors = value.errors;
+    if (!errors || typeof errors !== 'object') return {};
+    return errors as Record<string, string>;
+  }
+
+  private extractErrorText(err: unknown): string {
+    if (typeof err === 'string') return err;
+    if (err instanceof Error) return err.message || '';
+    if (!err || typeof err !== 'object') return '';
+    const value = err as Record<string, unknown>;
+    if (typeof value.message === 'string') return value.message;
+    if (typeof value.error === 'string') return value.error;
+    if (typeof value.body === 'string') return value.body;
+    return '';
+  }
 
   async handleSave(payload: CreateCustomerPayload) {
+    this.clearServerErrors();
     try {
       const editing = this.editingCustomer();
       if (editing) {
@@ -463,8 +549,10 @@ export class CustomersPageComponent implements OnInit {
       await this.reloadCustomers();
     } catch (err) {
       console.error('[save customer]', err);
-      await this.feedback.alert('error',
-        this.locale() === 'es' ? 'Error al guardar el cliente' : 'Error saving customer');
+      if (!this.applyDuplicateFieldError(err)) {
+        await this.feedback.alert('error',
+          this.locale() === 'es' ? 'Error al guardar el cliente' : 'Error saving customer');
+      }
     }
     void this.reloadKpis();
   }

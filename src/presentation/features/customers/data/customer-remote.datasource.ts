@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../../shared/services/auth-http.service';
 import { resolveApiBaseUrl } from '../../../shared/services/api-base';
+import { ApiRequestError } from '../../employees/employee-api.service';
 
 const API_BASE = resolveApiBaseUrl();
 const USE_MOCK = false;
@@ -58,6 +59,23 @@ const MOCK_CUSTOMERS: BackendCustomer[] = [
 @Injectable({ providedIn: 'root' })
 export class CustomerRemoteDataSource {
   private readonly authHttp = inject(AuthHttpService);
+
+  private async throwApiError(response: Response): Promise<never> {
+    const text = await response.text().catch(() => '');
+    let body: unknown = text;
+
+    try {
+      body = text ? JSON.parse(text) : '';
+    } catch {
+      body = text;
+    }
+
+    const message = typeof body === 'object' && body !== null
+      ? ((body as { message?: string }).message?.trim() || `Request failed: ${response.status}`)
+      : (typeof body === 'string' && body.trim() ? body.trim() : `Request failed: ${response.status}`);
+
+    throw new ApiRequestError(message, response.status, body);
+  }
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -139,6 +157,7 @@ export class CustomerRemoteDataSource {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) await this.throwApiError(res);
     return res.json() as Promise<BackendCustomer>;
   }
 
@@ -172,6 +191,7 @@ export class CustomerRemoteDataSource {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
+    if (!res.ok) await this.throwApiError(res);
     return res.json() as Promise<BackendCustomer>;
   }
 

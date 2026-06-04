@@ -59,6 +59,8 @@ export interface CustomersCopy {
   cedulaError: string;
   phoneError: string;
   emailError: string;
+  duplicateCedula: string;
+  duplicateEmail: string;
   recentActiveClientsTitle: string;
   cedulaPlaceholder: string;
   phonePlaceholder: string;
@@ -131,6 +133,8 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     cedulaError: 'La cédula solo puede contener dígitos',
     phoneError: 'El teléfono solo puede contener dígitos',
     emailError: 'Formato de email inválido',
+    duplicateCedula: 'La cédula ya está registrada',
+    duplicateEmail: 'El correo ya está registrado',
     recentActiveClientsTitle: 'Clientes activos recientes',
     cedulaPlaceholder: 'Ej: 1234567',
     phonePlaceholder: 'Ej: +595 981 123456',
@@ -199,6 +203,8 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     cedulaError: 'ID number must contain digits only',
     phoneError: 'Phone must contain digits only',
     emailError: 'Invalid email format',
+    duplicateCedula: 'This ID number is already registered',
+    duplicateEmail: 'This email is already registered',
     recentActiveClientsTitle: 'Recent active clients',
     cedulaPlaceholder: 'e.g. 1234567',
     phonePlaceholder: 'e.g. +1 555 123 4567',
