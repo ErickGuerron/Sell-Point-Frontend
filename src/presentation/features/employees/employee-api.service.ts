@@ -42,11 +42,39 @@ export interface UpdateUserPayload {
   cedula?: string;
 }
 
+export class ApiRequestError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly body?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiRequestError';
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class EmployeeApiService {
   private readonly authHttp = inject(AuthHttpService);
 
+  private async throwApiError(response: Response): Promise<never> {
+    const text = await response.text().catch(() => '');
+    let body: unknown = text;
+    try {
+      body = text ? JSON.parse(text) : '';
+    } catch {
+      body = text;
+    }
+    const message = typeof body === 'object' && body !== null
+      ? ((body as { message?: string }).message?.trim() || `Request failed: ${response.status}`)
+      : (typeof body === 'string' && body.trim() ? body.trim() : `Request failed: ${response.status}`);
+    throw new ApiRequestError(message, response.status, body);
+  }
+
   private mapUser(u: any): EmployeeRowDto {
+    const status = typeof u.status === 'string' && u.status.trim()
+      ? u.status.trim()
+      : (u.isActive ? 'ACTIVE' : 'INACTIVE');
     return {
       id: u.id,
       employeeId: u.employeeId || '',
@@ -56,7 +84,7 @@ export class EmployeeApiService {
       firstName: u.firstName || '',
       lastName: u.lastName || '',
       cedula: u.cedula ?? u.documentId ?? u.document ?? u.idCard ?? '',
-      status: u.status || (u.isActive ? 'ACTIVE' : 'INACTIVE'),
+      status,
       isActive: u.isActive === true || u.isActive === 1,
       // failedLoginAttempts may not be returned by the new /users endpoint;
       // default to 0 and rely on the unlock endpoint for blocked-user management.
@@ -124,10 +152,7 @@ export class EmployeeApiService {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({ message: 'Request failed' }))) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
+    if (!response.ok) await this.throwApiError(response);
     const body = await response.json();
     return this.mapUser(body);
   }
@@ -139,10 +164,7 @@ export class EmployeeApiService {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    if (!response.ok) {
-      const error = (await response.json().catch(() => ({ message: 'Request failed' }))) as { message?: string };
-      throw new Error(error.message ?? `Request failed: ${response.status}`);
-    }
+    if (!response.ok) await this.throwApiError(response);
     const body = await response.json();
     return this.mapUser(body);
   }

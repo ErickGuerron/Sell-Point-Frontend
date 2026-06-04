@@ -8,8 +8,10 @@ type EmployeesLocale = 'es' | 'en';
 interface EmployeeRowDto {
   id: string;
   employeeId: string;
+  username: string;
   firstName: string;
   lastName: string;
+  cedula?: string;
   email?: string;
   role: string;
   isActive: boolean;
@@ -79,6 +81,31 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
   imports: [CommonModule, FormsModule],
   template: `
     <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+      @if (isEdit && employee) {
+        <div class="md:col-span-2 rounded-2xl border border-outline-variant/50 bg-surface-container-low p-4 shadow-sm">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p class="text-sm font-semibold text-on-surface">Identificación del empleado</p>
+              <p class="text-xs text-on-surface-variant">Solo lectura</p>
+            </div>
+            <span class="inline-flex items-center rounded-full border border-outline-variant/60 bg-surface px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-on-surface-variant">
+              Datos internos
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="rounded-xl border border-outline-variant/40 bg-surface px-4 py-3">
+              <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant">Cédula</p>
+              <p class="mt-1 font-mono text-sm text-on-surface break-all">{{ employee.cedula || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-outline-variant/40 bg-surface px-4 py-3">
+              <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-on-surface-variant">User ID</p>
+              <p class="mt-1 font-mono text-sm text-on-surface break-all">{{ employee.employeeId }}</p>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- First Name -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().firstNameLabel }} <span class="text-error">*</span></label>
@@ -111,38 +138,41 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
           <p class="mt-1 text-xs text-error">{{ lastNameError() }}</p>
         }
       </div>
-      <!-- Cédula -->
-      <div class="md:col-span-1">
-        <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
-        <div class="relative">
-          <input type="text" data-form="cedula" inputmode="numeric"
-            class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': cedulaError()}"
-            [maxLength]="10" placeholder="10 dígitos" [value]="cedula()"
-            (keydown.space)="blockOuterSpace($event)"
-            (keydown)="onNumericKeyDown($event)"
-            (paste)="onNumericPaste($event)"
-            (input)="onCedulaInput($any($event.target).value)" />
-          <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ cedula().length }}/10</span>
+      @if (!isEdit) {
+        <!-- Cédula -->
+        <div class="md:col-span-1">
+          <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().docLabel }} <span class="text-error">*</span></label>
+          <div class="relative">
+            <input type="text" data-form="cedula" inputmode="numeric"
+              class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
+              [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': cedulaDisplayError()}"
+              [maxLength]="10" placeholder="10 dígitos" [value]="cedula()"
+              (keydown.space)="blockOuterSpace($event)"
+              (keydown)="onNumericKeyDown($event)"
+              (paste)="onNumericPaste($event)"
+              (input)="onCedulaInput($any($event.target).value)" />
+            <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ cedula().length }}/10</span>
+          </div>
+          @if (cedulaDisplayError()) {
+            <p class="mt-1 text-xs text-error">{{ cedulaDisplayError() }}</p>
+          }
         </div>
-        @if (cedulaError()) {
-          <p class="mt-1 text-xs text-error">{{ cedulaError() }}</p>
-        }
-      </div>
+      }
+
       <!-- Email -->
       <div class="md:col-span-1">
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().emailLabel }} <span class="text-error">*</span></label>
         <div class="relative">
           <input type="email" data-form="email"
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': emailError()}"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': emailDisplayError()}"
             [maxLength]="255" placeholder="Ej: empleado@ejemplo.com" [value]="email()"
             (keydown.space)="blockOuterSpace($event)"
             (input)="onEmailInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ email().length }}/255</span>
         </div>
-        @if (emailError()) {
-          <p class="mt-1 text-xs text-error">{{ emailError() }}</p>
+        @if (emailDisplayError()) {
+          <p class="mt-1 text-xs text-error">{{ emailDisplayError() }}</p>
         }
       </div>
       <!-- Username -->
@@ -151,14 +181,14 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         <div class="relative">
           <input type="text" data-form="username"
             class="w-full px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant border-outline-variant focus:border-primary focus:ring-primary/20"
-            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': usernameError()}"
+            [ngClass]="{'!border-error !focus:border-error !focus:ring-error/20': usernameDisplayError()}"
             [maxLength]="50" placeholder="Ej: carlos.gonzalez" [value]="username()"
             (keydown.space)="blockOuterSpace($event)"
             (input)="onUsernameInput($any($event.target).value)" />
           <span class="absolute right-3 bottom-2.5 text-[10px] font-mono text-outline pointer-events-none select-none">{{ username().length }}/50</span>
         </div>
-        @if (usernameError()) {
-          <p class="mt-1 text-xs text-error">{{ usernameError() }}</p>
+        @if (usernameDisplayError()) {
+          <p class="mt-1 text-xs text-error">{{ usernameDisplayError() }}</p>
         }
       </div>
       <!-- Role -->
@@ -166,9 +196,9 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().roleLabel }} <span class="text-error">*</span></label>
         <select
           class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all cursor-pointer"
-          [value]="role()" (change)="role.set($any($event.target).value)">
+          [value]="role()" (change)="role.set(normalizeRole($any($event.target).value))">
           <option value="">{{ copy().selectPlaceholder }}</option>
-          @for (opt of roleOptions(); track opt.value) {
+          @for (opt of visibleRoleOptions(); track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
           }
         </select>
@@ -188,7 +218,7 @@ const FORM_COPY: Record<EmployeesLocale, EmployeesFormCopy> = {
         (click)="onCancel.emit()">{{ copy().cancel }}</button>
       <button type="button"
         class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-        [disabled]="!isValid() || submitting()" (click)="onSave.emit(buildPayload())">
+        [disabled]="!canSubmit() || submitting()" (click)="onSave.emit(buildPayload())">
         @if (submitting()) {
           <span class="inline-flex items-center gap-2">
             <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -210,6 +240,12 @@ export class EmployeesFormModalComponent {
   @Input() roleOptions: () => { value: string; label: string }[] = () => [];
   @Input() submitting = () => false;
   @Input() defaultBranchId: () => string = () => '';
+  @Input() serverCedulaError = () => '';
+  @Input() serverEmailError = () => '';
+  @Input() serverUsernameError = () => '';
+  @Input() clearServerCedulaError: () => void = () => {};
+  @Input() clearServerEmailError: () => void = () => {};
+  @Input() clearServerUsernameError: () => void = () => {};
 
   @Output() onCancel = new EventEmitter<void>();
   @Output() onSave = new EventEmitter<{
@@ -264,10 +300,10 @@ export class EmployeesFormModalComponent {
     if (this.employee) {
       this.firstName.set(this.employee.firstName);
       this.lastName.set(this.employee.lastName);
-      this.cedula.set(this.employee.employeeId.replace('EMP-', ''));
+      this.cedula.set(this.employee.cedula ?? '');
       this.email.set(this.employee.email ?? '');
-      this.username.set(this.employee.email?.split('@')[0] ?? '');
-      this.role.set(this.employee.role);
+      this.username.set(this.employee.username ?? '');
+      this.role.set(this.normalizeRole(this.employee.role));
     }
     this.branchId.set(this.defaultBranchId());
     this.captureSnapshot();
@@ -285,6 +321,26 @@ export class EmployeesFormModalComponent {
 
   readonly copy = computed(() => FORM_COPY[this.localeState()]);
 
+  private normalizeRole(value: string | null | undefined): string {
+    return typeof value === 'string' ? value.trim().toUpperCase() : '';
+  }
+
+  readonly visibleRoleOptions = computed(() => {
+    const options = [...this.roleOptions()];
+    if (!this.isEdit || !this.employee?.role) return options;
+
+    const currentRole = this.normalizeRole(this.employee.role);
+    if (!currentRole) return options;
+    if (options.some((opt) => this.normalizeRole(opt.value) === currentRole)) return options;
+
+    return [{ value: currentRole, label: currentRole }, ...options];
+  });
+
+  readonly canSubmit = computed(() => {
+    if (!this.isValid()) return false;
+    return this.isEdit ? this.formHasChanges() : true;
+  });
+
   // ── Input handlers ────────────────────────────────────────────────────────
 
   onFirstNameInput(value: string) {
@@ -300,16 +356,19 @@ export class EmployeesFormModalComponent {
   onCedulaInput(value: string) {
     // Solo dígitos, máximo 10
     this.cedula.set(value.replace(/\D/g, '').slice(0, 10));
+    this.clearServerCedulaError();
   }
 
   onEmailInput(value: string) {
     // Los emails no pueden contener espacios en ninguna posición
     this.email.set(value.replace(/\s/g, ''));
+    this.clearServerEmailError();
   }
 
   onUsernameInput(value: string) {
     // Sin espacios en el username
     this.username.set(value.replace(/\s/g, ''));
+    this.clearServerUsernameError();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -382,16 +441,19 @@ export class EmployeesFormModalComponent {
     if (!v) return '';
     return /^\d{10}$/.test(v) ? '' : FORM_COPY[this.localeState()].cedulaExact10;
   });
+  readonly cedulaDisplayError = computed(() => this.cedulaError() || this.serverCedulaError());
   readonly emailError = computed(() => {
     const v = this.email();
     if (!v) return '';
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? '' : FORM_COPY[this.localeState()].emailInvalidFormat;
   });
+  readonly emailDisplayError = computed(() => this.emailError() || this.serverEmailError());
   readonly usernameError = computed(() => {
     const v = this.username();
     if (!v) return '';
     return /\s/.test(v) ? FORM_COPY[this.localeState()].usernameNoSpaces : '';
   });
+  readonly usernameDisplayError = computed(() => this.usernameError() || this.serverUsernameError());
 
   isValid() {
     return (

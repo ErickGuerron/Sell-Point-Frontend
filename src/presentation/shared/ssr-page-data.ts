@@ -239,6 +239,9 @@ function daysBetween(start: Date, end: Date): number {
 }
 
 function mapEmployee(raw: any): EmployeeRowDto {
+  const status = typeof raw.status === 'string' && raw.status.trim()
+    ? raw.status.trim()
+    : (raw.isActive ? 'ACTIVE' : 'INACTIVE');
   return {
     id: raw.id,
     employeeId: raw.employeeId || '',
@@ -248,7 +251,7 @@ function mapEmployee(raw: any): EmployeeRowDto {
     firstName: raw.firstName || '',
     lastName: raw.lastName || '',
     cedula: raw.cedula ?? raw.documentId ?? raw.document ?? raw.idCard ?? '',
-    status: raw.status || (raw.isActive ? 'ACTIVE' : 'INACTIVE'),
+    status,
     isActive: raw.isActive === true || raw.isActive === 1,
     failedLoginAttempts: raw.failedLoginAttempts ?? 0,
     createdAt: raw.createdAt || '',

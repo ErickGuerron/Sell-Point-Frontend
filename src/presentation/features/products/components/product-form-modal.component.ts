@@ -20,6 +20,8 @@ import type { ProductEntity, CreateProductPayload, UpdateProductPayload } from '
 import type { CategoryDto } from '../product-api.service';
 import type { ProductsCopy } from '../i18n/products.translations';
 
+type MoneyField = 'cost' | 'sale';
+
 @Component({
   selector: 'billflow-product-form-modal',
   standalone: true,
@@ -100,16 +102,16 @@ import type { ProductsCopy } from '../i18n/products.translations';
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.costPriceLabel }} <span class="text-error">*</span></label>
           <input
-            type="number"
+            type="text"
             inputmode="decimal"
             autocomplete="off"
-            min="0"
-            step="0.01"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
-            [ngModel]="formCostPrice()"
-            (keydown)="onMoneyKeyDown($event)"
-            (paste)="onMoneyPaste($event)"
+            [ngModel]="formCostPriceText()"
+            (keydown)="onMoneyKeyDown($event, 'cost')"
+            (beforeinput)="onMoneyBeforeInput($event, 'cost')"
+            (paste)="onMoneyPaste($event, 'cost')"
+            (compositionend)="onMoneyCompositionEnd($event, 'cost')"
             (ngModelChange)="onMoneyInput($event, 'cost')"
           />
           <p *ngIf="costPriceZero()" class="mt-1 text-[11px] text-error">{{ locale === 'es' ? 'El precio de costo debe ser mayor que 0' : 'Cost price must be greater than 0' }}</p>
@@ -119,16 +121,16 @@ import type { ProductsCopy } from '../i18n/products.translations';
         <div class="md:col-span-1">
           <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy.salePriceLabel }} <span class="text-error">*</span></label>
           <input
-            type="number"
+            type="text"
             inputmode="decimal"
             autocomplete="off"
-            min="0"
-            step="0.01"
             class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
             placeholder="0.00"
-            [ngModel]="formSalePrice()"
-            (keydown)="onMoneyKeyDown($event)"
-            (paste)="onMoneyPaste($event)"
+            [ngModel]="formSalePriceText()"
+            (keydown)="onMoneyKeyDown($event, 'sale')"
+            (beforeinput)="onMoneyBeforeInput($event, 'sale')"
+            (paste)="onMoneyPaste($event, 'sale')"
+            (compositionend)="onMoneyCompositionEnd($event, 'sale')"
             (ngModelChange)="onMoneyInput($event, 'sale')"
           />
           <p *ngIf="recommendedSaleRange()" class="mt-1 text-[11px] text-outline-variant">
@@ -204,6 +206,8 @@ export class ProductFormModalComponent implements OnChanges {
   formDescription = signal('');
   formSalePrice = signal<number | null>(null);
   formCostPrice = signal<number | null>(null);
+  formSalePriceText = signal('');
+  formCostPriceText = signal('');
   formInitialStock = signal<number | null>(null);
   formCategoryId = signal('');
 
@@ -360,25 +364,9 @@ export class ProductFormModalComponent implements OnChanges {
     return Number.isFinite(parsed) ? parsed : null;
   }
 
-  onMoneyKeyDown(event: KeyboardEvent): void {
+  onMoneyKeyDown(event: KeyboardEvent, field: MoneyField): void {
     const target = event.target as HTMLInputElement | null;
-    if (target && (event.key === '.' || event.key === ',')) {
-      const current = target.value ?? '';
-      const selectionStart = target.selectionStart ?? 0;
-      const selectionEnd = target.selectionEnd ?? 0;
-      const hasSelection = selectionStart !== selectionEnd;
-
-      if (current.trim().length === 0 || hasSelection) {
-        event.preventDefault();
-        target.value = '0.';
-        target.dispatchEvent(new Event('input', { bubbles: true }));
-        queueMicrotask(() => {
-          const caret = target.value.length;
-          try { target.setSelectionRange(caret, caret); } catch { /* ignore */ }
-        });
-        return;
-      }
-    }
+    if (!target) return;
 
     const allowedKeys = new Set([
       'Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -387,24 +375,87 @@ export class ProductFormModalComponent implements OnChanges {
     if (allowedKeys.has(event.key)) return;
     if (event.ctrlKey || event.metaKey) return;
 
-    if (/^[0-9]$/.test(event.key)) return;
-    if (event.key === '.' || event.key === ',') return;
+    if (event.key === '.' || event.key === ',') {
+      const current = target.value ?? '';
+      const selectionStart = target.selectionStart ?? 0;
+      const selectionEnd = target.selectionEnd ?? 0;
+      const hasSelection = selectionStart !== selectionEnd;
+
+      if (!current.trim().length && !hasSelection) {
+        event.preventDefault();
+        target.value = '0.';
+        this.writeMoneyField(field, target.value);
+        queueMicrotask(() => {
+          try { target.setSelectionRange(2, 2); } catch { /* ignore */ }
+        });
+        return;
+      }
+
+      if (this.shouldBlockMoneyInsertion(target, event.key)) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (/^[0-9]$/.test(event.key)) {
+      if (this.shouldBlockMoneyInsertion(target, event.key)) {
+        event.preventDefault();
+      }
+      return;
+    }
 
     event.preventDefault();
   }
 
-  onMoneyInput(value: string, field: 'sale' | 'cost'): void {
-    const normalized = this.normalizeDecimal(value);
-    const parsed = normalized === '' ? null : Number(normalized);
-    if (field === 'sale') this.formSalePrice.set(parsed);
-    else this.formCostPrice.set(parsed);
+  onMoneyBeforeInput(event: InputEvent, field: MoneyField): void {
+    const target = event.target as HTMLInputElement | null;
+    const data = event.data ?? '';
+    if (!target || !data) return;
+
+    if ((event.inputType === 'insertText' || event.inputType === 'insertCompositionText') && this.shouldBlockMoneyInsertion(target, data)) {
+      event.preventDefault();
+      return;
+    }
+
+    if ((event.inputType === 'insertText' || event.inputType === 'insertCompositionText') && (data === '.' || data === ',')) {
+      const current = target.value ?? '';
+      if (!current.trim().length) {
+        event.preventDefault();
+        target.value = '0.';
+        this.writeMoneyField(field, target.value);
+        queueMicrotask(() => {
+          try { target.setSelectionRange(2, 2); } catch { /* ignore */ }
+        });
+      }
+    }
   }
 
-  onMoneyPaste(event: ClipboardEvent): void {
+  onMoneyInput(value: string, field: MoneyField): void {
+    this.writeMoneyField(field, String(value ?? ''));
+  }
+
+  onMoneyPaste(event: ClipboardEvent, field: MoneyField): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+
     const text = event.clipboardData?.getData('text') ?? '';
     if (!/^\s*[0-9.,]+\s*$/.test(text)) {
       event.preventDefault();
+      return;
     }
+
+    event.preventDefault();
+    const nextValue = this.insertMoneyText(target, text);
+    this.writeMoneyField(field, nextValue);
+    target.value = this.getMoneyFieldText(field);
+  }
+
+  onMoneyCompositionEnd(event: CompositionEvent, field: MoneyField): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+
+    this.writeMoneyField(field, target.value ?? '');
+    target.value = this.getMoneyFieldText(field);
   }
 
   onStockKeyDown(event: KeyboardEvent): void {
@@ -445,12 +496,62 @@ export class ProductFormModalComponent implements OnChanges {
     return fraction.length > 0 ? `${integer}.${fraction}` : integer;
   }
 
+  private normalizeMoneyText(value: string): string {
+    const raw = String(value ?? '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+    if (!raw) return '';
+
+    const parts = raw.split('.');
+    const integer = parts[0] || '0';
+    const fraction = parts.slice(1).join('').slice(0, 2);
+    if (raw.endsWith('.') && fraction.length === 0) return `${integer}.`;
+
+    return fraction.length > 0 ? `${integer}.${fraction}` : integer;
+  }
+
+  private formatMoneyInput(value: number | null): string {
+    return value === null || !Number.isFinite(value) ? '' : String(value);
+  }
+
+  private getMoneyFieldText(field: MoneyField): string {
+    return field === 'sale' ? this.formSalePriceText() : this.formCostPriceText();
+  }
+
+  private writeMoneyField(field: MoneyField, value: string): void {
+    const displayValue = this.normalizeMoneyText(value);
+    const normalizedValue = this.normalizeDecimal(displayValue);
+    const parsedValue = normalizedValue === '' ? null : Number(normalizedValue);
+
+    if (field === 'sale') {
+      this.formSalePriceText.set(displayValue);
+      this.formSalePrice.set(parsedValue);
+      return;
+    }
+
+    this.formCostPriceText.set(displayValue);
+    this.formCostPrice.set(parsedValue);
+  }
+
+  private shouldBlockMoneyInsertion(target: HTMLInputElement, insertion: string): boolean {
+    const current = target.value ?? '';
+    const selectionStart = target.selectionStart ?? current.length;
+    const selectionEnd = target.selectionEnd ?? selectionStart;
+    const nextValue = this.insertMoneyText(target, insertion, selectionStart, selectionEnd);
+    return this.normalizeMoneyText(nextValue) === this.normalizeMoneyText(current);
+  }
+
+  private insertMoneyText(target: HTMLInputElement, insertion: string, selectionStart = target.selectionStart ?? 0, selectionEnd = target.selectionEnd ?? selectionStart): string {
+    const current = target.value ?? '';
+    return `${current.slice(0, selectionStart)}${insertion}${current.slice(selectionEnd)}`;
+  }
+
   private syncEditState(product: ProductEntity): void {
     this.formCode.set(product.code);
     this.formName.set(product.name);
     this.formDescription.set(product.description ?? '');
     this.formSalePrice.set(product.salePrice);
     this.formCostPrice.set(product.costPrice);
+    this.formSalePriceText.set(this.formatMoneyInput(product.salePrice));
+    this.formCostPriceText.set(this.formatMoneyInput(product.costPrice));
     this.formInitialStock.set(null);
     this.formCategoryId.set(product.categoryId);
     this.setInitialSnapshot({
@@ -470,6 +571,8 @@ export class ProductFormModalComponent implements OnChanges {
     this.formDescription.set('');
     this.formSalePrice.set(null);
     this.formCostPrice.set(null);
+    this.formSalePriceText.set('');
+    this.formCostPriceText.set('');
     this.formInitialStock.set(0);
     this.formCategoryId.set('');
     this.setInitialSnapshot({
@@ -507,6 +610,8 @@ export class ProductFormModalComponent implements OnChanges {
     this.formDescription.set('');
     this.formSalePrice.set(null);
     this.formCostPrice.set(null);
+    this.formSalePriceText.set('');
+    this.formCostPriceText.set('');
     this.formInitialStock.set(0);
     this.formCategoryId.set('');
   }

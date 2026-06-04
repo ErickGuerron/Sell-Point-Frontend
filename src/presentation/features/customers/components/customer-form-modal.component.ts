@@ -3,7 +3,6 @@ import { FormsModule } from '@angular/forms';
 import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { BillflowModalShellComponent } from '../../../shared/components/billflow-modal-shell.component';
 import { LocaleService } from '../../../shared/services/locale.service';
-import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 import type { CustomerEntity, CreateCustomerPayload } from '../domain/customer.entity';
 import type { CustomersCopy } from '../i18n/customers.translations';
 
@@ -34,7 +33,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="text"
               class="w-full pr-16 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="nameFieldError() === 'firstName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
+              [ngClass]="nameClass('firstName')"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Carlos' : 'e.g. John'"
               [ngModel]="formFirstName()"
@@ -46,9 +45,6 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formFirstName().length }}/100</span
             >
           </div>
-          @if (nameFieldError() === 'firstName') {
-            <p class="mt-1 text-xs text-error">{{ copy.nameError }}</p>
-          }
         </div>
 
         <!-- Last Name -->
@@ -60,7 +56,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="text"
               class="w-full pr-16 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="nameFieldError() === 'lastName' ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
+              [ngClass]="nameClass('lastName')"
               [maxLength]="100"
               [placeholder]="locale() === 'es' ? 'Ej: Rodríguez' : 'e.g. Doe'"
               [ngModel]="formLastName()"
@@ -72,9 +68,6 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formLastName().length }}/100</span
             >
           </div>
-          @if (nameFieldError() === 'lastName') {
-            <p class="mt-1 text-xs text-error">{{ copy.lastNameError }}</p>
-          }
         </div>
 
         <!-- Document (Cédula) -->
@@ -86,10 +79,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="text"
               class="w-full pr-14 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="[
-                cedulaDisabled() ? 'cursor-not-allowed opacity-60' : '',
-                formCedulaError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'
-              ].join(' ')"
+              [ngClass]="[cedulaDisabled() ? 'cursor-not-allowed opacity-60' : '', fieldClass('cedula'), cedulaDisplayError() ? '!border-error !focus:border-error !focus:ring-error/20' : ''].join(' ')"
               [maxLength]="10"
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formCedula()"
@@ -103,8 +93,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formCedula().length }}/10</span
             >
           </div>
-          @if (formCedulaError()) {
-            <p class="mt-1 text-xs text-error">{{ formCedulaError() }}</p>
+          @if (cedulaDisplayError()) {
+            <p class="mt-1 text-xs text-error">{{ cedulaDisplayError() }}</p>
           }
         </div>
 
@@ -115,7 +105,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="tel"
               class="w-full pr-14 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="formPhoneError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
+              [ngClass]="fieldClass('phone')"
               [maxLength]="10"
               [placeholder]="locale() === 'es' ? '10 dígitos' : '10 digits'"
               [ngModel]="formPhone()"
@@ -128,9 +118,6 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formPhone().length }}/10</span
             >
           </div>
-          @if (formPhoneError()) {
-            <p class="mt-1 text-xs text-error">{{ formPhoneError() }}</p>
-          }
         </div>
 
         <!-- Address -->
@@ -141,7 +128,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
           <div class="relative">
             <input
               type="text"
-              class="w-full pr-20 px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
+              class="w-full pr-20 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
               [maxLength]="200"
               placeholder="Ej: Av. Principal 123, Asunción"
               [ngModel]="formAddress()"
@@ -161,7 +148,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
             <input
               type="email"
               class="w-full pr-20 px-4 py-2.5 bg-surface border rounded-xl text-sm text-on-surface focus:outline-none focus:ring-2 transition-all placeholder:text-outline-variant"
-              [ngClass]="formEmailError() ? 'border-error focus:border-error focus:ring-error/20' : 'border-outline-variant focus:border-primary focus:ring-primary/20'"
+              [ngClass]="[fieldClass('email'), emailDisplayError() ? '!border-error !focus:border-error !focus:ring-error/20' : ''].join(' ')"
               [maxLength]="255"
               [placeholder]="locale() === 'es' ? 'Ej: carlos@ejemplo.com' : 'e.g. john@example.com'"
               [ngModel]="formEmail()"
@@ -172,8 +159,8 @@ import type { CustomersCopy } from '../i18n/customers.translations';
               >{{ formEmail().length }}/255</span
             >
           </div>
-          @if (formEmailError()) {
-            <p class="mt-1 text-xs text-error">{{ formEmailError() }}</p>
+          @if (emailDisplayError()) {
+            <p class="mt-1 text-xs text-error">{{ emailDisplayError() }}</p>
           }
         </div>
       </div>
@@ -200,11 +187,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
 })
 export class CustomerFormModalComponent {
   private readonly localeService = inject(LocaleService);
-  private readonly feedback = inject(UiFeedbackService);
   protected readonly locale = this.localeService.locale;
-
-  // ── Req 1.8: debounce toast per-field (100ms) ─────────────────────
-  private readonly lastToastTimestamps: Record<string, number> = {};
 
   // Spec 3 R6: viewChild to the shell so the host's Cancel button can route
   // through the shell's `requestClose()` (which owns the unsaved-changes guard).
@@ -220,6 +203,14 @@ export class CustomerFormModalComponent {
   get editing(): CustomerEntity | null { return this._editing(); }
 
   @Input({ required: true }) copy!: CustomersCopy;
+
+  private readonly _serverCedulaError = signal<string | null>(null);
+  @Input() set serverCedulaError(value: string | null) { this._serverCedulaError.set(value); }
+  get serverCedulaError(): string | null { return this._serverCedulaError(); }
+
+  private readonly _serverEmailError = signal<string | null>(null);
+  @Input() set serverEmailError(value: string | null) { this._serverEmailError.set(value); }
+  get serverEmailError(): string | null { return this._serverEmailError(); }
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() save = new EventEmitter<CreateCustomerPayload>();
@@ -247,9 +238,14 @@ export class CustomerFormModalComponent {
   private readonly initialAddress = signal('');
 
   readonly formValid = computed(() =>
-    this.formFirstName().trim().length > 0
-    && this.formLastName().trim().length > 0
-    && this.formCedula().trim().length >= 6
+    this.isFieldValid('firstName')
+    && this.isFieldValid('lastName')
+    && this.isFieldValid('cedula')
+    && this.formPhone().trim().length > 0
+    && this.isFieldValid('phone')
+    && this.formAddress().trim().length > 0
+    && this.formEmail().trim().length > 0
+    && !this.formEmailError()
   );
 
   readonly cedulaDisabled = computed(() => this.editing !== null);
@@ -259,6 +255,8 @@ export class CustomerFormModalComponent {
     const raw = this.lastRawCedula();
     return raw && raw !== this.formCedula() ? this.copy.cedulaError : null;
   });
+
+  readonly cedulaDisplayError = computed(() => (this.formCedulaError() ?? '') || (this.serverCedulaError ?? ''));
 
   readonly formPhoneError = computed(() => {
     const raw = this.lastRawPhone();
@@ -270,6 +268,8 @@ export class CustomerFormModalComponent {
     if (!v) return null;
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? null : this.copy.emailError;
   });
+
+  readonly emailDisplayError = computed(() => (this.formEmailError() ?? '') || (this.serverEmailError ?? ''));
 
   // ── Spec 3 R6: dirty signal — true when any form field diverges from ──
   // the snapshot captured at modal-open time.
@@ -318,6 +318,8 @@ export class CustomerFormModalComponent {
     this.close.emit();
     this.editing = null;
     this.resetForm();
+    this._serverCedulaError.set(null);
+    this._serverEmailError.set(null);
   }
 
   /**
@@ -355,18 +357,19 @@ export class CustomerFormModalComponent {
     this.formEmail.set('');
     this.formAddress.set('');
     this.nameFieldError.set(null);
+    this.lastRawCedula.set('');
+    this.lastRawPhone.set('');
   }
 
   // ── Req 1.8: debounced toast helper ──────────────────────────────────
   private showErrorToast(message: string, fieldKey: string): void {
-    const now = Date.now();
-    if (now - (this.lastToastTimestamps[fieldKey] ?? 0) < 100) return;
-    this.lastToastTimestamps[fieldKey] = now;
-    this.feedback.toast('error', message);
+    void message;
+    void fieldKey;
   }
 
   // ── Req 5 + Req 2: unified keydown handler for name fields ─────────
   onNameKeyDown(event: KeyboardEvent, target: 'firstName' | 'lastName'): void {
+    void target;
     const allowedKeys = new Set([
       'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
       'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -375,30 +378,16 @@ export class CustomerFormModalComponent {
     if (allowedKeys.has(event.key)) return;
     if (event.ctrlKey || event.metaKey) return;
 
-    const input = event.target as HTMLInputElement | null;
-    if (!input) return;
-    const errorMsg = target === 'firstName' ? this.copy.nameError : this.copy.lastNameError;
-
     if (event.key === ' ') {
       // Req 2.2: delegate leading space to blockOuterSpace
       this.blockOuterSpace(event);
-      // Req 2.3: middle/end space → toast
-      if (!event.defaultPrevented) {
-        event.preventDefault();
-        this.showErrorToast(errorMsg, target);
-        this.nameFieldError.set(target);
-      }
+      if (!event.defaultPrevented) event.preventDefault();
       return;
     }
 
     // Req 5.2: validate against name char set
     if (!/^[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]$/.test(event.key)) {
       event.preventDefault();
-      this.nameFieldError.set(target);
-      // Req 1.1: toast only when field is at max length
-      if (input.value.length >= 100) {
-        this.showErrorToast(errorMsg, target);
-      }
     }
   }
 
@@ -444,9 +433,8 @@ export class CustomerFormModalComponent {
         return;
       }
 
-      // Middle/end space → block with toast
+      // Middle/end space → silent block
       event.preventDefault();
-      this.showErrorToast(this.copy.emailError, 'email');
     }
   }
 
@@ -455,8 +443,6 @@ export class CustomerFormModalComponent {
     const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]/g, '').slice(0, 100);
     if (target === 'firstName') this.formFirstName.set(cleaned);
     else this.formLastName.set(cleaned);
-    if (value !== cleaned) this.nameFieldError.set(target);
-    else if (this.nameFieldError() === target) this.nameFieldError.set(null);
   }
 
   onNumericInput(value: string, target: 'cedula' | 'phone'): void {
@@ -491,6 +477,7 @@ export class CustomerFormModalComponent {
 
   // ── Req 1.2 + 4: numeric keydown with toast for full-field / space ──
   onNumericKeyDown(event: KeyboardEvent, fieldType: 'cedula' | 'phone'): void {
+    void fieldType;
     const allowedKeys = new Set([
       'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
       'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -499,19 +486,6 @@ export class CustomerFormModalComponent {
     if (allowedKeys.has(event.key)) return;
     if (event.ctrlKey || event.metaKey) return;
     if (/^[0-9]$/.test(event.key)) return;
-
-    const errorMsg = fieldType === 'cedula' ? this.copy.cedulaError : this.copy.phoneError;
-
-    // Req 4.1: space at middle/end → toast (leading space handled by blockOuterSpace)
-    if (event.key === ' ' && !event.defaultPrevented) {
-      this.showErrorToast(errorMsg, fieldType);
-    } else if (event.key !== ' ') {
-      // Req 1.2: invalid char at max length → toast
-      const input = event.target as HTMLInputElement | null;
-      if (input && input.value.length >= 10) {
-        this.showErrorToast(errorMsg, fieldType);
-      }
-    }
 
     event.preventDefault();
   }
@@ -529,5 +503,36 @@ export class CustomerFormModalComponent {
         this.lastRawPhone.set(text);
       }
     }
+  }
+
+  isFieldValid(field: 'firstName' | 'lastName' | 'cedula' | 'phone' | 'email'): boolean {
+    switch (field) {
+      case 'firstName':
+        return /^[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+$/.test(this.formFirstName());
+      case 'lastName':
+        return /^[a-zA-ZáéíóúñüÁÉÍÓÚÑÜ]+$/.test(this.formLastName());
+      case 'cedula':
+        return /^\d{10}$/.test(this.formCedula());
+      case 'phone':
+        return /^\d{10}$/.test(this.formPhone());
+      case 'email':
+        return !!this.formEmail() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.formEmail());
+      default:
+        return false;
+    }
+  }
+
+  fieldClass(field: 'firstName' | 'lastName' | 'cedula' | 'phone' | 'email'): string {
+    if (field === 'email' && this.formEmail() && !this.isFieldValid('email')) {
+      return 'border-error focus:border-error focus:ring-error/20';
+    }
+    if (this.isFieldValid(field)) {
+      return 'border-success focus:border-success focus:ring-success/20';
+    }
+    return 'border-outline-variant focus:border-primary focus:ring-primary/20';
+  }
+
+  nameClass(field: 'firstName' | 'lastName'): string {
+    return this.fieldClass(field);
   }
 }

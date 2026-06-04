@@ -8,8 +8,8 @@ import { FormsModule } from '@angular/forms';
   imports: [CommonModule, FormsModule],
   template: `
     <div class="flex flex-row items-center gap-3">
-      <div class="flex flex-col gap-1">
-        <label class="text-[10px] font-label-bold uppercase tracking-[0.1em] text-on-surface-variant">
+      <div class="relative w-36">
+        <label class="absolute left-0 top-0 -translate-y-[115%] text-[10px] font-label-bold uppercase tracking-[0.1em] leading-none text-on-surface-variant">
           {{ fromLabel }}
         </label>
         <div class="relative flex items-center">
@@ -23,10 +23,10 @@ import { FormsModule } from '@angular/forms';
         </div>
       </div>
 
-      <span class="text-outline-variant mt-5">—</span>
+      <span class="text-outline-variant">—</span>
 
-      <div class="flex flex-col gap-1">
-        <label class="text-[10px] font-label-bold uppercase tracking-[0.1em] text-on-surface-variant">
+      <div class="relative w-36">
+        <label class="absolute left-0 top-0 -translate-y-[115%] text-[10px] font-label-bold uppercase tracking-[0.1em] leading-none text-on-surface-variant">
           {{ toLabel }}
         </label>
         <div class="relative flex items-center">
