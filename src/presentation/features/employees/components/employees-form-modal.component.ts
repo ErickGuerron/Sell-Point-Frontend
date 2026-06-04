@@ -459,7 +459,7 @@ export class EmployeesFormModalComponent {
     return (
       this.firstName() && !this.firstNameError() &&
       this.lastName() && !this.lastNameError() &&
-      this.cedula() && !this.cedulaError() &&
+      (this.isEdit || (this.cedula() && !this.cedulaError())) &&
       this.email() && !this.emailError() &&
       this.username() && !this.usernameError() &&
       this.role()

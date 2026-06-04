@@ -176,7 +176,7 @@ import type { CustomersCopy } from '../i18n/customers.translations';
         <button
           type="button"
           class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-          [disabled]="!formValid()"
+          [disabled]="!canSubmit()"
           (click)="onSave()"
         >
           {{ editing ? (locale() === 'es' ? 'Guardar Cambios' : 'Save Changes') : (locale() === 'es' ? 'Guardar Cliente' : 'Save Customer') }}
@@ -247,6 +247,11 @@ export class CustomerFormModalComponent {
     && this.formEmail().trim().length > 0
     && !this.formEmailError()
   );
+
+  readonly canSubmit = computed(() => {
+    if (!this.formValid()) return false;
+    return this.editing ? this.formHasChanges() : true;
+  });
 
   readonly cedulaDisabled = computed(() => this.editing !== null);
 
@@ -334,7 +339,7 @@ export class CustomerFormModalComponent {
 
   // ── Save ───────────────────────────────────────────────────────────────
   onSave(): void {
-    if (!this.formValid()) return;
+    if (!this.canSubmit()) return;
 
     const payload: CreateCustomerPayload = {
       firstName: this.formFirstName().trim(),
