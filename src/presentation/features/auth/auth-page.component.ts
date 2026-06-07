@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import type { OnDestroy, OnInit } from '@angular/core';
 import { HttpErrorResponse, provideHttpClient, withFetch } from '@angular/common/http';
@@ -98,7 +98,7 @@ import { writeBillflowSessionCookie } from '../../shared/billflow-session';
           </ng-container>
 
           <div class="app-auth-visual-content">
-            <h2 class="font-display text-display app-auth-visual-title leading-tight" [innerHTML]="copy().panel.title"></h2>
+            <h2 class="font-display text-display app-auth-visual-title leading-tight">{{ copy().panel.title }}</h2>
             <p class="font-body-lg text-body-lg app-auth-visual-text">{{ copy().panel.description }}</p>
             <div class="app-auth-visual-indicators">
               <button
@@ -463,3 +463,4 @@ const session = await this.authApi.login({
   }
 
 }
+
