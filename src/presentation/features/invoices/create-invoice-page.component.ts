@@ -140,18 +140,19 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
                 <span class="material-symbols-outlined text-[40px] text-outline-variant">person_search</span>
                 <div>
                   <p class="text-sm font-medium text-on-surface-variant">{{ locale() === 'es' ? 'Sin cliente asignado' : 'No customer assigned' }}</p>
-                  <p class="text-xs text-outline mt-0.5">{{ locale() === 'es' ? 'Buscá un cliente o emití como venta de mostrador.' : 'Search for a customer or issue as a walk-in sale.' }}</p>
+                  <p class="text-xs text-outline mt-0.5">{{ locale() === 'es' ? 'Busque un cliente o emita como venta de mostrador.' : 'Search for a customer or issue as a walk-in sale.' }}</p>
                 </div>
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm flex-1 justify-center"
                     (click)="showCustomerModal.set(true)"
                   >
                     <span class="material-symbols-outlined text-[18px]">person_search</span>
                     {{ locale() === 'es' ? 'Añadir cliente' : 'Add customer' }}
                   </button>
                   <button
+                    *ngIf="permissions.isAdmin()"
                     type="button"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container-low transition-all shadow-sm"
                     (click)="showNewCustomerModal.set(true)"

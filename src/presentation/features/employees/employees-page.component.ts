@@ -447,7 +447,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <ng-container *isAdmin>
+                <ng-container *appIsAdmin>
                   <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
                     <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
                   </button>
@@ -562,7 +562,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
         <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
         <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
       </a>
-      <ng-container *isAdmin>
+      <ng-container *appIsAdmin>
         <div class="app-dashboard-mobile-fab-wrap">
           <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="openCreateModal()">
             <span class="material-symbols-outlined text-[24px]">add</span>
@@ -825,7 +825,7 @@ export class EmployeesPageComponent implements OnInit {
       console.error('[employees] load error:', err);
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los empleados' : 'Could not load employees',
-        this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
+        this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
     }

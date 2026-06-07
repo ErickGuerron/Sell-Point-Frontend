@@ -172,14 +172,16 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
                   </a>
 
                   <!-- New -->
-                  <button
-                    type="button"
-                    class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
-                    (click)="openCreateModal()"
-                  >
-                    <span class="material-symbols-outlined text-[18px]">add</span>
-                    {{ copy().newCategory }}
-                  </button>
+                  @if (permissions.isAdmin()) {
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+                      (click)="openCreateModal()"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">add</span>
+                      {{ copy().newCategory }}
+                    </button>
+                  }
 
                   <!-- Search (empujado a la derecha, ancho fijo sin flex) -->
                   <div class="relative w-56 ml-auto">
@@ -201,6 +203,7 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
                 [loading]="loading()"
                 [statusActive]="locale() === 'es' ? 'ACTIVO' : 'ACTIVE'"
                 [statusInactive]="locale() === 'es' ? 'INACTIVO' : 'INACTIVE'"
+                [isAdmin]="permissions.isAdmin()"
                 (edit)="openEditModal($event)"
                 (toggle)="toggleActive($event)"
               ></billflow-category-table>
@@ -320,13 +323,15 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
           }
 
           <div class="app-dashboard-mobile-fab-wrap">
-            <button
-              type="button"
-              class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface"
-              (click)="openCreateModal()"
-            >
-              <span class="material-symbols-outlined text-[24px]">add</span>
-            </button>
+            @if (permissions.isAdmin()) {
+              <button
+                type="button"
+                class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface"
+                (click)="openCreateModal()"
+              >
+                <span class="material-symbols-outlined text-[24px]">add</span>
+              </button>
+            }
           </div>
         </nav>
       </div>
@@ -460,7 +465,7 @@ export class CategoriesPageComponent implements OnInit {
       await this.feedback.alert(
         'error',
         this.locale() === 'es' ? 'No se pudieron cargar las categorías' : 'Could not load categories',
-        this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.',
+        this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.',
       );
     } finally {
       this.loading.set(false);

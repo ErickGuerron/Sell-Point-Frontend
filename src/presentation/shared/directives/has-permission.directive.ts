@@ -1,7 +1,6 @@
 import {
   Directive,
   Input,
-  OnInit,
   TemplateRef,
   ViewContainerRef,
   inject,
@@ -22,7 +21,7 @@ import { PermissionsService, type Permission } from '../services/permissions.ser
   selector: '[hasPermission]',
   standalone: true,
 })
-export class HasPermissionDirective implements OnInit {
+export class HasPermissionDirective {
   private readonly templateRef = inject(TemplateRef<unknown>);
   private readonly viewContainer = inject(ViewContainerRef);
   private readonly permissions = inject(PermissionsService);
@@ -67,13 +66,13 @@ export class HasPermissionDirective implements OnInit {
  * Structural directive that shows elements only when the current user IS admin.
  *
  * @usage
- *   <button *isAdmin>Panel de Admin</button>
+ *   <button *appIsAdmin>Panel de Admin</button>
  */
 @Directive({
-  selector: '[isAdmin]',
+  selector: '[appIsAdmin]',
   standalone: true,
 })
-export class IsAdminDirective implements OnInit {
+export class IsAdminDirective {
   private readonly templateRef = inject(TemplateRef<unknown>);
   private readonly viewContainer = inject(ViewContainerRef);
   private readonly permissions = inject(PermissionsService);
@@ -108,7 +107,7 @@ export class IsAdminDirective implements OnInit {
   selector: '[isNotAdmin]',
   standalone: true,
 })
-export class IsNotAdminDirective implements OnInit {
+export class IsNotAdminDirective {
   private readonly templateRef = inject(TemplateRef<unknown>);
   private readonly viewContainer = inject(ViewContainerRef);
   private readonly permissions = inject(PermissionsService);

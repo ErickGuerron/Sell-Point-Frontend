@@ -266,7 +266,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
   standalone: true,
   imports: [CommonModule, BillflowPageShellComponent, DashboardParticlesBackgroundComponent, BillflowMobileSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, BillflowModalShellComponent, BillflowComboboxComponent, BillflowDateRangePickerComponent],
   template: `
-    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
+    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="session.logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
@@ -492,7 +492,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                             PDF
                           </button>
                           <button
-                            *ngIf="invoice.status === 'issued'"
+                            *ngIf="invoice.status === 'issued' && permissions.isAdmin()"
                             type="button"
                             class="inline-flex items-center gap-1 rounded-lg border border-outline-variant/60 px-3 py-2 text-xs font-semibold text-on-surface-variant transition hover:border-error hover:text-error ml-2"
                             (click)="$event.stopPropagation(); cancelInvoice(invoice)"
@@ -870,7 +870,7 @@ export class InvoicePageComponent implements OnInit {
       this.invoiceKpis.set(kpis);
       this.page.set(1);
     } catch {
-      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudieron cargar las facturas' : 'Could not load invoices', this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudieron cargar las facturas' : 'Could not load invoices', this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
     }
@@ -955,7 +955,7 @@ export class InvoicePageComponent implements OnInit {
       window.open(url, '_blank', 'noopener');
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
-      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudo descargar el PDF' : 'Could not download PDF', this.locale() === 'es' ? 'Verificá tu sesión y la conexión con el backend.' : 'Check your session and backend connection.');
+      await this.feedback.alert('error', this.locale() === 'es' ? 'No se pudo descargar el PDF' : 'Could not download PDF', this.locale() === 'es' ? 'Verifique su sesión y la conexión con el backend.' : 'Check your session and backend connection.');
     }
   }
 
@@ -1039,8 +1039,7 @@ export class InvoicePageComponent implements OnInit {
   }
 
   private statusLabel(status: InvoiceStatus): string {
-    if (this.locale() === 'es') return status === 'cancelled' ? 'CANCELADA' : 'EMITIDA';
-    return status === 'cancelled' ? 'CANCELLED' : 'ISSUED';
+    return status === 'cancelled' ? this.copy().cancelled : this.copy().issued;
   }
 
   private matchesRange(value: string, range: InvoiceRange, now: Date) {

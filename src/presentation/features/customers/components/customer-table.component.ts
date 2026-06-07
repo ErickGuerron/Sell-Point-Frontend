@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Input, Output, EventEmitter, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BillflowComboboxComponent } from '../../../shared/components/billflow-combobox.component';
@@ -37,6 +37,7 @@ export class CustomerTableComponent {
   @Input({ required: true }) pageSizeOptions: ComboboxOption[] = [];
   @Input() createdFrom: string | null = null;
   @Input() createdTo: string | null = null;
+  isAdmin = input<boolean>(false);
 
   // ── Outputs ────────────────────────────────────────────────────────────
   @Output() edit = new EventEmitter<CustomerEntity>();

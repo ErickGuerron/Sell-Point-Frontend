@@ -58,7 +58,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
     <header class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl">
       <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3 shrink-0">
-          <span class="hidden md:inline-flex lg:hidden">
+          <span class="hidden md:inline-flex lg:hidden" *ngIf="permissions.isAdmin()">
             <billflow-mobile-sidebar [items]="sidebarItems()" [actionLabel]="copy().newCustomer" actionIcon="add" (actionClick)="openCreateModal()"></billflow-mobile-sidebar>
           </span>
           <span class="material-symbols-outlined text-outline">groups</span>
@@ -135,6 +135,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
           [statusFilterOptions]="statusFilterOptions()"
           [searchFieldOptions]="searchFieldOptions()"
           [pageSizeOptions]="pageSizeOptions"
+          [isAdmin]="permissions.isAdmin()"
           (edit)="openEditModal($event)"
           (toggleActive)="handleToggleActive($event)"
           (pageChange)="goToPage($event)"
@@ -188,7 +189,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
       </a>
 
       <div class="app-dashboard-mobile-fab-wrap">
-        <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="openCreateModal()">
+        <button type="button" *ngIf="permissions.isAdmin()" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="openCreateModal()">
           <span class="material-symbols-outlined text-[24px]">add</span>
         </button>
       </div>
@@ -388,7 +389,7 @@ export class CustomersPageComponent implements OnInit {
     } catch {
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los clientes' : 'Could not load customers',
-        this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
+        this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
     }

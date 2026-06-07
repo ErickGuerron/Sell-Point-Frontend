@@ -16,11 +16,12 @@ export const PERMISSIONS = {
   PRODUCTS_ADJUST_STOCK: 'products:adjust-stock',
   PRODUCTS_MOVEMENTS: 'products:movements:read',
 
-  // Category management — all roles can read, create/update needs consideration
+  // Category management — ADMIN only for write operations
+  // GET (read) is public — all authenticated roles can list categories
   CATEGORIES_READ: 'categories:read',
-  CATEGORIES_CREATE: 'categories:create',
-  CATEGORIES_UPDATE: 'categories:update',
-  CATEGORIES_DELETE: 'categories:delete',
+  CATEGORIES_CREATE: 'categories:create',   // ADMIN only
+  CATEGORIES_UPDATE: 'categories:update',       // ADMIN only
+  CATEGORIES_DELETE: 'categories:delete',      // ADMIN only
 
   // Customer management
   CUSTOMERS_READ: 'customers:read',
@@ -94,17 +95,13 @@ export class PermissionsService {
         PERMISSIONS.PRODUCTS_READ,
         PERMISSIONS.PRODUCTS_ADJUST_STOCK,
         PERMISSIONS.PRODUCTS_MOVEMENTS,
-        // Customers
+        // Customers — read only for VENDEDOR/CAJERO; write operations are ADMIN only per backend
         PERMISSIONS.CUSTOMERS_READ,
-        PERMISSIONS.CUSTOMERS_CREATE,
-        PERMISSIONS.CUSTOMERS_UPDATE,
         // Invoices
         PERMISSIONS.INVOICES_READ,
         PERMISSIONS.INVOICES_PDF,
-        // Categories
+        // Categories — read only (write operations are ADMIN only per backend)
         PERMISSIONS.CATEGORIES_READ,
-        PERMISSIONS.CATEGORIES_CREATE,
-        PERMISSIONS.CATEGORIES_UPDATE,
         // Dashboard
         PERMISSIONS.DASHBOARD_READ,
       ] as Permission[]),
@@ -120,18 +117,14 @@ export class PermissionsService {
         PERMISSIONS.PRODUCTS_READ,
         PERMISSIONS.PRODUCTS_ADJUST_STOCK,
         PERMISSIONS.PRODUCTS_MOVEMENTS,
-        // Customers
+        // Customers — read only for CAJERO; write operations are ADMIN only per backend
         PERMISSIONS.CUSTOMERS_READ,
-        PERMISSIONS.CUSTOMERS_CREATE,
-        PERMISSIONS.CUSTOMERS_UPDATE,
         // Invoices
         PERMISSIONS.INVOICES_READ,
         PERMISSIONS.INVOICES_PDF,
         PERMISSIONS.INVOICES_RESEND_EMAIL,
-        // Categories
+        // Categories — read only (write operations are ADMIN only per backend)
         PERMISSIONS.CATEGORIES_READ,
-        PERMISSIONS.CATEGORIES_CREATE,
-        PERMISSIONS.CATEGORIES_UPDATE,
         // Dashboard
         PERMISSIONS.DASHBOARD_READ,
       ] as Permission[]),
@@ -143,7 +136,7 @@ export class PermissionsService {
         PERMISSIONS.PRODUCTS_READ,
         PERMISSIONS.PRODUCTS_ADJUST_STOCK,
         PERMISSIONS.PRODUCTS_MOVEMENTS,
-        // Categories
+        // Categories — read only
         PERMISSIONS.CATEGORIES_READ,
         // Dashboard
         PERMISSIONS.DASHBOARD_READ,

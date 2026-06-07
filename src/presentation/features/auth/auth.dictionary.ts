@@ -332,7 +332,7 @@ invalidToken: 'Este enlace de recuperación es inválido o expiró.',
       googleEmailMismatch: 'El correo de Google no coincide con el de tu cuenta.',
       googleDuplicateLink: 'Esta cuenta de Google ya está vinculada a otro usuario.',
       googleNoAccount: 'No se encontró cuenta para este usuario de Google. Registrate primero.',
-      googleNetworkError: 'Error de conexión. Verificá tu internet.',
+      googleNetworkError: 'Error de conexión. Verifique su internet.',
       googleLoginFailed: 'Falló el inicio de sesión con Google.',
     },
     panel: {

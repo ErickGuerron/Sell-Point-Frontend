@@ -209,7 +209,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     partialDataTitle: 'Datos parciales',
     partialDataText: 'Algunos módulos no pudieron cargarse.',
     dashboardErrorTitle: 'No se pudo cargar el dashboard',
-    dashboardErrorText: 'Revisá la conexión del sistema.',
+    dashboardErrorText: 'Revise la conexión del sistema.',
   },
   en: {
     greeting: 'Welcome back',
@@ -622,12 +622,18 @@ export class DashboardPageComponent implements OnInit {
 
   readonly quickActions = computed<QuickAction[]>(() => {
     const copy = this.copy();
-    return [
+    const actions: QuickAction[] = [
       { label: copy.quickActionNewInvoice, icon: 'post_add', tone: 'primary' },
       { label: copy.quickActionAddCustomer, icon: 'person_add', tone: 'secondary' },
       { label: copy.quickActionAddProduct, icon: 'add_box', tone: 'tertiary' },
-      { label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' },
     ];
+
+    // Only admin can manage employees
+    if (this.permissions.isAdmin()) {
+      actions.push({ label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' });
+    }
+
+    return actions;
   });
 
   readonly filteredInvoices = computed(() => {

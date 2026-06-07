@@ -237,10 +237,15 @@ function mapDashboardCustomer(customer: DashboardCustomerRowDto, unknownCustomer
 }
 
 function mapInvoiceEntry(invoice: InvoiceRowDto, copy: { invoiceIssuedLabel: string; invoiceCancelledLabel: string }): InvoicePageEntry {
-  const daysOld = daysBetween(new Date(invoice.invoiceDate), new Date());
+  // The SSR path reads the raw backend response which has `issueDate`, not `invoiceDate`.
+  // Normalise it the same way the CSR mapper (mapBackendInvoice) does.
+  const rawIssueDate = (invoice as Record<string, unknown>).issueDate ?? invoice.invoiceDate ?? (invoice as Record<string, unknown>).createdAt;
+  const invoiceDate = rawIssueDate ? String(rawIssueDate) : new Date().toISOString();
+  const daysOld = daysBetween(new Date(invoiceDate), new Date());
   const status = normalizeInvoiceStatus(invoice.status);
   return {
     ...invoice,
+    invoiceDate,
     status,
     daysOld,
     statusLabel: status === 'cancelled' ? copy.invoiceCancelledLabel : copy.invoiceIssuedLabel,

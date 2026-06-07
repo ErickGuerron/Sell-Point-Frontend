@@ -64,32 +64,34 @@ import type { CategoriesCopy } from '../i18n/categories.translations';
                 </span>
               </td>
               <td class="p-4 pr-7 text-right">
-                <div class="flex items-center justify-end gap-1.5">
-                  <!-- Edit -->
-                  <button
-                    type="button"
-                    [title]="copy().edit"
-                    class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                    (click)="edit.emit(cat)"
-                  >
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                  </button>
+                @if (isAdmin()) {
+                  <div class="flex items-center justify-end gap-1.5">
+                    <!-- Edit -->
+                    <button
+                      type="button"
+                      [title]="copy().edit"
+                      class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
+                      (click)="edit.emit(cat)"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">edit</span>
+                    </button>
 
-                  <!-- Toggle Active -->
-                  <button
-                    type="button"
-                    [title]="cat.isActive ? copy().deactivate : copy().activate"
-                    class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                    [class.bg-red-600]="cat.isActive"
-                    [class.hover:bg-red-700]="cat.isActive"
-                    [class.bg-primary]="!cat.isActive"
-                    (click)="toggle.emit(cat)"
-                  >
-                    <span class="material-symbols-outlined text-[18px]">
-                      {{ cat.isActive ? 'close' : 'check' }}
-                    </span>
-                  </button>
-                </div>
+                    <!-- Toggle Active -->
+                    <button
+                      type="button"
+                      [title]="cat.isActive ? copy().deactivate : copy().activate"
+                      class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
+                      [class.bg-red-600]="cat.isActive"
+                      [class.hover:bg-red-700]="cat.isActive"
+                      [class.bg-primary]="!cat.isActive"
+                      (click)="toggle.emit(cat)"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">
+                        {{ cat.isActive ? 'close' : 'check' }}
+                      </span>
+                    </button>
+                  </div>
+                }
               </td>
             </tr>
           } @empty {
@@ -122,6 +124,7 @@ export class CategoryTableComponent {
   loading = input.required<boolean>();
   statusActive = input.required<string>();
   statusInactive = input.required<string>();
+  isAdmin = input<boolean>(false);
 
   edit = output<CategoryEntity>();
   toggle = output<CategoryEntity>();

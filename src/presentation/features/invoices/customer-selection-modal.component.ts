@@ -15,7 +15,7 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
     <billflow-modal-shell
       *ngIf="open"
       title="{{ locale === 'es' ? 'Seleccionar cliente' : 'Select customer' }}"
-      [subtitle]="modalTotal() > 0 ? modalTotal() + (locale === 'es' ? ' clientes encontrados' : ' customers found') : (locale === 'es' ? 'Buscá por nombre o cédula' : 'Search by name or ID')"
+      [subtitle]="modalTotal() > 0 ? modalTotal() + (locale === 'es' ? ' clientes encontrados' : ' customers found') : (locale === 'es' ? 'Busque por nombre o cédula' : 'Search by name or ID')"
       icon="manage_accounts"
       maxWidth="lg"
       [hasFooter]="true"
