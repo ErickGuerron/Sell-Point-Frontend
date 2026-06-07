@@ -693,7 +693,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
         this.api.getStats(),
         this.api.listInvoices(150),
         this.api.listProducts(8),
-        this.api.listCustomers(8, 'true'),
+        this.api.listCustomers(8),
       ]);
 
       if (statsResult.status === 'fulfilled') {
