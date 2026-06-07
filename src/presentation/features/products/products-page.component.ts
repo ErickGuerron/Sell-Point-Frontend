@@ -5,6 +5,7 @@ import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -18,6 +19,7 @@ import { ProductKpiCardsComponent } from './components/product-kpi-cards.compone
 import { ProductTableComponent } from './components/product-table.component';
 import { ProductFormModalComponent } from './components/product-form-modal.component';
 import { ProductMovementsModalComponent } from './components/product-movements-modal.component';
+import { HasPermissionDirective, IsAdminDirective } from '../../shared/directives/has-permission.directive';
 import { GetProductsUseCase } from './domain/use-cases/get-products.use-case';
 import { GetProductByIdUseCase } from './domain/use-cases/get-product-by-id.use-case';
 import { CreateProductUseCase } from './domain/use-cases/create-product.use-case';
@@ -51,6 +53,8 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
     ProductTableComponent,
     ProductFormModalComponent,
     ProductMovementsModalComponent,
+    HasPermissionDirective,
+    IsAdminDirective,
   ],
   providers: [
     ProductRemoteDataSource,
@@ -171,6 +175,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                 </a>
 
                 <button
+                  *isAdmin
                   type="button"
                   class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
                   (click)="openCreateModal()"
@@ -240,6 +245,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
               [loading]="loading()"
               [locale]="locale()"
               [copy]="copy()"
+              [isAdmin]="permissions.isAdmin()"
               (edit)="openEditModal($event)"
               (toggleActive)="toggleActive($event)"
               (viewMovements)="openMovementsModal($event)"
@@ -372,6 +378,7 @@ export class ProductsPageComponent implements OnInit {
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
+  private readonly permissions = inject(PermissionsService);
 
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
@@ -388,14 +395,22 @@ export class ProductsPageComponent implements OnInit {
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
     categories: this.copy().sidebarCategories,
-  }, 'products'));
+  }, 'products', this.permissions));
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers' },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products', active: true },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers' },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products', active: true },
+    ];
+
+    // Only ADMIN sees employees in mobile nav
+    if (this.permissions.isAdmin()) {
+      items.push({ label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees' });
+    }
+    return items;
+  });
 
   // ─── State signals ──────────────────────────────────────────────────────────
   loading = signal(false);

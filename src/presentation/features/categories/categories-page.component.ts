@@ -6,6 +6,7 @@ import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import type { BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -342,6 +343,7 @@ export class CategoriesPageComponent implements OnInit {
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
+  private readonly permissions = inject(PermissionsService);
 
   locale = this.localeService.locale;
   copy = computed(() => CATEGORIES_TEXT[this.locale()]);
@@ -357,15 +359,24 @@ export class CategoriesPageComponent implements OnInit {
         categories: this.copy().sidebarCategories,
       },
       'categories',
+      this.permissions,
     ),
   );
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
-    { label: this.copy().sidebarCategories, icon: 'category', href: '/categories', active: true },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
+      { label: this.copy().sidebarCategories, icon: 'category', href: '/categories', active: true },
+    ];
+
+    // Only ADMIN sees employees in mobile nav
+    if (this.permissions.isAdmin()) {
+      items.push({ label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees' });
+    }
+    return items;
+  });
 
   loading = signal(false);
   categories = signal<CategoryEntity[]>([]);

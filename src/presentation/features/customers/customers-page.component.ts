@@ -6,6 +6,7 @@ import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import type { ComboboxOption } from '../../shared/components/billflow-combobox.component';
@@ -206,6 +207,7 @@ export class CustomersPageComponent implements OnInit {
   private readonly customerDs = inject(CustomerRemoteDataSource);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
+  private readonly permissions = inject(PermissionsService);
 
   locale = this.localeService.locale;
   copy = customersCopy(this.locale);
@@ -240,14 +242,22 @@ export class CustomersPageComponent implements OnInit {
     customers: this.copy().sidebarCustomers,
     products: this.copy().sidebarProducts,
     employees: this.copy().sidebarEmployees,
-  }, 'customers'));
+  }, 'customers', this.permissions));
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers', active: true },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers', active: true },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
+    ];
+
+    // Only ADMIN sees employees in mobile nav
+    if (this.permissions.isAdmin()) {
+      items.push({ label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees' });
+    }
+    return items;
+  });
 
   readonly pageSizeOptions: ComboboxOption[] = [
     { value: '5', label: '5' },

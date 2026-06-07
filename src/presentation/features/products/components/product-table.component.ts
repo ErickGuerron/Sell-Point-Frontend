@@ -84,6 +84,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
 
                   <!-- Edit Button -->
                   <button
+                    *ngIf="isAdmin"
                     type="button"
                     [title]="copy.edit"
                     class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
@@ -94,6 +95,7 @@ import type { ProductsCopy } from '../i18n/products.translations';
 
                   <!-- Deactivate / Activate Button -->
                   <button
+                    *ngIf="isAdmin"
                     type="button"
                     [title]="product.isActive ? copy.deactivate : copy.activate"
                     class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
@@ -127,6 +129,7 @@ export class ProductTableComponent {
   @Input({ required: true }) loading = false;
   @Input({ required: true }) locale = 'es';
   @Input({ required: true }) copy!: ProductsCopy;
+  @Input() isAdmin = false;
 
   @Output() edit = new EventEmitter<ProductEntity>();
   @Output() toggleActive = new EventEmitter<ProductEntity>();

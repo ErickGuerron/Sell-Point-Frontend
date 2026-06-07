@@ -6,6 +6,7 @@ import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -553,6 +554,7 @@ export class DashboardPageComponent implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly localeService = inject(LocaleService);
+  private readonly permissions = inject(PermissionsService);
 
   locale = this.localeService.locale;
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
@@ -595,7 +597,7 @@ export class DashboardPageComponent implements OnInit {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
-  }, 'dashboard'));
+  }, 'dashboard', this.permissions));
 
   readonly mobileNavItems = computed<DashboardNavItem[]>(() => {
     const copy = this.copy();

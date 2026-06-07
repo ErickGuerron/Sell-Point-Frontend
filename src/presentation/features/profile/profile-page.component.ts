@@ -4,6 +4,7 @@ import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
@@ -321,6 +322,7 @@ export class ProfilePageComponent implements OnInit {
   protected readonly themeService = inject(ThemeService);
   protected readonly store = inject(ProfileStore);
   private readonly feedback = inject(UiFeedbackService);
+  private readonly permissions = inject(PermissionsService);
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
   private hasInitialData = false;
@@ -341,6 +343,7 @@ export class ProfilePageComponent implements OnInit {
         employees: this.copy().sidebarEmployees,
       },
       'dashboard',
+      this.permissions,
     ),
   );
 

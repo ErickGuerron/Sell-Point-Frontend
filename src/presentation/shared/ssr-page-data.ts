@@ -19,6 +19,28 @@ import { toProfileEntity } from '../features/profile/data/profile.mapper';
 import type { ProfileRawDto } from '../features/profile/data/profile.dto';
 import type { EmployeeRowDto, RoleDto } from '../features/employees/employee-api.service';
 
+// ── Role constants (must match PermissionsService) ─────────────────────────────
+const ROLE_ADMIN = 'ADMIN';
+
+/**
+ * Returns the user's role from the session cookie, or undefined if not authenticated.
+ * Used in Astro frontmatter to check permissions before rendering a page.
+ */
+export function getUserRole(astro: AstroLike): string | undefined {
+  const sessionCookie = astro.cookies.get(getBillflowSessionCookieName())?.value;
+  const session = parseBillflowSession(sessionCookie);
+  if (!session) return undefined;
+  return session.role ?? (session.user as { role?: string } | undefined)?.role;
+}
+
+/**
+ * Checks if the current user is authenticated and has ADMIN role.
+ * Use this to protect admin-only pages at the SSR level.
+ */
+export function isAdmin(astro: AstroLike): boolean {
+  return getUserRole(astro) === ROLE_ADMIN;
+}
+
 const API_BASE_URL = resolveApiBaseUrl();
 
 export interface AstroCookiesLike {

@@ -5,6 +5,7 @@ import { InvoiceApiService, type CustomerRowDto, type ProductRowDto } from './in
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -258,6 +259,7 @@ export class CreateInvoicePageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
+  private readonly permissions = inject(PermissionsService);
 
   @ViewChild(InvoiceLineItemsComponent) lineItemsComp!: InvoiceLineItemsComponent;
 
@@ -281,6 +283,7 @@ export class CreateInvoicePageComponent implements OnInit {
         employees:  isEs ? 'Empleados'  : 'Employees',
       },
       'invoices',
+      this.permissions,
     );
   });
 

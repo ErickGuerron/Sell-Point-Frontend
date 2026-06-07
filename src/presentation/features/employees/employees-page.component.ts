@@ -7,6 +7,7 @@ import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -21,6 +22,7 @@ import type { EmployeesInitialData } from '../../shared/ssr-page-data';
 import { EmployeesKpiCardsComponent } from './components/employees-kpi-cards.component';
 import { EmployeesTableComponent } from './components/employees-table.component';
 import { EmployeesFormModalComponent } from './components/employees-form-modal.component';
+import { HasPermissionDirective, IsAdminDirective } from '../../shared/directives/has-permission.directive';
 
 type EmployeesLocale = 'es' | 'en';
 
@@ -308,6 +310,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     BillflowMobileSidebarComponent, BillflowNotificationButtonComponent,
     BillflowUserMenuComponent, BillflowModalShellComponent,
     EmployeesKpiCardsComponent, EmployeesTableComponent, EmployeesFormModalComponent,
+    HasPermissionDirective, IsAdminDirective,
   ],
   template: `<billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
   <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
@@ -444,12 +447,14 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
-                  <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
-                </button>
-                <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" [disabled]="blockedEmployeesCount() === 0" (click)="openReactivateModal()">
-                  <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
-                </button>
+                <ng-container *isAdmin>
+                  <button type="button" class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm" (click)="openCreateModal()">
+                    <span class="material-symbols-outlined text-[18px]">add</span>{{ copy().newEmployee }}
+                  </button>
+                  <button type="button" class="inline-flex items-center gap-2 bg-[#f59e0b] text-white rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed" [disabled]="blockedEmployeesCount() === 0" (click)="openReactivateModal()">
+                    <span class="material-symbols-outlined text-[18px]">lock_open</span>{{ copy().reactivateUsers }}
+                  </button>
+                </ng-container>
               </div>
             </div>
           </ng-container>
@@ -557,11 +562,13 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
         <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
         <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
       </a>
-      <div class="app-dashboard-mobile-fab-wrap">
-        <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="openCreateModal()">
-          <span class="material-symbols-outlined text-[24px]">add</span>
-        </button>
-      </div>
+      <ng-container *isAdmin>
+        <div class="app-dashboard-mobile-fab-wrap">
+          <button type="button" class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface" (click)="openCreateModal()">
+            <span class="material-symbols-outlined text-[24px]">add</span>
+          </button>
+        </div>
+      </ng-container>
     </nav>
   </div>
 </billflow-page-shell>`,
@@ -572,6 +579,7 @@ export class EmployeesPageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
+  private readonly permissions = inject(PermissionsService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
   private gradientCache = new Map<string, string>();
   @ViewChild('firstNameInput') firstNameInput?: ElementRef<HTMLInputElement>;
@@ -603,14 +611,22 @@ export class EmployeesPageComponent implements OnInit {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
-  }, 'employees'));
+  }, 'employees', this.permissions));
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees', active: true },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees', active: true },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
+    ];
+
+    // Filter by permissions — only ADMIN sees employees in mobile nav
+    if (!this.permissions.isAdmin()) {
+      return items.filter((i) => i.href !== '/employees');
+    }
+    return items;
+  });
 
   // ── Data ──
   loading = signal(true);
@@ -753,6 +769,15 @@ export class EmployeesPageComponent implements OnInit {
     if (typeof window === 'undefined') return;
 
     this.session.init();
+
+    // Admin-only page: redirect to 403 if not admin
+    // Note: role is read from localStorage (set by /auth/me response)
+    // The backend will reject any unauthorized API call anyway — this is UX only
+    if (!this.permissions.isAdmin()) {
+      window.location.replace('/403');
+      return;
+    }
+
     this.initBranchId();
     this.applyStoredTheme();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
