@@ -1,4 +1,4 @@
-export type AuthLocale = 'en' | 'es';
+﻿export type AuthLocale = 'en' | 'es';
 
 export interface AuthText {
   brand: string;
@@ -225,7 +225,7 @@ invalidToken: 'This reset link is invalid or expired.',
       googleLoginFailed: 'Google login failed.',
     },
     panel: {
-      title: 'Welcome to<br/>BillFlow POS',
+      title: 'Welcome to BillFlow POS',
       description: 'Precision billing for high-energy growth. Access your terminal to manage sales, inventory, and analytics.',
       slideLabel: 'Slide'
     }
@@ -336,7 +336,7 @@ invalidToken: 'Este enlace de recuperación es inválido o expiró.',
       googleLoginFailed: 'Falló el inicio de sesión con Google.',
     },
     panel: {
-      title: 'Bienvenido a<br/>BillFlow POS',
+      title: 'Bienvenido a BillFlow POS',
       description: 'Facturación precisa para crecimiento acelerado. Accede a tu terminal para gestionar ventas, inventario y métricas.',
       slideLabel: 'Diapositiva'
     }
@@ -352,3 +352,4 @@ export function detectAuthLocale(): AuthLocale {
   const browser = (window.navigator.language || window.navigator.languages?.[0] || 'en').toLowerCase();
   return browser.startsWith('es') ? 'es' : 'en';
 }
+
