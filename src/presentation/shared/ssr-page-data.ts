@@ -178,12 +178,20 @@ async function refreshSession(refreshToken: string,): Promise<{ accessToken?: st
 }
 
 function mapDashboardInvoice(invoice: DashboardInvoiceRowDto, unknownCustomerLabel: string): DashboardInvoiceEntry {
+  const subtotal = Number(invoice.subtotal ?? 0);
+  const iva = Number(invoice.iva ?? 0);
+  const total = Number(invoice.total ?? subtotal + iva);
+  const rawDate = invoice.invoiceDate ?? invoice.issueDate ?? invoice.createdAt ?? '';
+  const dateObj = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
+  const date = dateObj && !Number.isNaN(dateObj.getTime())
+    ? dateObj.toISOString()
+    : (typeof rawDate === 'string' ? rawDate : '');
   return {
     id: invoice.id,
     number: invoice.invoiceNumber,
     customer: invoice.customerName || unknownCustomerLabel,
-    date: invoice.invoiceDate ?? invoice.issueDate ?? invoice.createdAt ?? '',
-    total: Number(invoice.total ?? 0),
+    date,
+    total,
   };
 }
 
@@ -215,10 +223,22 @@ function mapDashboardCustomer(customer: DashboardCustomerRowDto, unknownCustomer
 }
 
 function mapInvoiceEntry(invoice: InvoiceRowDto, copy: { invoiceIssuedLabel: string; invoiceCancelledLabel: string }): InvoicePageEntry {
-  const daysOld = daysBetween(new Date(invoice.invoiceDate), new Date());
+  const subtotal = Number(invoice.subtotal ?? 0);
+  const iva = Number(invoice.iva ?? 0);
+  const total = Number(invoice.total ?? subtotal + iva);
+  const rawDate = invoice.invoiceDate ?? invoice.issueDate ?? invoice.createdAt ?? '';
+  const dateObj = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
+  const invoiceDate = dateObj && !Number.isNaN(dateObj.getTime())
+    ? dateObj.toISOString()
+    : (typeof rawDate === 'string' ? rawDate : '');
+  const daysOld = invoiceDate ? daysBetween(new Date(invoiceDate), new Date()) : 0;
   const status = normalizeInvoiceStatus(invoice.status);
   return {
     ...invoice,
+    subtotal,
+    iva,
+    total,
+    invoiceDate,
     status,
     daysOld,
     statusLabel: status === 'cancelled' ? copy.invoiceCancelledLabel : copy.invoiceIssuedLabel,

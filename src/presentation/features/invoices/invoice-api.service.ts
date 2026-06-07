@@ -12,6 +12,7 @@ export interface InvoiceItemRowDto {
   subtotal: number;
   total: number;
   productName?: string;
+  productNameSnapshot?: string;
   productCode?: string;
   taxRateId?: string;
   taxPercentage?: number;
@@ -29,6 +30,8 @@ export interface InvoiceRowDto {
   customerId?: string;
   customerName?: string;
   customerCedula?: string;
+  cashierUserId?: string;
+  cashierName?: string;
   subtotal: number;
   iva: number;
   total: number;
@@ -38,6 +41,13 @@ export interface InvoiceRowDto {
   createdAt?: string;
   pdfUrl?: string;
   items?: InvoiceItemRowDto[];
+  // Audit snapshots — historical values at time of invoice
+  customerNameSnapshot?: string;
+  customerCedulaSnapshot?: string;
+  customerEmailSnapshot?: string;
+  cashierNameSnapshot?: string;
+  cashierUsernameSnapshot?: string;
+  cashierEmployeeIdSnapshot?: string;
 }
 
 export interface CustomerRowDto {
@@ -131,6 +141,7 @@ interface BackendInvoiceItem {
   id: string;
   productId: string;
   productName?: string;
+  productNameSnapshot?: string;
   productCode?: string;
   quantity: number;
   unitPrice: number;
@@ -159,8 +170,17 @@ interface BackendInvoice {
   customerId?: string;
   customerName?: string;
   customerCedula?: string;
+  cashierUserId?: string;
+  cashierName?: string;
   pdfUrl?: string;
   items?: BackendInvoiceItem[];
+  // Audit snapshots
+  customerNameSnapshot?: string;
+  customerCedulaSnapshot?: string;
+  customerEmailSnapshot?: string;
+  cashierNameSnapshot?: string;
+  cashierUsernameSnapshot?: string;
+  cashierEmployeeIdSnapshot?: string;
 }
 
 interface QuickConfirmSaleResponse {
@@ -436,8 +456,11 @@ export class InvoiceApiService {
     const subtotal = Number(invoice.subtotal ?? 0);
     const iva = Number(invoice.iva ?? 0);
     const total = Number(invoice.total ?? subtotal + iva);
-    const issueDate = invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt ?? new Date().toISOString();
-    const invoiceDate = typeof issueDate === 'string' ? issueDate : issueDate.toISOString();
+    const rawDate = invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt ?? new Date().toISOString();
+    const dateObj = rawDate instanceof Date ? rawDate : new Date(rawDate);
+    const invoiceDate = Number.isNaN(dateObj.getTime())
+      ? (typeof rawDate === 'string' ? rawDate : new Date().toISOString())
+      : dateObj.toISOString();
 
     return {
       id: invoice.id,
@@ -457,8 +480,17 @@ export class InvoiceApiService {
       customerId: invoice.customerId,
       customerName: invoice.customerName,
       customerCedula: invoice.customerCedula,
+      cashierUserId: invoice.cashierUserId,
+      cashierName: invoice.cashierName,
       pdfUrl: invoice.pdfUrl ?? `/invoices/${invoice.id}/pdf`,
       items: invoice.items?.map((item) => this.mapBackendInvoiceItem(item)),
+      // Audit snapshots
+      customerNameSnapshot: invoice.customerNameSnapshot,
+      customerCedulaSnapshot: invoice.customerCedulaSnapshot,
+      customerEmailSnapshot: invoice.customerEmailSnapshot,
+      cashierNameSnapshot: invoice.cashierNameSnapshot,
+      cashierUsernameSnapshot: invoice.cashierUsernameSnapshot,
+      cashierEmployeeIdSnapshot: invoice.cashierEmployeeIdSnapshot,
     };
   }
 
@@ -469,6 +501,7 @@ export class InvoiceApiService {
       id: item.id,
       productId: item.productId,
       productName: item.productName,
+      productNameSnapshot: item.productNameSnapshot,
       productCode: item.productCode,
       quantity: Number(item.quantity),
       unitPrice: Number(item.unitPrice),

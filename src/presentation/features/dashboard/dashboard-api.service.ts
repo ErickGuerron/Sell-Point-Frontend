@@ -17,6 +17,10 @@ export interface InvoiceRowDto {
   id: string;
   invoiceNumber: string;
   invoiceDate: string;
+  issueDate?: string;
+  createdAt?: string;
+  subtotal?: number;
+  iva?: number;
   customerName?: string;
   total: number;
 }
@@ -68,13 +72,23 @@ export class DashboardApiService {
     const res = await this.request<PaginatedResponse<any>>(`/invoices?page=1&limit=${limit}`);
     return {
       ...res,
-      data: res.data.map((invoice) => ({
-        id: invoice.id,
-        invoiceNumber: invoice.invoiceNumber,
-        invoiceDate: invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt,
-        customerName: invoice.customerName,
-        total: Number(invoice.total ?? 0),
-      })),
+      data: res.data.map((invoice) => {
+        const subtotal = Number(invoice.subtotal ?? 0);
+        const iva = Number(invoice.iva ?? 0);
+        const total = Number(invoice.total ?? subtotal + iva);
+        const rawDate = invoice.issueDate ?? invoice.invoiceDate ?? invoice.createdAt;
+        const dateObj = rawDate instanceof Date ? rawDate : (rawDate ? new Date(rawDate) : null);
+        const invoiceDate = dateObj && !Number.isNaN(dateObj.getTime())
+          ? dateObj.toISOString()
+          : (typeof rawDate === 'string' ? rawDate : new Date().toISOString());
+        return {
+          id: invoice.id,
+          invoiceNumber: invoice.invoiceNumber,
+          invoiceDate,
+          customerName: invoice.customerName,
+          total,
+        };
+      }),
     };
   }
 

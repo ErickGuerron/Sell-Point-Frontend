@@ -97,6 +97,8 @@ interface InvoiceCopy {
   loadingText: string;
   electronicInvoiceLabel: string;
   customerIdLabel: string;
+  sellerLabel: string;
+  sellerIdLabel: string;
   purchasedProductsLabel: string;
   unknownProduct: string;
   noProductsText: string;
@@ -174,6 +176,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     loadingText: 'Cargando facturas...',
     electronicInvoiceLabel: 'Comprobante Electrónico',
     customerIdLabel: 'Cédula:',
+    sellerLabel: 'Vendedor',
+    sellerIdLabel: 'ID:',
     purchasedProductsLabel: 'Productos Comprados',
     unknownProduct: 'Producto sin nombre',
     noProductsText: 'No hay productos registrados en esta factura.',
@@ -249,6 +253,8 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     loadingText: 'Loading invoices...',
     electronicInvoiceLabel: 'Electronic Invoice',
     customerIdLabel: 'ID:',
+    sellerLabel: 'Seller',
+    sellerIdLabel: 'ID:',
     purchasedProductsLabel: 'Purchased Products',
     unknownProduct: 'Unknown Product',
     noProductsText: 'No products registered in this invoice.',
@@ -459,6 +465,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
                         <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().invoiceNumber }}</th>
                         <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().customer }}</th>
+                        <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().sellerLabel }}</th>
                         <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().dateIssued }}</th>
                         <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().amount }}</th>
                         <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
@@ -472,6 +479,14 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                         <td class="p-4 text-on-surface-variant font-medium">
                           <div class="font-semibold text-on-background">{{ invoice.customerName || copy().unknownCustomer }}</div>
                           <div class="mt-0.5 text-[13px] text-on-surface-variant">{{ invoice.id }}</div>
+                        </td>
+                        <td class="p-4 text-on-surface-variant font-medium">
+                          <div class="font-semibold text-on-background">
+                            {{ (invoice.cashierNameSnapshot || invoice.cashierName) || '—' }}
+                          </div>
+                          <div class="mt-0.5 text-[12px] text-on-surface-variant font-mono">
+                            {{ (invoice.cashierEmployeeIdSnapshot || invoice.cashierUserId) || '—' }}
+                          </div>
                         </td>
                         <td class="p-4 text-on-surface font-medium">{{ formatDate(invoice.invoiceDate) }}</td>
                         <td class="p-4 font-semibold text-on-surface">{{ formatMoney(invoice.total) }}</td>
@@ -596,12 +611,17 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                   </div>
                 </div>
 
-                <!-- Customer & date row -->
-                <div class="grid grid-cols-2 gap-4">
+                <!-- Customer, seller & date row -->
+                <div class="grid grid-cols-3 gap-4">
                   <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
                     <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().customer }}</p>
                     <p class="text-sm font-bold text-on-surface leading-tight">{{ invoicePreview()?.customerName ?? '—' }}</p>
                     <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ copy().customerIdLabel }} {{ invoicePreview()?.customerCedula ?? '—' }}</p>
+                  </div>
+                  <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{{ copy().sellerLabel }}</p>
+                    <p class="text-sm font-bold text-on-surface leading-tight">{{ getSellerName() }}</p>
+                    <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ copy().sellerIdLabel }} {{ getSellerId() }}</p>
                   </div>
                   <div class="bg-surface-container/30 rounded-xl p-3 border border-outline-variant/20 flex flex-col justify-between">
                     <div>
@@ -987,6 +1007,32 @@ export class InvoicePageComponent implements OnInit {
   formatDate(value: string) {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(this.locale() === 'es' ? 'es-ES' : 'en-US', { dateStyle: 'medium' }).format(date);
+  }
+
+  /**
+   * Returns the seller name displayed in the invoice preview / PDF.
+   * Prioritizes the historical snapshot (cashier at sale time) over the
+   * live JOIN-resolved value so user renames do not retroactively change it.
+   */
+  getSellerName(): string {
+    const invoice = this.invoicePreview();
+    if (!invoice) return '—';
+    const name = invoice.cashierNameSnapshot?.trim()
+      || invoice.cashierName?.trim();
+    return name || 'Vendedor';
+  }
+
+  /**
+   * Returns the seller identifier (employee ID preferred over UUID).
+   * Falls back to the username snapshot if neither ID is available.
+   */
+  getSellerId(): string {
+    const invoice = this.invoicePreview();
+    if (!invoice) return '—';
+    const id = invoice.cashierEmployeeIdSnapshot?.trim()
+      || invoice.cashierUserId?.trim();
+    if (id) return id;
+    return invoice.cashierUsernameSnapshot?.trim() || '—';
   }
 
   statusClass(status: InvoiceStatus) {
