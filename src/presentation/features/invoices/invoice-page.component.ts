@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import { Component, computed, inject, signal, Input, ViewChild, type ElementRef } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { InvoiceApiService, type InvoiceKpisDto, type InvoiceRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { PermissionsService } from '../../shared/services/permissions.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -426,6 +427,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                       <div class="relative flex-1">
                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
                         <input
+                          #invoiceSearchInput
                           class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
                           [placeholder]="copy().searchPlaceholder"
                           [value]="searchQuery()"
@@ -699,13 +701,14 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     </billflow-page-shell>
   `,
 })
-export class InvoicePageComponent implements OnInit {
+export class InvoicePageComponent implements OnInit, OnDestroy {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
   copy = computed(() => INVOICE_TEXT[this.locale()]);
@@ -757,6 +760,7 @@ export class InvoicePageComponent implements OnInit {
   page = signal(1);
   pageSize = signal(5);
   invoicePreview = signal<InvoiceViewModel | null>(null);
+  @ViewChild('invoiceSearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
   private hasInitialData = false;
 
   @Input() set initialData(value: InvoicesInitialData | null | undefined) {
@@ -850,8 +854,22 @@ export class InvoicePageComponent implements OnInit {
     this.themeService.init();
     this.session.init();
     if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Invoice', descriptionEs: 'Nueva Factura', category: 'actions', permission: PERMISSIONS.INVOICES_CREATE, action: () => { window.location.href = '/create-invoice'; } },
+      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadInvoices(); } },
+      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+    );
     if (this.hasInitialData) return;
     await this.reloadInvoices();
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async reloadInvoices() {

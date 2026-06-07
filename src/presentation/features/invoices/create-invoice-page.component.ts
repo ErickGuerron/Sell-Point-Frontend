@@ -1,6 +1,7 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ViewChild } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { InvoiceApiService, type CustomerRowDto, type ProductRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
@@ -255,12 +256,13 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
     </billflow-page-shell>
   `,
 })
-export class CreateInvoicePageComponent implements OnInit {
+export class CreateInvoicePageComponent implements OnInit, OnDestroy {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   @ViewChild(InvoiceLineItemsComponent) lineItemsComp!: InvoiceLineItemsComponent;
 
@@ -339,9 +341,17 @@ export class CreateInvoicePageComponent implements OnInit {
   ngOnInit() {
     this.session.init();
     this.applyStoredTheme();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', action: () => { this.showNewCustomerModal.set(true); } },
+      { keys: 's', descriptionEn: 'Submit Invoice', descriptionEs: 'Emitir Factura', category: 'actions', action: () => { if (this.canSubmit()) { void this.submitInvoice(); } } },
+    );
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 's');
   }
 
   // ── Customer handlers ─────────────────────────────────────────────────────

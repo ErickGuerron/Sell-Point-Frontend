@@ -1,13 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild, Input, viewChild } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { EmployeeApiService, ApiRequestError, type EmployeeRowDto, type UpdateUserPayload } from './employee-api.service';
 import { RoleApiService, type RoleDto } from './role-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
-import { PermissionsService } from '../../shared/services/permissions.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -441,7 +442,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
                 ></billflow-combobox>
                 <div class="relative flex-1">
                   <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
-                  <input class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                  <input #employeeSearchInput class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
                     [placeholder]="copy().searchPlaceholder"
                     [value]="searchQuery()" (input)="setSearchQuery(($any($event.target).value))" (keydown)="onSearchKeydown($event)" />
                 </div>
@@ -573,17 +574,19 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
   </div>
 </billflow-page-shell>`,
 })
-export class EmployeesPageComponent implements OnInit {
+export class EmployeesPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(EmployeeApiService);
   private readonly roleApi = inject(RoleApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
   @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
   private gradientCache = new Map<string, string>();
   @ViewChild('firstNameInput') firstNameInput?: ElementRef<HTMLInputElement>;
   @ViewChild('lastNameInput') lastNameInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('employeeSearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
 
   // Spec 3 R6: viewChild to the employee-form-modal so the parent can
   // thread its `formHasChanges` signal into the surrounding shell. The
@@ -769,6 +772,11 @@ export class EmployeesPageComponent implements OnInit {
     if (typeof window === 'undefined') return;
 
     this.session.init();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Employee', descriptionEs: 'Nuevo Empleado', category: 'actions', permission: PERMISSIONS.EMPLOYEES_CREATE, action: () => { void this.openCreateModal(); } },
+      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadEmployees(); } },
+      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+    );
 
     // Admin-only page: redirect to 403 if not admin
     // Note: role is read from localStorage (set by /auth/me response)
@@ -789,6 +797,15 @@ export class EmployeesPageComponent implements OnInit {
       this.reloadEmployees(),
       this.reloadKpis(),
     ]);
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async loadRoles() {

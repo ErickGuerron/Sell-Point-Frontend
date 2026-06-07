@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, signal, inject } from '@angular/core';
 import { LocaleService } from '../services/locale.service';
 import { ThemeService } from '../services/theme.service';
+import { KeyboardShortcutService } from '../services/keyboard-shortcut.service';
 
 @Component({
   selector: 'billflow-user-menu',
@@ -34,6 +35,11 @@ import { ThemeService } from '../services/theme.service';
             <span>{{ themeToggleLabel() }}</span>
           </button>
 
+          <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="openShortcuts()">
+            <span class="material-symbols-outlined">keyboard</span>
+            <span>{{ shortcutsLabel() }}</span>
+          </button>
+
           <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="settings.emit()">
             <span class="material-symbols-outlined">settings</span>
             <span>{{ settingsLabel }}</span>
@@ -50,6 +56,7 @@ import { ThemeService } from '../services/theme.service';
 export class BillflowUserMenuComponent {
   private readonly localeService = inject(LocaleService);
   private readonly themeService = inject(ThemeService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   @Input() displayName = 'Usuario';
   @Input() initials = 'US';
@@ -106,6 +113,15 @@ export class BillflowUserMenuComponent {
 
   themeIcon(): string {
     return this.theme() === 'dark' ? 'light_mode' : 'dark_mode';
+  }
+
+  openShortcuts(): void {
+    this.closeMenu();
+    this.keyboardShortcuts.toggle();
+  }
+
+  shortcutsLabel(): string {
+    return this.locale() === 'es' ? 'Atajos de Teclado' : 'Keyboard Shortcuts';
   }
 
   @HostListener('document:click', ['$event'])

@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input, ElementRef, ViewChild } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { PermissionsService } from '../../shared/services/permissions.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import type { BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -187,6 +188,7 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
                   <div class="relative w-56 ml-auto">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none">search</span>
                     <input
+                      #categorySearchInput
                       class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
                       [placeholder]="copy().searchPlaceholder"
                       [value]="searchQuery()"
@@ -338,7 +340,7 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
     </billflow-page-shell>
   `,
 })
-export class CategoriesPageComponent implements OnInit {
+export class CategoriesPageComponent implements OnInit, OnDestroy {
   private readonly getCategories = inject(GetCategoriesUseCase);
   private readonly createCategory = inject(CreateCategoryUseCase);
   private readonly updateCategory = inject(UpdateCategoryUseCase);
@@ -349,6 +351,7 @@ export class CategoriesPageComponent implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
   copy = computed(() => CATEGORIES_TEXT[this.locale()]);
@@ -388,6 +391,7 @@ export class CategoriesPageComponent implements OnInit {
 
   // Filters
   searchQuery = signal('');
+  @ViewChild('categorySearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
 
   // Pagination
   page = signal(1);
@@ -443,11 +447,25 @@ export class CategoriesPageComponent implements OnInit {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Category', descriptionEs: 'Nueva Categoría', category: 'actions', permission: PERMISSIONS.CATEGORIES_CREATE, action: () => { void this.openCreateModal(); } },
+      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCategories(); } },
+      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+    );
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
       if (this.hasInitialData) return;
       await this.reloadCategories();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async reloadCategories() {

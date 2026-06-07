@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { SessionService } from '../../shared/services/session.service';
@@ -11,6 +12,7 @@ import { BillflowSidebarComponent } from '../../shared/components/billflow-sideb
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
+import { KeyboardShortcutsModalComponent } from '../../shared/components/keyboard-shortcuts-modal.component';
 import { getSharedTranslations } from '../../shared/i18n/shared.translations';
 import { customersCopy } from '../customers/i18n/customers.translations';
 import type { DashboardInitialData } from '../../shared/ssr-page-data';
@@ -288,7 +290,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
 @Component({
   selector: 'billflow-dashboard-page',
   standalone: true,
-  imports: [CommonModule, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, DashboardRevenueChartComponent],
+  imports: [CommonModule, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, DashboardRevenueChartComponent, KeyboardShortcutsModalComponent],
   host: { class: 'block w-full' },
   template: `
     <div class="app-dashboard-shell">
@@ -546,15 +548,17 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
         </div>
       </nav>
     </div>
+    <keyboard-shortcuts-modal></keyboard-shortcuts-modal>
   `,
 })
-export class DashboardPageComponent implements OnInit {
+export class DashboardPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(DashboardApiService);
   private readonly feedback = inject(UiFeedbackService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly localeService = inject(LocaleService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
@@ -666,6 +670,9 @@ export class DashboardPageComponent implements OnInit {
     this.themeService.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
+    this.keyboardShortcuts.register(
+      { keys: 'r', descriptionEn: 'Refresh dashboard', descriptionEs: 'Actualizar panel', category: 'actions', action: () => { void this.loadDashboardData(); } },
+    );
     // Try to restore session: check localStorage → refresh via API → redirect if fails
     const restored = await this.session.restoreSession();
     if (!restored) return; // restoreSession already redirected to /auth
@@ -673,6 +680,10 @@ export class DashboardPageComponent implements OnInit {
     if (this.hasInitialData) return;
 
     await this.loadDashboardData();
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('r');
   }
 
   private async loadDashboardData() {

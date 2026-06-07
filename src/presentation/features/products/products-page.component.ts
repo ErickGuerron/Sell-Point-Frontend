@@ -1,11 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, inject, signal, ChangeDetectionStrategy, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input, ViewChild, type ElementRef } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { PermissionsService } from '../../shared/services/permissions.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -221,6 +222,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                   <div class="relative flex-1">
                     <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
                     <input
+                      #productSearchInput
                       class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
                       [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
                       [value]="searchQuery()"
@@ -364,7 +366,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
     </billflow-page-shell>
   `,
 })
-export class ProductsPageComponent implements OnInit {
+export class ProductsPageComponent implements OnInit, OnDestroy {
   private readonly getProductsUseCase = inject(GetProductsUseCase);
   private readonly getProductByIdUseCase = inject(GetProductByIdUseCase);
   private readonly createProductUseCase = inject(CreateProductUseCase);
@@ -379,6 +381,7 @@ export class ProductsPageComponent implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
@@ -419,6 +422,7 @@ export class ProductsPageComponent implements OnInit {
 
   // Filters
   searchQuery = signal('');
+  @ViewChild('productSearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
   searchField = signal<'all' | 'code' | 'name'>('all');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   categoryFilter = signal<string>('all');
@@ -524,6 +528,11 @@ export class ProductsPageComponent implements OnInit {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Product', descriptionEs: 'Nuevo Producto', category: 'actions', permission: PERMISSIONS.PRODUCTS_CREATE, action: () => { void this.openCreateModal(); } },
+      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadProducts(); } },
+      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+    );
     if (typeof window !== 'undefined') {
       document.documentElement.lang = this.locale();
       if (this.hasInitialData) return;
@@ -531,6 +540,15 @@ export class ProductsPageComponent implements OnInit {
       await this.reloadProducts();
       void this.reloadKpis();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async loadCategories() {

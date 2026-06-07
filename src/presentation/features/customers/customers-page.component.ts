@@ -1,12 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Component, computed, inject, signal, Input } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
 import { SessionService } from '../../shared/services/session.service';
 import { ThemeService } from '../../shared/services/theme.service';
-import { PermissionsService } from '../../shared/services/permissions.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import type { ComboboxOption } from '../../shared/components/billflow-combobox.component';
@@ -198,7 +199,7 @@ import type { CustomersInitialData } from '../../shared/ssr-page-data';
 </billflow-page-shell>
   `,
 })
-export class CustomersPageComponent implements OnInit {
+export class CustomersPageComponent implements OnInit, OnDestroy {
   private readonly listCustomers = inject(ListCustomersUseCase);
   private readonly createCustomer = inject(CreateCustomerUseCase);
   private readonly updateCustomer = inject(UpdateCustomerUseCase);
@@ -209,6 +210,7 @@ export class CustomersPageComponent implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
   private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
   copy = customersCopy(this.locale);
@@ -343,11 +345,29 @@ export class CustomersPageComponent implements OnInit {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
+    this.keyboardShortcuts.register(
+      { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', permission: PERMISSIONS.CUSTOMERS_CREATE, action: () => { void this.openCreateModal(); } },
+      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCustomers(); } },
+      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+    );
     if (this.hasInitialData) return;
     await Promise.all([
       this.reloadCustomers(),
       this.reloadKpis(),
     ]);
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    const input = document.querySelector<HTMLInputElement>(
+      'billflow-customer-table input[placeholder*="Buscar"], ' +
+      'billflow-customer-table input[placeholder*="Search"]'
+    );
+    input?.focus();
+    input?.select();
   }
 
   private buildListParams(): CustomerListParams {
