@@ -47,6 +47,7 @@ interface PaginatedRawDto<T> {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
 export { type ProductRawDto, type MovementRawDto, type CategoryRawDto, type PaginatedRawDto };
@@ -117,9 +118,10 @@ export class ProductRemoteDataSource {
 
     return {
       data: rawItems,
-      total: body.pagination?.total ?? body.total ?? rawItems.length,
-      page: body.pagination?.page ?? body.page ?? page,
-      limit: body.pagination?.limit ?? body.limit ?? limit,
+      total: body.total ?? rawItems.length,
+      page: body.page ?? page,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil((body.total ?? rawItems.length) / (body.limit ?? limit))),
     };
   }
 
@@ -199,21 +201,23 @@ export class ProductRemoteDataSource {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
     const body = (await response.json()) as any;
+    const items = (body.data || []).map((m: any) => ({
+      id: m.id,
+      productId: m.productId,
+      type: m.type,
+      quantity: Number(m.quantity ?? 0),
+      description: m.description,
+      reason: m.reason,
+      previousStock: Number(m.previousStock ?? 0),
+      newStock: Number(m.newStock ?? 0),
+      createdAt: m.createdAt ?? '',
+    }));
     return {
-      data: (body.data || []).map((m: any) => ({
-        id: m.id,
-        productId: m.productId,
-        type: m.type,
-        quantity: Number(m.quantity ?? 0),
-        description: m.description,
-        reason: m.reason,
-        previousStock: Number(m.previousStock ?? 0),
-        newStock: Number(m.newStock ?? 0),
-        createdAt: m.createdAt ?? '',
-      })),
-      total: body.total ?? (body.data || []).length,
+      data: items,
+      total: body.total ?? items.length,
       page: body.page ?? page,
       limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(items.length / (body.limit ?? limit))),
     };
   }
 

@@ -40,6 +40,7 @@ export interface PaginatedProducts {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
 export interface PaginatedMovements {
@@ -47,6 +48,7 @@ export interface PaginatedMovements {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
 export interface ProductAggregates {
