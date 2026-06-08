@@ -18,6 +18,7 @@ interface PaginatedRawDto<T> {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
 export { type CategoryRawDto, type PaginatedRawDto };
@@ -41,11 +42,13 @@ export class CategoryRemoteDataSource {
 
     const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/categories?${params.toString()}`, signal ? { signal } : undefined);
     const body = (await res.json()) as any;
+    const data = (body.data || []).map((c: any): CategoryRawDto => this.mapRaw(c));
     return {
-      data: (body.data || []).map((c: any): CategoryRawDto => this.mapRaw(c)),
-      total: body.pagination?.total ?? body.total ?? (body.data || []).length,
-      page: body.pagination?.page ?? body.page ?? page,
-      limit: body.pagination?.limit ?? body.limit ?? limit,
+      data,
+      total: body.total ?? data.length,
+      page: body.page ?? page,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(data.length / (body.limit ?? limit))),
     };
   }
 
