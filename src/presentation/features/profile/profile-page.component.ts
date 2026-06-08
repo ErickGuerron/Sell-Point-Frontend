@@ -328,7 +328,7 @@ export class ProfilePageComponent implements OnInit {
   private hasInitialData = false;
 
   @Input() set initialData(value: ProfileInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.store.setInitialProfile(value.profile);
     this.hasInitialData = Boolean(value.profile);
   }
@@ -350,6 +350,10 @@ export class ProfilePageComponent implements OnInit {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
+    if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+    }
     if (this.hasInitialData) return;
     await this.store.loadProfile();
   }

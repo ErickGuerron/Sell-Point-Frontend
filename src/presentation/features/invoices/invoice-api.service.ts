@@ -185,7 +185,13 @@ export class InvoiceApiService {
     invoiceNumber?: string,
     branchId?: string,
   ): Promise<PaginatedList<InvoiceRowDto>> {
-    const params = new URLSearchParams({ page: '1', limit: String(limit) });
+    // The backend's `PaginationQueryDto` enforces `@Max(100)` on the
+    // `limit` query param. Cap the client-side value to stay within
+    // the contract; callers that need more rows should paginate
+    // explicitly (page=1, page=2, ...) instead of asking for a single
+    // oversized page that the backend will reject with 400.
+    const safeLimit = Math.min(Math.max(1, limit), 100);
+    const params = new URLSearchParams({ page: '1', limit: String(safeLimit) });
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
     if (status) params.set('status', status);

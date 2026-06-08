@@ -714,7 +714,7 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
   }
 
   @Input() set initialData(value: EmployeesInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.employees.set(value.employees);
     this.roles.set(value.roles);
@@ -773,6 +773,9 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
     if (typeof window === 'undefined') return;
 
     this.session.init();
+    const restored = await this.session.restoreSession();
+    if (!restored) return;
+
     this.keyboardShortcuts.register(
       { keys: 'n', descriptionEn: 'New Employee', descriptionEs: 'Nuevo Empleado', category: 'actions', permission: PERMISSIONS.EMPLOYEES_CREATE, action: () => { void this.openCreateModal(); } },
       { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadEmployees(); } },

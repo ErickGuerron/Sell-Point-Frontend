@@ -1,7 +1,7 @@
 import { resolveApiBaseUrl } from './services/api-base';
 import type { AppLocale } from './services/locale.service';
 import { getSharedTranslations } from './i18n/shared.translations';
-import { getBillflowSessionCookieName, parseBillflowSession, serializeBillflowSession } from './billflow-session';
+import { getBillflowSessionCookieName, parseBillflowSession } from './billflow-session';
 import type { PaginatedList } from './types/pagination';
 import type { DashboardStatsDto } from '../features/dashboard/dashboard-api.service';
 import type { InvoiceRowDto as DashboardInvoiceRowDto, ProductRowDto as DashboardProductRowDto, CustomerRowDto as DashboardCustomerRowDto } from '../features/dashboard/dashboard-api.service';
@@ -24,14 +24,14 @@ import type { EmployeeRowDto, RoleDto } from '../features/employees/employee-api
 const ROLE_ADMIN = 'ADMIN';
 
 /**
- * Returns the user's role from the session cookie, or undefined if not authenticated.
+ * Returns the user's role from the identity cookie, or undefined if not authenticated.
  * Used in Astro frontmatter to check permissions before rendering a page.
  */
 export function getUserRole(astro: AstroLike): string | undefined {
   const sessionCookie = astro.cookies.get(getBillflowSessionCookieName())?.value;
   const session = parseBillflowSession(sessionCookie);
   if (!session) return undefined;
-  return session.role ?? (session.user as { role?: string } | undefined)?.role;
+  return session.role ?? session.user?.role;
 }
 
 /**
@@ -51,6 +51,7 @@ export interface AstroCookiesLike {
 
 export interface AstroLike {
   cookies: AstroCookiesLike;
+  request?: { headers?: { get(name: string): string | null } };
 }
 
 export interface DashboardInitialData {
@@ -58,6 +59,7 @@ export interface DashboardInitialData {
   invoices: DashboardInvoiceEntry[];
   products: DashboardProductEntry[];
   customers: DashboardCustomerEntry[];
+  isAuthenticated?: boolean;
 }
 
 export interface DashboardInvoiceEntry {
@@ -92,6 +94,7 @@ export interface CustomersInitialData {
   totalKpi: number;
   activeKpi: number;
   inactiveKpi: number;
+  isAuthenticated?: boolean;
 }
 
 export interface ProductsInitialData {
@@ -102,6 +105,7 @@ export interface ProductsInitialData {
   pageSize: number;
   activeCount: number;
   lowStockCount: number;
+  isAuthenticated?: boolean;
 }
 
 export interface CategoriesInitialData {
@@ -110,6 +114,7 @@ export interface CategoriesInitialData {
   activeCategoriesCount: number;
   page: number;
   pageSize: number;
+  isAuthenticated?: boolean;
 }
 
 export interface InvoicesInitialData {
@@ -117,6 +122,7 @@ export interface InvoicesInitialData {
   invoiceKpis: InvoiceKpisDto;
   page: number;
   pageSize: number;
+  isAuthenticated?: boolean;
 }
 
 export interface InvoicePageEntry extends InvoiceRowDto {
@@ -128,6 +134,7 @@ export interface InvoicePageEntry extends InvoiceRowDto {
 
 export interface ProfileInitialData {
   profile: ProfileEntity | null;
+  isAuthenticated?: boolean;
 }
 
 export interface EmployeesInitialData {
@@ -140,17 +147,26 @@ export interface EmployeesInitialData {
   blockedEmployeesKpi: number;
   page: number;
   pageSize: number;
+  isAuthenticated?: boolean;
 }
 
 type JsonRequestInit = RequestInit & { headers?: HeadersInit };
 
-async function fetchJsonWithAuth<T>(astro: AstroLike, path: string, init: JsonRequestInit = {}): Promise<T | null> {
-  const sessionCookie = astro.cookies.get(getBillflowSessionCookieName())?.value;
-  const session = parseBillflowSession(sessionCookie);
-
-  if (!session) return null;
-
-  const buildHeaders = (token?: string): Headers => {
+async function fetchJsonWithAuth<T>(
+  astro: AstroLike,
+  path: string,
+  init: JsonRequestInit = {},
+  preFetchedToken?: string | null,
+): Promise<T | null> {
+  // The legacy `billflow-session` cookie check was removed in slice 2
+  // because the cookie is no longer set by the login flow (it carried
+  // tokens, which now live in the HttpOnly `refreshToken` cookie + the
+  // in-memory `AuthTokenStore`). The `preFetchedToken` parameter is now
+  // the sole source of truth for authentication. If it is null/empty,
+  // the loader did not obtain a refresh token, and the call falls through
+  // to an unauthenticated request (the backend will 401 and `null` is
+  // returned below).
+  const buildHeaders = (token?: string | null): Headers => {
     const headers = new Headers(init.headers);
     if (init.body && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
@@ -161,40 +177,101 @@ async function fetchJsonWithAuth<T>(astro: AstroLike, path: string, init: JsonRe
     return headers;
   };
 
-  const request = async (token?: string) => fetch(`${API_BASE_URL}${path}`, {
+  // Refresh-first: the loader calls `getAccessTokenForRequest(astro)` once
+  // before fanning out parallel fetchers, then passes the resulting token
+  // in via `preFetchedToken`. If the loader did NOT pre-fetch (e.g. an
+  // external caller that still relies on lazy refresh), fall through to
+  // the request without a bearer; the backend will 401 and the caller
+  // is expected to render an unauthenticated state on `null`.
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
-    headers: buildHeaders(token),
+    headers: buildHeaders(preFetchedToken),
   });
-
-  let response = await request(session.accessToken ?? session.token);
-
-  if (response.status === 401 && session.refreshToken) {
-    const refreshed = await refreshSession(session.refreshToken);
-    if (refreshed) {
-      astro.cookies.set(getBillflowSessionCookieName(), serializeBillflowSession(refreshed), {
-        path: '/',
-        sameSite: 'lax',
-        httpOnly: false,
-      });
-      response = await request(refreshed.accessToken ?? refreshed.token);
-    }
-  }
 
   if (!response.ok) return null;
   return response.json() as Promise<T>;
 }
 
-async function refreshSession(refreshToken: string,): Promise<{ accessToken?: string; refreshToken?: string; token?: string } | null> {
+/**
+ * Refresh-FIRST token resolver for SSR.
+ *
+ * Per spec (`auth-secure-cookie-session/spec.md` — "Silent Refresh and
+ * Failure Recovery"), the app SHALL call `POST /auth/refresh` BEFORE its
+ * first authenticated API call. This helper:
+ *
+ *   1. Inspects the inbound `Cookie` header.
+ *   2. If a `refreshToken=` entry is present, forwards it to
+ *      `POST /auth/refresh` and returns the new access token.
+ *   3. Returns `null` if there is no refresh cookie or the refresh
+ *      failed (expired/revoked). Loaders that receive `null` render an
+ *      unauthenticated state; the client-side `restoreSession` will
+ *      perform the actual redirect to `/auth` after hydration.
+ *
+ * Callers MUST invoke this exactly once per page load and pass the
+ * result into every `fetchJsonWithAuth` call as `preFetchedToken` to
+ * avoid N parallel refreshes from a single page (e.g. dashboard fans
+ * out 4 parallel calls).
+ */
+export async function getAccessTokenForRequest(astro: AstroLike): Promise<string | null> {
+  const inboundCookie = astro.request?.headers?.get('cookie') ?? astro.request?.headers?.get('Cookie');
+  if (!inboundCookie) return null;
+  if (!/(?:^|;\s*)refreshToken=/.test(inboundCookie)) return null;
+
+  const refreshed = await refreshSession(astro);
+  return refreshed?.accessToken ?? null;
+}
+
+/**
+ * Forwards the inbound `Cookie` header to the backend `/auth/refresh`
+ * endpoint (no body). The backend reads the `refreshToken` from the
+ * forwarded cookie, rotates, and returns a new access token. The
+ * `Set-Cookie` from the backend is propagated to the browser by the
+ * Astro dev proxy (Vite `server.proxy`) or by the prod reverse proxy.
+ */
+async function refreshSession(astro: AstroLike): Promise<{ accessToken: string } | null> {
+  const inboundCookie = astro.request?.headers?.get('cookie') ?? astro.request?.headers?.get('Cookie');
+  if (!inboundCookie) return null;
+
   try {
     const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: inboundCookie,
+      },
     });
 
     if (!response.ok) return null;
 
-    return response.json() as Promise<{ accessToken?: string; refreshToken?: string; token?: string }>;
+    // Propagate the rotated cookie back to the browser's cookie jar via Astro
+    const setCookie = response.headers.get('set-cookie');
+    if (setCookie) {
+      const match = setCookie.match(/refreshToken=([^;]+)/);
+      if (match) {
+        const tokenValue = match[1];
+        const maxAgeMatch = setCookie.match(/Max-Age=([^;]+)/i);
+        const pathMatch = setCookie.match(/Path=([^;]+)/i);
+        const sameSiteMatch = setCookie.match(/SameSite=([^;]+)/i);
+        const httpOnly = /HttpOnly/i.test(setCookie);
+        const secure = /Secure/i.test(setCookie);
+
+        const options: any = {
+          httpOnly,
+          secure,
+          path: pathMatch ? pathMatch[1] : '/',
+        };
+        if (maxAgeMatch) {
+          options.maxAge = parseInt(maxAgeMatch[1], 10);
+        }
+        if (sameSiteMatch) {
+          options.sameSite = sameSiteMatch[1].toLowerCase() as 'lax' | 'strict' | 'none';
+        }
+
+        astro.cookies.set('refreshToken', tokenValue, options);
+      }
+    }
+
+    return response.json() as Promise<{ accessToken: string }>;
   } catch {
     return null;
   }
@@ -289,11 +366,12 @@ function mapEmployee(raw: any): EmployeeRowDto {
 
 export async function loadDashboardInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<DashboardInitialData> {
   const { ssr } = getSharedTranslations(locale);
+  const token = await getAccessTokenForRequest(astro);
   const [stats, invoices, products, customers] = await Promise.all([
-    fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas'),
-    fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5'),
-    fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=3'),
-    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4'),
+    fetchJsonWithAuth<DashboardStatsDto>(astro, '/dashboard/estadisticas', {}, token),
+    fetchJsonWithAuth<{ data: DashboardInvoiceRowDto[] }>(astro, '/invoices?page=1&limit=5', {}, token),
+    fetchJsonWithAuth<{ data: DashboardProductRowDto[] }>(astro, '/products?page=1&limit=3', {}, token),
+    fetchJsonWithAuth<{ data: DashboardCustomerRowDto[] }>(astro, '/customers?page=1&limit=4', {}, token),
   ]);
 
   return {
@@ -301,14 +379,16 @@ export async function loadDashboardInitialData(astro: AstroLike, locale: AppLoca
     invoices: invoices?.data?.map((invoice) => mapDashboardInvoice(invoice, ssr.unknownCustomer)) ?? [],
     products: products?.data?.map(mapDashboardProduct) ?? [],
     customers: customers?.data?.map((customer) => mapDashboardCustomer(customer, ssr.unknownCustomer)) ?? [],
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadCustomersInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CustomersInitialData> {
   void locale;
+  const token = await getAccessTokenForRequest(astro);
   const [customersResponse, kpisResponse] = await Promise.all([
-    fetchJsonWithAuth<PaginatedList<BackendCustomer>>(astro, '/customers?page=1&limit=5'),
-    fetchJsonWithAuth<{ totalCustomers: number; activeCustomers: number; inactiveCustomers: number }>(astro, '/customers/kpis'),
+    fetchJsonWithAuth<PaginatedList<BackendCustomer>>(astro, '/customers?page=1&limit=5', {}, token),
+    fetchJsonWithAuth<{ totalCustomers: number; activeCustomers: number; inactiveCustomers: number }>(astro, '/customers/kpis', {}, token),
   ]);
   const data = customersResponse?.data?.map(mapBackendToEntity) ?? [];
   const totalCustomers = customersResponse?.total ?? data.length;
@@ -321,15 +401,17 @@ export async function loadCustomersInitialData(astro: AstroLike, locale: AppLoca
     totalKpi: kpisResponse?.totalCustomers ?? totalCustomers,
     activeKpi: kpisResponse?.activeCustomers ?? 0,
     inactiveKpi: kpisResponse?.inactiveCustomers ?? 0,
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadProductsInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<ProductsInitialData> {
   void locale;
+  const token = await getAccessTokenForRequest(astro);
   const [productsResponse, categoriesResponse, kpisResponse] = await Promise.all([
-    fetchJsonWithAuth<PaginatedList<ProductRawDto>>(astro, '/products?page=1&limit=10'),
-    fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?page=1&limit=20&isActive=true'),
-    fetchJsonWithAuth<{ totalProducts: number; activeCount: number; lowStockCount: number }>(astro, '/products/kpis'),
+    fetchJsonWithAuth<PaginatedList<ProductRawDto>>(astro, '/products?page=1&limit=10', {}, token),
+    fetchJsonWithAuth<{ data: CategoryBackendDto[] }>(astro, '/categories?page=1&limit=20&isActive=true', {}, token),
+    fetchJsonWithAuth<{ totalProducts: number; activeCount: number; lowStockCount: number }>(astro, '/products/kpis', {}, token),
   ]);
 
   const products = productsResponse?.data?.map(toProductEntity) ?? [];
@@ -342,34 +424,36 @@ export async function loadProductsInitialData(astro: AstroLike, locale: AppLocal
     pageSize: productsResponse?.limit ?? 5,
     activeCount: kpisResponse?.activeCount ?? 0,
     lowStockCount: kpisResponse?.lowStockCount ?? 0,
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadCategoriesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<CategoriesInitialData> {
   void locale;
+  const token = await getAccessTokenForRequest(astro);
   const [categoriesResponse, kpis] = await Promise.all([
-    fetchJsonWithAuth<PaginatedList<CategoryBackendDto>>(astro, '/categories?page=1&limit=5'),
-    fetchJsonWithAuth<{ totalCategories: number; activeCount: number }>(astro, '/categories/kpis'),
+    fetchJsonWithAuth<PaginatedList<CategoryBackendDto>>(astro, '/categories?page=1&limit=5', {}, token),
+    fetchJsonWithAuth<{ totalCategories: number; activeCount: number }>(astro, '/categories/kpis', {}, token),
   ]);
   const categories = categoriesResponse?.data?.map(mapCategoryToEntity) ?? [];
   const totalCategoriesCount = categoriesResponse?.total ?? categories.length;
-  const page = categoriesResponse?.page ?? 1;
-  const pageSize = categoriesResponse?.limit ?? 5;
 
   return {
     categories,
     totalCategoriesCount: kpis?.totalCategories ?? totalCategoriesCount,
     activeCategoriesCount: kpis?.activeCount ?? totalCategoriesCount,
-    page,
-    pageSize,
+    page: categoriesResponse?.page ?? 1,
+    pageSize: categoriesResponse?.limit ?? 5,
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadInvoicesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<InvoicesInitialData> {
   const { ssr } = getSharedTranslations(locale);
+  const token = await getAccessTokenForRequest(astro);
   const [invoicesResponse, kpis] = await Promise.all([
-    fetchJsonWithAuth<{ data: InvoiceRowDto[] }>(astro, '/invoices?page=1&limit=20'),
-    fetchJsonWithAuth<InvoiceKpisDto>(astro, '/invoices/kpis'),
+    fetchJsonWithAuth<{ data: InvoiceRowDto[] }>(astro, '/invoices?page=1&limit=20', {}, token),
+    fetchJsonWithAuth<InvoiceKpisDto>(astro, '/invoices/kpis', {}, token),
   ]);
 
   return {
@@ -384,23 +468,27 @@ export async function loadInvoicesInitialData(astro: AstroLike, locale: AppLocal
     },
     page: 1,
     pageSize: 5,
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadProfileInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<ProfileInitialData> {
   void locale;
-  const response = await fetchJsonWithAuth<ProfileRawDto>(astro, '/auth/me');
+  const token = await getAccessTokenForRequest(astro);
+  const response = await fetchJsonWithAuth<ProfileRawDto>(astro, '/auth/me', {}, token);
   return {
     profile: response ? toProfileEntity(response) : null,
+    isAuthenticated: !!token,
   };
 }
 
 export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<EmployeesInitialData> {
   void locale;
+  const token = await getAccessTokenForRequest(astro);
   const [employeesResponse, rolesResponse, kpisResponse] = await Promise.all([
-    fetchJsonWithAuth<PaginatedList<EmployeeRowDto>>(astro, '/users?page=1&limit=5'),
-    fetchJsonWithAuth<RoleDto[] | { data: RoleDto[] }>(astro, '/roles'),
-    fetchJsonWithAuth<{ totalEmployees: number; activeEmployees: number; inactiveEmployees: number; blockedEmployees: number }>(astro, '/users/kpis'),
+    fetchJsonWithAuth<PaginatedList<EmployeeRowDto>>(astro, '/users?page=1&limit=5', {}, token),
+    fetchJsonWithAuth<RoleDto[] | { data: RoleDto[] }>(astro, '/roles', {}, token),
+    fetchJsonWithAuth<{ totalEmployees: number; activeEmployees: number; inactiveEmployees: number; blockedEmployees: number }>(astro, '/users/kpis', {}, token),
   ]);
 
   const employees = employeesResponse?.data?.map(mapEmployee) ?? [];
@@ -419,5 +507,6 @@ export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLoca
     blockedEmployeesKpi: kpisResponse?.blockedEmployees ?? 0,
     page,
     pageSize,
+    isAuthenticated: !!token,
   };
 }

@@ -10,7 +10,8 @@ import { AuthApiService } from './data/auth-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { ThemeService } from '../../shared/services/theme.service';
 import { SessionService } from '../../shared/services/session.service';
-import { writeBillflowSessionCookie } from '../../shared/billflow-session';
+import { AuthTokenStore } from '../../shared/auth/auth-token.store';
+import { AuthHttpService } from '../../shared/services/auth-http.service';
 
 @Component({
   selector: 'billflow-auth-page',
@@ -216,6 +217,8 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   private readonly themeService = inject(ThemeService);
   private readonly session = inject(SessionService);
   private readonly authApi = inject(AuthApiService);
+  private readonly authTokenStore = inject(AuthTokenStore);
+  private readonly authHttp = inject(AuthHttpService);
 
   locale = signal(detectAuthLocale());
   authView = signal<'login' | 'recovery'>('login');
@@ -334,9 +337,27 @@ export class AuthPageComponent implements OnInit, OnDestroy {
 
     try {
       const session = await this.authApi.loginWithGoogle(token);
-      window.localStorage.setItem('billflow-session', JSON.stringify(session));
-      writeBillflowSessionCookie(session);
-      void this.session.hydrateUserProfile();
+      const accessToken = (session as { accessToken?: string }).accessToken;
+      if (accessToken) {
+        this.authTokenStore.set(accessToken);
+      }
+      // Populate AuthIdentityStore from /auth/me. The refresh cookie is
+      // set by the backend on this response; the access token is the only
+      // thing kept in memory.
+      //
+      // Both awaits must complete BEFORE the navigation, otherwise the
+      // `billflow-identity` localStorage key is never written and the
+      // post-login page renders an unauthenticated state. If `/auth/me`
+      // 500s for any reason, log and continue — the refresh cookie is
+      // already set, so the next page's `restoreSession` will retry the
+      // hydrate via the in-memory access token.
+      try {
+        await this.authHttp.fetchAndStoreIdentity();
+        await this.session.hydrateUserProfile();
+      } catch (hydrateErr) {
+        // eslint-disable-next-line no-console
+        console.error('[auth-page] post-login identity hydrate failed', hydrateErr);
+      }
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
@@ -372,9 +393,27 @@ const session = await this.authApi.login({
         password: payload.secret,
         rememberMe: Boolean(payload.rememberMe),
       });
-      window.localStorage.setItem('billflow-session', JSON.stringify(session));
-      writeBillflowSessionCookie(session);
-      void this.session.hydrateUserProfile();
+      const accessToken = (session as { accessToken?: string }).accessToken;
+      if (accessToken) {
+        this.authTokenStore.set(accessToken);
+      }
+      // Populate AuthIdentityStore from /auth/me. The refresh cookie is
+      // set by the backend on this response; the access token is the only
+      // thing kept in memory.
+      //
+      // Both awaits must complete BEFORE the navigation, otherwise the
+      // `billflow-identity` localStorage key is never written and the
+      // post-login page renders an unauthenticated state. If `/auth/me`
+      // 500s for any reason, log and continue — the refresh cookie is
+      // already set, so the next page's `restoreSession` will retry the
+      // hydrate via the in-memory access token.
+      try {
+        await this.authHttp.fetchAndStoreIdentity();
+        await this.session.hydrateUserProfile();
+      } catch (hydrateErr) {
+        // eslint-disable-next-line no-console
+        console.error('[auth-page] post-login identity hydrate failed', hydrateErr);
+      }
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
