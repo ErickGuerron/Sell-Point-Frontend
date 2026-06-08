@@ -234,7 +234,7 @@ export class CustomerSelectionModalComponent {
       const res = await this.api.fetchCustomersPage(query, page, this.customerPageSize(), field);
       if (requestId !== this.customerModalRequestId) return;
       this.modalCustomers.set(res.data);
-      this.modalTotal.set(res.pagination?.total ?? res.data.length);
+      this.modalTotal.set(res.total);
       this.modalPage.set(page);
     } catch (err) {
       if (requestId !== this.customerModalRequestId) return;
