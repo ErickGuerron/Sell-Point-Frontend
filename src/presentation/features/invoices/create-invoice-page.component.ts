@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ViewChild } from '@angular/core';
 import type { OnInit, OnDestroy } from '@angular/core';
 import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
@@ -338,14 +338,17 @@ export class CreateInvoicePageComponent implements OnInit, OnDestroy {
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  ngOnInit() {
+  async ngOnInit() {
     this.session.init();
     this.applyStoredTheme();
-    this.keyboardShortcuts.register(
-      { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', action: () => { this.showNewCustomerModal.set(true); } },
-      { keys: 's', descriptionEn: 'Submit Invoice', descriptionEs: 'Emitir Factura', category: 'actions', action: () => { if (this.canSubmit()) { void this.submitInvoice(); } } },
-    );
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', action: () => { this.showNewCustomerModal.set(true); } },
+        { keys: 's', descriptionEn: 'Submit Invoice', descriptionEs: 'Emitir Factura', category: 'actions', action: () => { if (this.canSubmit()) { void this.submitInvoice(); } } },
+      );
       document.documentElement.lang = this.locale();
     }
   }

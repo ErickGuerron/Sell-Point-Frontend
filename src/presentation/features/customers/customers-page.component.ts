@@ -328,7 +328,7 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
   private hasInitialData = false;
 
   @Input() set initialData(value: CustomersInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.customers.set(value.customers);
     this.totalCustomers.set(value.totalCustomers);
@@ -343,8 +343,13 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   async ngOnInit() {
+    if (typeof window === 'undefined') return;
     this.themeService.init();
     this.session.init();
+
+    const restored = await this.session.restoreSession();
+    if (!restored) return;
+
     this.keyboardShortcuts.register(
       { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', permission: PERMISSIONS.CUSTOMERS_CREATE, action: () => { void this.openCreateModal(); } },
       { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCustomers(); } },
