@@ -1,7 +1,10 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, computed, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
+import { Component, inject, computed, signal, ChangeDetectionStrategy, Input } from '@angular/core';
 import type { OnInit } from '@angular/core';
 import { LocaleService } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
+import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
@@ -9,125 +12,13 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import type { BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
-
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
-
-interface MeResponse {
-  id?: string;
-  name?: string;
-  email?: string;
-  role?: string;
-  isActive?: boolean;
-  failedLoginAttempts?: number;
-  /** Some backends nest user info */
-  user?: {
-    id?: string;
-    name?: string;
-    email?: string;
-    role?: string;
-    isActive?: boolean;
-    failedLoginAttempts?: number;
-  };
-}
-
-interface ProfileCopy {
-  moduleLabel: string;
-  title: string;
-  description: string;
-  userInfo: string;
-  sessionInfo: string;
-  name: string;
-  email: string;
-  role: string;
-  status: string;
-  active: string;
-  blocked: string;
-  failedAttempts: string;
-  failedAttemptsDesc: string;
-  accountCreated: string;
-  lastLogin: string;
-  loading: string;
-  errorTitle: string;
-  errorText: string;
-  retry: string;
-  // Sidebar
-  sidebarDashboard: string;
-  sidebarInvoices: string;
-  sidebarProducts: string;
-  sidebarCustomers: string;
-  sidebarEmployees: string;
-  // User menu
-  signOut: string;
-  settings: string;
-  notifications: string;
-  languageToggle: string;
-  sessionLabel: string;
-}
-
-const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
-  es: {
-    moduleLabel: 'Mi Cuenta',
-    title: 'Perfil de Usuario',
-    description: 'Información personal y estado de tu cuenta en el sistema.',
-    userInfo: 'Datos Personales',
-    sessionInfo: 'Información de la Sesión',
-    name: 'Nombre Completo',
-    email: 'Correo Electrónico',
-    role: 'Rol en el Sistema',
-    status: 'Estado de la Cuenta',
-    active: 'Activa',
-    blocked: 'Bloqueada',
-    failedAttempts: 'Intentos Fallidos de Inicio de Sesión',
-    failedAttemptsDesc: 'intento(s) fallido(s) desde el último inicio de sesión exitoso',
-    accountCreated: 'Cuenta Creada',
-    lastLogin: 'Último Acceso',
-    loading: 'Cargando perfil…',
-    errorTitle: 'Error al cargar el perfil',
-    errorText: 'No se pudo obtener la información del usuario. Verificá la conexión con el backend e intentá de nuevo.',
-    retry: 'Reintentar',
-    sidebarDashboard: 'Panel',
-    sidebarInvoices: 'Facturas',
-    sidebarProducts: 'Productos',
-    sidebarCustomers: 'Clientes',
-    sidebarEmployees: 'Empleados',
-    signOut: 'Cerrar sesión',
-    settings: 'Configuración',
-    notifications: 'Notificaciones',
-    languageToggle: 'English',
-    sessionLabel: 'Sesión',
-  },
-  en: {
-    moduleLabel: 'My Account',
-    title: 'User Profile',
-    description: 'Personal information and account status in the system.',
-    userInfo: 'Personal Details',
-    sessionInfo: 'Session Information',
-    name: 'Full Name',
-    email: 'Email Address',
-    role: 'System Role',
-    status: 'Account Status',
-    active: 'Active',
-    blocked: 'Blocked',
-    failedAttempts: 'Failed Login Attempts',
-    failedAttemptsDesc: 'failed attempt(s) since last successful login',
-    accountCreated: 'Account Created',
-    lastLogin: 'Last Access',
-    loading: 'Loading profile…',
-    errorTitle: 'Could not load profile',
-    errorText: 'Failed to fetch user information. Please check the backend connection and try again.',
-    retry: 'Retry',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Invoices',
-    sidebarProducts: 'Products',
-    sidebarCustomers: 'Customers',
-    sidebarEmployees: 'Employees',
-    signOut: 'Sign out',
-    settings: 'Settings',
-    notifications: 'Notifications',
-    languageToggle: 'Español',
-    sessionLabel: 'Session',
-  },
-};
+import { ProfileStore } from './profile-store';
+import { ProfileRemoteDataSource } from './data/profile-remote.datasource';
+import { ProfileImplRepository } from './data/profile.impl.repository';
+import { ProfileRepository } from './domain/profile.repository';
+import type { ProfileCopy } from './i18n/profile.translations';
+import { PROFILE_TEXT } from './i18n/profile.translations';
+import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-profile-page',
@@ -153,11 +44,14 @@ const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
         >
           <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 shrink-0">
-              <span class="hidden md:inline-flex lg:hidden">
-                <billflow-mobile-sidebar
-                  [items]="sidebarItems()"
-                ></billflow-mobile-sidebar>
-              </span>
+                <span class="hidden md:inline-flex lg:hidden">
+                  <billflow-mobile-sidebar
+                    [items]="sidebarItems()"
+                    [actionLabel]="copy().sessionInfo"
+                    actionIcon="info"
+                    (actionClick)="goToProfile()"
+                  ></billflow-mobile-sidebar>
+                </span>
               <span class="material-symbols-outlined text-outline">person</span>
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
@@ -213,7 +107,7 @@ const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
           >
             <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
             <p class="text-body-md text-on-surface font-semibold">{{ copy().errorTitle }}</p>
-            <p class="text-body-sm text-outline max-w-sm text-center">{{ copy().errorText }}</p>
+            <p class="text-body-sm text-outline max-w-sm text-center">{{ store.errorMessage() || copy().errorText }}</p>
             <button
               type="button"
               class="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all"
@@ -326,6 +220,77 @@ const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
               </div>
             </div>
 
+            <!-- Google Account Linking card -->
+            <div class="dashboard-table-card rounded-2xl border border-outline-variant/40 overflow-hidden">
+              <div class="p-6 md:p-7 border-b border-outline-variant/20 bg-surface/60">
+                <div class="flex items-center gap-2">
+                  <span class="material-symbols-outlined text-outline text-[20px]">link</span>
+                  <h3 class="font-label-bold text-label-bold text-outline uppercase tracking-wider">
+                    {{ copy().googleLinkTitle }}
+                  </h3>
+                </div>
+              </div>
+
+              <div class="p-6 md:p-7">
+                <!-- Unlinked state -->
+                <div *ngIf="!store.googleLinked()" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-[#4285F4]/10 text-[#4285F4] flex items-center justify-center shrink-0">
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-body-md text-body-md text-on-surface font-medium">{{ copy().googleLinkTitle }}</p>
+                      <p class="font-body-sm text-body-sm text-outline mt-0.5">{{ copy().googleLinkDesc }}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-xl bg-[#4285F4] text-white font-bold text-sm hover:bg-[#4285F4]/90 active:scale-95 transition-all shrink-0 flex items-center gap-2 disabled:opacity-50"
+                    [disabled]="store.googleLoading()"
+                    (click)="handleLinkGoogle()"
+                  >
+                    <span *ngIf="store.googleLoading()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <span *ngIf="!store.googleLoading()" class="material-symbols-outlined text-[18px]">link</span>
+                    {{ store.googleLoading() ? copy().googleLoading : copy().googleLinkButton }}
+                  </button>
+                </div>
+
+                <!-- Linked state -->
+                <div *ngIf="store.googleLinked()" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="w-10 h-10 rounded-xl bg-[#34A853]/10 text-[#34A853] flex items-center justify-center shrink-0">
+                      <span class="material-symbols-outlined text-[20px]">check_circle</span>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-1.5">
+                        {{ copy().googleLinkedLabel }}
+                        <span class="text-xs font-normal text-outline">— {{ store.googleEmail() }}</span>
+                      </p>
+                      <p class="font-body-sm text-body-sm text-success mt-0.5 flex items-center gap-1">
+                        <span class="material-symbols-outlined text-[14px] text-success">check</span>
+                        {{ copy().googleLinkedStatus }}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    class="px-4 py-2 rounded-xl border border-outline-variant text-on-surface font-bold text-sm hover:bg-error/5 active:scale-95 transition-all shrink-0 flex items-center gap-2 disabled:opacity-50"
+                    [disabled]="store.googleLoading()"
+                    (click)="handleUnlinkGoogle()"
+                  >
+                    <span *ngIf="store.googleLoading()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                    <span *ngIf="!store.googleLoading()" class="material-symbols-outlined text-[18px]">link_off</span>
+                    {{ store.googleLoading() ? copy().googleLoading : copy().googleUnlinkButton }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <!-- Failed login attempts warning -->
             <div
               *ngIf="(failedAttempts() ?? 0) > 0"
@@ -356,10 +321,20 @@ const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
 export class ProfilePageComponent implements OnInit {
   private readonly feedback = inject(UiFeedbackService);
   readonly localeService = inject(LocaleService);
-  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
-  private userMenuCloseTimeout: number | undefined;
+  protected readonly session = inject(SessionService);
+  protected readonly themeService = inject(ThemeService);
+  protected readonly store = inject(ProfileStore);
+  private readonly feedback = inject(UiFeedbackService);
+  private readonly permissions = inject(PermissionsService);
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: ProfileInitialData | null | undefined) {
+    if (!value || value.isAuthenticated === false) return;
+    this.store.setInitialProfile(value.profile);
+    this.hasInitialData = Boolean(value.profile);
+  }
 
   readonly sidebarItems = computed<BillflowSidebarItem[]>(() =>
     buildBillflowSidebarItems(
@@ -371,160 +346,19 @@ export class ProfilePageComponent implements OnInit {
         employees: this.copy().sidebarEmployees,
       },
       'dashboard',
+      this.permissions,
     ),
   );
 
-  // ── User menu state ──
-  displayName = 'Usuario';
-  userInitials = 'US';
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  userMenuOpen = signal(false);
-
-  // ── Profile data ──
-  me = signal<MeResponse | null>(null);
-  loading = signal(true);
-  error = signal(false);
-
-  initials = computed(() => {
-    const name = this.me()?.name ?? this.me()?.user?.name ?? '';
-    if (!name) return '?';
-    return name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0].toUpperCase())
-      .join('');
-  });
-
-  isActive = computed(() => {
-    const m = this.me();
-    return (m?.isActive ?? m?.user?.isActive ?? true);
-  });
-
-  failedAttempts = computed(() => {
-    const m = this.me();
-    return m?.failedLoginAttempts ?? m?.user?.failedLoginAttempts ?? 0;
-  });
-
-  ngOnInit() {
-    this.applyStoredUser();
-    this.loadProfile();
-  }
-
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as {
-        id?: string;
-        employeeId?: string;
-        email?: string;
-        user?: { name?: string };
-      };
-      const candidate =
-        session.employeeId ||
-        session.id ||
-        session.email?.split('@')[0] ||
-        session.user?.name ||
-        'Usuario';
-      this.displayName = candidate;
-      this.userInitials =
-        candidate === 'Usuario'
-          ? 'US'
-          : candidate
-              .split(/\s+/)
-              .filter(Boolean)
-              .slice(0, 2)
-              .map((p: string) => p[0]?.toUpperCase() ?? '')
-              .join('') || 'US';
-    } catch {
-      this.displayName = 'Usuario';
-      this.userInitials = 'US';
+  async ngOnInit() {
+    this.themeService.init();
+    this.session.init();
+    if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
     }
-  }
-
-  async loadProfile() {
-    this.loading.set(true);
-    this.error.set(false);
-
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) {
-        window.location.replace('/auth');
-        return;
-      }
-      const session = JSON.parse(raw) as { token?: string; accessToken?: string };
-      const token = session.token ?? session.accessToken ?? '';
-
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          window.location.replace('/auth');
-          return;
-        }
-        throw new Error('Failed to fetch profile');
-      }
-
-      const data = (await response.json()) as MeResponse;
-      this.me.set(data);
-
-      // Update displayName from /auth/me response
-      const name = data.name ?? data.user?.name;
-      if (name) {
-        this.displayName = name;
-        this.userInitials =
-          name
-            .split(/\s+/)
-            .filter(Boolean)
-            .slice(0, 2)
-            .map((p: string) => p[0]?.toUpperCase() ?? '')
-            .join('') || 'US';
-      }
-    } catch {
-      this.error.set(true);
-    } finally {
-      this.loading.set(false);
-    }
-  }
-
-  // ── User menu handlers ──
-
-  toggleUserMenu(event?: MouseEvent) {
-    if (this.userMenuVisible()) {
-      this.closeUserMenu();
-      return;
-    }
-    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
-      window.clearTimeout(this.userMenuCloseTimeout);
-      this.userMenuCloseTimeout = undefined;
-    }
-    this.userMenuClosing.set(false);
-    this.userMenuVisible.set(true);
-    this.userMenuOpen.set(true);
-  }
-
-  closeUserMenu() {
-    if (!this.userMenuVisible() || this.userMenuClosing()) return;
-    this.userMenuClosing.set(true);
-    this.userMenuCloseTimeout = window.setTimeout(() => {
-      this.userMenuVisible.set(false);
-      this.userMenuOpen.set(false);
-      this.userMenuClosing.set(false);
-      this.userMenuCloseTimeout = undefined;
-    }, 180);
-  }
-
-  @HostListener('document:click', ['$event'])
-  handleDocumentClick(event: MouseEvent) {
-    if (!this.userMenuOpen()) return;
-    const target = event.target as Node | null;
-    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
-    this.closeUserMenu();
+    if (this.hasInitialData) return;
+    await this.store.loadProfile();
   }
 
   toggleLocale() {
@@ -539,18 +373,34 @@ export class ProfilePageComponent implements OnInit {
     // Already on profile page
   }
 
-  async logout() {
-    this.closeUserMenu();
+  async handleLinkGoogle() {
+    try {
+      await this.store.linkGoogle();
+      await this.feedback.toast('success', this.copy().googleLinkedLabel);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().googleNetworkError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.handleLinkGoogle]', err);
+      await this.feedback.toast('error', message);
+    }
+  }
+
+  async handleUnlinkGoogle() {
     const confirmed = await this.feedback.confirm(
-      this.localeService.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.localeService.locale() === 'es'
-        ? '¿Seguro que querés salir del panel?'
-        : 'Are you sure you want to leave the dashboard?',
-      this.localeService.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.localeService.locale() === 'es' ? 'Cancelar' : 'Cancel',
+      this.copy().googleUnlinkConfirmTitle,
+      this.copy().googleUnlinkConfirmMessage,
+      this.copy().googleUnlinkConfirmAction,
+      this.copy().googleUnlinkConfirmCancel,
     );
-    if (!confirmed || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
+    if (!confirmed) return;
+
+    try {
+      await this.store.unlinkGoogle();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().googleNetworkError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.handleUnlinkGoogle]', err);
+      await this.feedback.toast('error', message);
+    }
   }
 }

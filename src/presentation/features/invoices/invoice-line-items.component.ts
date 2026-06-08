@@ -111,7 +111,7 @@ export interface LineItem {
             <tr *ngIf="items().length === 0">
               <td colspan="5" class="py-12 text-center">
                 <span class="material-symbols-outlined text-[40px] text-outline-variant block mb-2">add_shopping_cart</span>
-                <p class="text-sm text-on-surface-variant">{{ locale === 'es' ? 'Buscá un producto para agregar.' : 'Search for a product to add.' }}</p>
+                <p class="text-sm text-on-surface-variant">{{ locale === 'es' ? 'Busque un producto para agregar.' : 'Search for a product to add.' }}</p>
               </td>
             </tr>
           </tbody>

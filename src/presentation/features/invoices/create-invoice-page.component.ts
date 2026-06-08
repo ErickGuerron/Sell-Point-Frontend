@@ -1,9 +1,12 @@
 import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal, ViewChild } from '@angular/core';
-import type { OnInit } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { InvoiceApiService, type CustomerRowDto, type ProductRowDto } from './invoice-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
@@ -37,7 +40,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
       [items]="sidebarItems()"
       [locale]="locale()"
       (settings)="openUserSettings()"
-      (logout)="logout()"
+      (logout)="session.logout()"
     >
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
@@ -64,8 +67,8 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
               <div class="flex items-center gap-2 shrink-0 relative z-40" #userMenuPanel>
                 <billflow-notification-button (clicked)="void 0"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="displayName"
-                  [initials]="userInitials"
+                   [displayName]="session.displayName()"
+                   [initials]="session.userInitials()"
                   [open]="userMenuVisible()"
                   [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
@@ -77,7 +80,7 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
                   (close)="closeUserMenu()"
                   (languageToggle)="toggleLocale()"
                   (settings)="openUserSettings()"
-                  (logout)="logout()"
+                   (logout)="session.logout()"
                 ></billflow-user-menu>
               </div>
             </div>
@@ -138,18 +141,19 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
                 <span class="material-symbols-outlined text-[40px] text-outline-variant">person_search</span>
                 <div>
                   <p class="text-sm font-medium text-on-surface-variant">{{ locale() === 'es' ? 'Sin cliente asignado' : 'No customer assigned' }}</p>
-                  <p class="text-xs text-outline mt-0.5">{{ locale() === 'es' ? 'Buscá un cliente o emití como venta de mostrador.' : 'Search for a customer or issue as a walk-in sale.' }}</p>
+                  <p class="text-xs text-outline mt-0.5">{{ locale() === 'es' ? 'Busque un cliente o emita como venta de mostrador.' : 'Search for a customer or issue as a walk-in sale.' }}</p>
                 </div>
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm"
+                    class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-semibold hover:opacity-90 transition-all shadow-sm flex-1 justify-center"
                     (click)="showCustomerModal.set(true)"
                   >
                     <span class="material-symbols-outlined text-[18px]">person_search</span>
                     {{ locale() === 'es' ? 'Añadir cliente' : 'Add customer' }}
                   </button>
                   <button
+                    *ngIf="permissions.isAdmin()"
                     type="button"
                     class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container border border-outline-variant text-on-surface text-sm font-semibold hover:bg-surface-container-low transition-all shadow-sm"
                     (click)="showNewCustomerModal.set(true)"
@@ -252,10 +256,13 @@ import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
     </billflow-page-shell>
   `,
 })
-export class CreateInvoicePageComponent implements OnInit {
+export class CreateInvoicePageComponent implements OnInit, OnDestroy {
   private readonly api = inject(InvoiceApiService);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
+  protected readonly session = inject(SessionService);
+  private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   @ViewChild(InvoiceLineItemsComponent) lineItemsComp!: InvoiceLineItemsComponent;
 
@@ -263,8 +270,6 @@ export class CreateInvoicePageComponent implements OnInit {
   readonly locale = this.localeService.locale;
 
   // ── Auth / user ──────────────────────────────────────────────────────────
-  displayName = 'Usuario';
-  userInitials = 'US';
   userMenuVisible = signal(false);
   userMenuClosing = signal(false);
   private userMenuCloseTimeout: number | undefined;
@@ -281,6 +286,7 @@ export class CreateInvoicePageComponent implements OnInit {
         employees:  isEs ? 'Empleados'  : 'Employees',
       },
       'invoices',
+      this.permissions,
     );
   });
 
@@ -301,7 +307,7 @@ export class CreateInvoicePageComponent implements OnInit {
   // ── Submit state ─────────────────────────────────────────────────────────
   submitting = signal(false);
   readonly canSubmit = computed(
-    () => !!this.selectedCustomer() && this.lineItemsForSubmit().length > 0 && !this.submitting()
+    () => this.lineItemsForSubmit().length > 0 && !this.submitting()
   );
 
   readonly today = (() => {
@@ -332,12 +338,23 @@ export class CreateInvoicePageComponent implements OnInit {
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  ngOnInit() {
-    this.applyStoredUser();
+  async ngOnInit() {
+    this.session.init();
     this.applyStoredTheme();
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Customer', descriptionEs: 'Nuevo Cliente', category: 'actions', action: () => { this.showNewCustomerModal.set(true); } },
+        { keys: 's', descriptionEn: 'Submit Invoice', descriptionEs: 'Emitir Factura', category: 'actions', action: () => { if (this.canSubmit()) { void this.submitInvoice(); } } },
+      );
       document.documentElement.lang = this.locale();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 's');
   }
 
   // ── Customer handlers ─────────────────────────────────────────────────────
@@ -374,12 +391,12 @@ export class CreateInvoicePageComponent implements OnInit {
   async submitInvoice() {
     const customer = this.selectedCustomer();
     const items = this.lineItemsForSubmit();
-    if (!customer || items.length === 0) return;
+    if (items.length === 0) return;
 
     this.submitting.set(true);
     try {
       const created = await this.api.createInvoice({
-        customerId: customer.id,
+        customerId: customer?.id,
         items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
       });
 
@@ -389,7 +406,17 @@ export class CreateInvoicePageComponent implements OnInit {
         `Factura ${created.invoiceNumber} creada por ${this.formatMoney(created.total)}.`
       );
 
-      if (typeof window !== 'undefined') window.location.replace('/invoices');
+      if (typeof window !== 'undefined') {
+        try {
+          const pdf = await this.api.fetchInvoicePdf(created.id);
+          const url = URL.createObjectURL(pdf);
+          window.open(url, '_blank', 'noopener');
+          window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch {
+          // PDF no disponible, igual redirigimos
+        }
+        window.location.replace('/invoices');
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Error desconocido';
       await this.feedback.alert('error', 'No se pudo emitir la factura', msg);
@@ -436,19 +463,6 @@ export class CreateInvoicePageComponent implements OnInit {
     }
   }
 
-  async logout() {
-    this.closeUserMenu();
-    const ok = await this.feedback.confirm(
-      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?',
-      this.locale() === 'es' ? 'Cerrar Sesión' : 'Sign Out',
-      this.locale() === 'es' ? 'Cancelar' : 'Cancel',
-    );
-    if (!ok || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
-  }
-
   // ── Helpers ───────────────────────────────────────────────────────────────
 
   formatMoney(value: number) {
@@ -464,21 +478,6 @@ export class CreateInvoicePageComponent implements OnInit {
 
   customerFullName(c: { name: string; lastName?: string }): string {
     return c.lastName?.trim() ? `${c.name} ${c.lastName}` : c.name;
-  }
-
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; user?: { name?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.name || 'Usuario';
-      this.displayName = candidate;
-      this.userInitials = candidate.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'US';
-    } catch {
-      this.displayName = 'Usuario';
-      this.userInitials = 'US';
-    }
   }
 
   private applyStoredTheme() {

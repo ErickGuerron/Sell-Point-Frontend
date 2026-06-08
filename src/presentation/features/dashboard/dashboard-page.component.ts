@@ -1,16 +1,22 @@
 import { CommonModule } from '@angular/common';
-import { Component, computed, ElementRef, HostListener, inject, signal, ViewChild } from '@angular/core';
-import type { OnInit } from '@angular/core';
-import { BaseChartDirective, provideCharts, withDefaultRegisterables } from 'ng2-charts';
-import type { ChartData, ChartOptions, ChartType } from 'chart.js';
+import { Component, computed, inject, signal, Input } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { DashboardApiService, type CustomerRowDto, type DashboardStatsDto, type InvoiceRowDto, type ProductRowDto } from './dashboard-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
+import { SessionService } from '../../shared/services/session.service';
+import { ThemeService } from '../../shared/services/theme.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
+import { PermissionsService } from '../../shared/services/permissions.service';
 import { BillflowSidebarComponent } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
-
-type Period = 'week' | 'month';
+import { KeyboardShortcutsModalComponent } from '../../shared/components/keyboard-shortcuts-modal.component';
+import { getSharedTranslations } from '../../shared/i18n/shared.translations';
+import { customersCopy } from '../customers/i18n/customers.translations';
+import type { DashboardInitialData } from '../../shared/ssr-page-data';
+import { DashboardRevenueChartComponent } from './dashboard-revenue-chart.component';
 
 interface DashboardInvoice {
   id: string;
@@ -90,7 +96,11 @@ interface DashboardCopy {
   quickActionEmployees: string;
   productsTitle: string;
   productsSubtitle: string;
-  customersTitle: string;
+  productsTableHeaderRank: string;
+  productsTableHeaderCode: string;
+  productsTableHeaderName: string;
+  productsTableHeaderUnits: string;
+  productsTableHeaderPrice: string;
   settingsLabel: string;
   noEmailText: string;
   notificationsTitle: string;
@@ -103,6 +113,9 @@ interface DashboardCopy {
   logoutCancel: string;
   languageShort: string;
   languageToggleAria: string;
+  languageLabel: string;
+  openMenuLabel: string;
+  closeMenuLabel: string;
   kpiDailySalesLabel: string;
   kpiMonthlySalesLabel: string;
   kpiTotalInvoicesLabel: string;
@@ -120,6 +133,11 @@ interface DashboardCopy {
   productsEmptyText: string;
   customersEmptyTitle: string;
   customersEmptyText: string;
+  loadingChart: string;
+  partialDataTitle: string;
+  partialDataText: string;
+  dashboardErrorTitle: string;
+  dashboardErrorText: string;
 }
 
 const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
@@ -152,7 +170,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionEmployees: 'Gestionar Empleados',
     productsTitle: 'Productos',
     productsSubtitle: '(inventario actual)',
-    customersTitle: 'Clientes recientes',
+    productsTableHeaderRank: '#',
+    productsTableHeaderCode: 'Código',
+    productsTableHeaderName: 'Nombre',
+    productsTableHeaderUnits: 'Stock Existente',
+    productsTableHeaderPrice: 'Precio',
     settingsLabel: 'Configuración',
     noEmailText: 'Sin email',
     notificationsTitle: 'Notificaciones',
@@ -165,6 +187,9 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancelar',
     languageShort: 'ES',
     languageToggleAria: 'Cambiar idioma',
+    languageLabel: 'English',
+    openMenuLabel: 'Abrir menú',
+    closeMenuLabel: 'Cerrar menú',
     kpiDailySalesLabel: 'Ventas del Día',
     kpiMonthlySalesLabel: 'Ventas del Mes',
     kpiTotalInvoicesLabel: 'Facturas Totales',
@@ -182,6 +207,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsEmptyText: 'No hay productos disponibles para mostrar en este momento.',
     customersEmptyTitle: 'Sin clientes registrados',
     customersEmptyText: 'No hay clientes disponibles para mostrar en este momento.',
+    loadingChart: 'Cargando gráfico...',
+    partialDataTitle: 'Datos parciales',
+    partialDataText: 'Algunos módulos no pudieron cargarse.',
+    dashboardErrorTitle: 'No se pudo cargar el dashboard',
+    dashboardErrorText: 'Revise la conexión del sistema.',
   },
   en: {
     greeting: 'Welcome back',
@@ -212,7 +242,11 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     quickActionEmployees: 'Manage Employees',
     productsTitle: 'Products',
     productsSubtitle: '(current inventory)',
-    customersTitle: 'Recent Customers',
+    productsTableHeaderRank: '#',
+    productsTableHeaderCode: 'Code',
+    productsTableHeaderName: 'Name',
+    productsTableHeaderUnits: 'Available Stock',
+    productsTableHeaderPrice: 'Price',
     settingsLabel: 'Settings',
     noEmailText: 'No email',
     notificationsTitle: 'Notifications',
@@ -225,6 +259,9 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     logoutCancel: 'Cancel',
     languageShort: 'EN',
     languageToggleAria: 'Change language',
+    languageLabel: 'Español',
+    openMenuLabel: 'Open menu',
+    closeMenuLabel: 'Close menu',
     kpiDailySalesLabel: 'Daily Sales',
     kpiMonthlySalesLabel: 'Monthly Sales',
     kpiTotalInvoicesLabel: 'Total Invoices',
@@ -242,27 +279,23 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     productsEmptyText: 'There are no products available to show right now.',
     customersEmptyTitle: 'No customers registered',
     customersEmptyText: 'There are no customers available to show right now.',
+    loadingChart: 'Loading chart...',
+    partialDataTitle: 'Partial data',
+    partialDataText: 'Some modules could not be loaded.',
+    dashboardErrorTitle: 'Could not load dashboard',
+    dashboardErrorText: 'Please check the system connection.',
   },
 };
-
-function detectDashboardLocale(): DashboardLocale {
-  if (typeof window === 'undefined') return 'es';
-  const stored = window.localStorage.getItem('billflow-lang');
-  if (stored === 'es' || stored === 'en') return stored;
-  const browser = (window.navigator.language || window.navigator.languages?.[0] || 'es').toLowerCase();
-  return browser.startsWith('en') ? 'en' : 'es';
-}
 
 @Component({
   selector: 'billflow-dashboard-page',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent],
-  providers: [provideCharts(withDefaultRegisterables())],
+  imports: [CommonModule, BillflowSidebarComponent, BillflowNotificationButtonComponent, BillflowUserMenuComponent, DashboardRevenueChartComponent, KeyboardShortcutsModalComponent],
   host: { class: 'block w-full' },
   template: `
     <div class="app-dashboard-shell">
       <div *ngIf="tabletSidebarOpen()" class="app-dashboard-tablet-drawer lg:hidden">
-        <button type="button" class="app-dashboard-tablet-drawer__backdrop" aria-label="Cerrar menú" (click)="closeTabletSidebar()"></button>
+        <button type="button" class="app-dashboard-tablet-drawer__backdrop" [attr.aria-label]="copy().closeMenuLabel" (click)="closeTabletSidebar()"></button>
         <aside class="app-dashboard-tablet-drawer__panel app-dashboard-tablet-drawer__panel--open">
           <div class="app-dashboard-tablet-drawer__header">
             <div class="flex items-center gap-3 min-w-0">
@@ -272,7 +305,7 @@ function detectDashboardLocale(): DashboardLocale {
                 <p class="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-0.5">POS Terminal</p>
               </div>
             </div>
-            <button type="button" class="app-dashboard-tablet-drawer__close" aria-label="Cerrar menú" (click)="closeTabletSidebar()">
+            <button type="button" class="app-dashboard-tablet-drawer__close" [attr.aria-label]="copy().closeMenuLabel" (click)="closeTabletSidebar()">
               <span class="material-symbols-outlined">close</span>
             </button>
           </div>
@@ -293,12 +326,12 @@ function detectDashboardLocale(): DashboardLocale {
         </aside>
       </div>
 
-      <billflow-sidebar [items]="sidebarItems()" [actionLabel]="copy().newSale" actionIcon="add" (actionClick)="startNewSale()"></billflow-sidebar>
+      <billflow-sidebar [items]="sidebarItems()" [locale]="locale()" [actionLabel]="copy().newSale" actionIcon="add" (actionClick)="startNewSale()"></billflow-sidebar>
 
       <main class="app-dashboard-main">
         <header class="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6 relative z-30 isolate overflow-visible min-w-0">
           <div class="flex items-start gap-3 min-w-0 flex-wrap">
-            <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" aria-label="Abrir menú" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
+            <button type="button" class="app-dashboard-tablet-menu hidden md:inline-flex lg:hidden shrink-0 mt-1" [attr.aria-label]="copy().openMenuLabel" [attr.aria-expanded]="tabletSidebarOpen()" (click)="toggleTabletSidebar()">
               <span class="material-symbols-outlined">menu</span>
             </button>
 
@@ -324,7 +357,7 @@ function detectDashboardLocale(): DashboardLocale {
                   [open]="userMenuVisible()"
                   [closing]="userMenuClosing()"
                   [showLanguageToggle]="true"
-                  [languageLabel]="locale() === 'es' ? 'English' : 'Español'"
+                  [languageLabel]="copy().languageLabel"
                   [settingsLabel]="copy().settingsLabel"
                   [logoutLabel]="copy().logoutConfirm"
                   [sessionLabel]="copy().settingsLabel"
@@ -360,25 +393,85 @@ function detectDashboardLocale(): DashboardLocale {
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
           <div class="lg:col-span-2 space-y-8">
-            <div class="dashboard-glass-card rounded-2xl p-7">
-              <div class="flex justify-between items-center mb-8 gap-4">
-                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
-                <select class="bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm py-1.5 px-4 text-on-surface font-medium focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" [value]="period()" (change)="setPeriod(($any($event.target).value))">
-                  <option value="week">{{ copy().weekLabel }}</option>
-                  <option value="month">{{ copy().monthLabel }}</option>
-                </select>
+            @defer (on idle) {
+              <billflow-dashboard-revenue-chart
+                [invoices]="chartInvoices()"
+                [locale]="locale()"
+                [revenueTitle]="copy().revenueTitle"
+                [weekLabel]="copy().weekLabel"
+                [monthLabel]="copy().monthLabel"
+              ></billflow-dashboard-revenue-chart>
+            } @placeholder {
+              <div class="dashboard-glass-card rounded-2xl p-7">
+                <div class="flex justify-between items-center mb-8 gap-4">
+                  <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().revenueTitle }}</h3>
+                  <div class="h-9 w-36 rounded-lg border border-outline-variant/60 bg-surface-container-lowest/80"></div>
+                </div>
+                <div class="app-dashboard-chart-wrap relative h-72 md:h-80 flex items-center justify-center rounded-2xl border border-outline-variant/30 bg-surface-container-low/30">
+                  <div class="flex items-center gap-3 text-on-surface-variant">
+                    <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    <span>{{ copy().loadingChart }}</span>
+                  </div>
+                </div>
               </div>
+            }
 
-              <div class="app-dashboard-chart-wrap relative h-72 md:h-80" *ngIf="chartReady()">
-                <canvas
-                  baseChart
-                  [type]="revenueChartType"
-                  [data]="revenueChartData()"
-                  [options]="revenueChartOptions()"
-                ></canvas>
+            <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
+                      <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().productsTableHeaderRank }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderCode }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderName }}</th>
+                      <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().productsTableHeaderUnits }}</th>
+                      <th class="dashboard-table-card__th p-4 pr-7 font-semibold">{{ copy().productsTableHeaderPrice }}</th>
+                    </tr>
+                  </thead>
+                  <tbody class="font-body-sm text-body-sm">
+                    <tr *ngFor="let product of topProducts()" class="dashboard-table-card__row group cursor-pointer" (click)="inspectProduct(product)">
+                      <td class="p-4 pl-7 font-semibold text-on-surface">{{ product.rank }}</td>
+                      <td class="p-4 text-on-surface font-medium">{{ product.code }}</td>
+                      <td class="p-4 text-on-surface font-medium">{{ product.name }}</td>
+                      <td class="p-4 font-semibold" [ngClass]="product.units <= 5 ? 'text-error' : product.units <= 15 ? 'text-[#f59e0b]' : 'text-[#10b981]'">{{ product.units }}</td>
+                      <td class="p-4 pr-7 text-on-surface font-semibold">{{ formatMoney(product.price) }}</td>
+                    </tr>
+                    <tr *ngIf="topProducts().length === 0">
+                      <td colspan="5" class="p-8">
+                        <div class="dashboard-table-card__empty">
+                          <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
+                          <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
+                          <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
+          </div>
 
+          <div class="space-y-8">
+            <div class="dashboard-glass-card rounded-2xl p-7">
+              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
+              <div class="flex flex-col gap-3.5">
+                <button *ngFor="let action of quickActions()" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
+                  <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
+                    {{ action.label }}
+                  </div>
+                  <span class="material-symbols-outlined app-dashboard-quick-action__arrow">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 relative z-10">
+          <div class="lg:col-span-2">
             <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
               <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/30 flex justify-between items-center">
                 <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ copy().invoicesTitle }}</h3>
@@ -417,47 +510,12 @@ function detectDashboardLocale(): DashboardLocale {
             </div>
           </div>
 
-          <div class="space-y-8">
+          <div>
             <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-5 tracking-tight">{{ copy().quickActionsTitle }}</h3>
-              <div class="flex flex-col gap-3.5">
-                <button *ngFor="let action of quickActions()" type="button" class="app-dashboard-quick-action app-dashboard-quick-action--{{ action.tone }} w-full flex items-center justify-between p-3.5 rounded-xl border transition-all text-on-surface font-button text-button group" (click)="triggerQuickAction(action)">
-                  <div class="flex items-center gap-3">
-                    <span class="material-symbols-outlined app-dashboard-quick-action__icon">{{ action.icon }}</span>
-                    {{ action.label }}
-                  </div>
-                  <span class="material-symbols-outlined app-dashboard-quick-action__arrow">arrow_forward</span>
-                </button>
+              <div class="flex items-center justify-between mb-6 gap-3">
+                <h3 class="font-h3 text-h3 text-on-background tracking-tight">{{ recentActiveClientsTitle() }}</h3>
+                <span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2 rounded-full bg-primary/10 text-primary text-xs font-semibold">{{ recentCustomers().length }}</span>
               </div>
-            </div>
-
-            <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().productsTitle }} <span class="text-outline text-sm font-normal ml-1">{{ copy().productsSubtitle }}</span></h3>
-              <ng-container *ngIf="topProducts().length > 0; else emptyProducts">
-                <ul class="space-y-5">
-                  <li *ngFor="let product of topProducts()" class="app-dashboard-list-item app-dashboard-list-item--product group cursor-pointer p-2 -mx-2 rounded-xl transition-all duration-200" (click)="inspectProduct(product)">
-                    <div class="flex items-center gap-4">
-                      <div class="w-11 h-11 rounded-xl bg-surface-container-high/60 flex items-center justify-center text-on-surface-variant font-bold text-sm shadow-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ product.rank }}</div>
-                      <div>
-                        <p class="font-body-sm text-body-sm text-on-surface font-semibold group-hover:text-primary transition-colors">{{ product.code }}</p>
-                        <p class="font-label-bold text-[11px] text-outline mt-0.5 tracking-wide">{{ product.name }} · {{ product.units }} uds</p>
-                      </div>
-                    </div>
-                    <span class="font-body-sm font-bold text-on-surface group-hover:text-primary transition-colors">{{ formatMoney(product.price) }}</span>
-                  </li>
-                </ul>
-              </ng-container>
-              <ng-template #emptyProducts>
-                <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                  <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
-                  <p class="dashboard-table-card__empty-title">{{ copy().productsEmptyTitle }}</p>
-                  <p class="dashboard-table-card__empty-text">{{ copy().productsEmptyText }}</p>
-                </div>
-              </ng-template>
-            </div>
-
-            <div class="dashboard-glass-card rounded-2xl p-7">
-              <h3 class="font-h3 text-h3 text-on-background mb-6 tracking-tight">{{ copy().customersTitle }}</h3>
               <ng-container *ngIf="recentCustomers().length > 0; else emptyCustomers">
                 <ul class="space-y-4">
                   <li *ngFor="let customer of recentCustomers()" class="app-dashboard-list-item flex items-center justify-between gap-4 rounded-xl p-3 cursor-pointer transition-colors" (click)="inspectCustomer(customer)">
@@ -494,30 +552,52 @@ function detectDashboardLocale(): DashboardLocale {
         </div>
       </nav>
     </div>
+    <keyboard-shortcuts-modal></keyboard-shortcuts-modal>
   `,
 })
-export class DashboardPageComponent implements OnInit {
+export class DashboardPageComponent implements OnInit, OnDestroy {
   private readonly api = inject(DashboardApiService);
   private readonly feedback = inject(UiFeedbackService);
-  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
-  private userMenuCloseTimeout?: number;
+  protected readonly session = inject(SessionService);
+  protected readonly themeService = inject(ThemeService);
+  private readonly localeService = inject(LocaleService);
+  private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
-  locale = signal<DashboardLocale>(detectDashboardLocale());
+  locale = this.localeService.locale;
   copy = computed(() => DASHBOARD_TEXT[this.locale()]);
-  displayName = 'Usuario';
-  userInitials = 'CA';
+  // Spec 5 R1: heading for the "recent active clients" widget is owned
+  // by the customers feature (it semantically belongs there). Reuse
+  // `customersCopy` so the source of truth stays in customers/.
+  // The helper accepts `Signal<'es' | 'en'>` (the bare union) so any
+  // `AppLocale` signal flows through without a structural cast.
+  private readonly customersText = customersCopy(this.locale);
+  readonly recentActiveClientsTitle = computed(() => this.customersText().recentActiveClientsTitle);
   tabletSidebarOpen = signal(false);
-  userMenuOpen = signal(false);
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  chartReady = signal(false);
-  loading = signal(true);
+  loading = signal(false);
   stats = signal<DashboardStatsDto | null>(null);
   invoices = signal<DashboardInvoice[]>([]);
+  chartInvoices = signal<DashboardInvoice[]>([]);
   products = signal<DashboardProduct[]>([]);
   customers = signal<DashboardCustomer[]>([]);
-  period = signal<Period>('week');
   searchQuery = signal('');
+  private hasInitialData = false;
+
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
+
+  @Input() set initialData(value: DashboardInitialData | null | undefined) {
+    if (!value || value.isAuthenticated === false) return;
+    this.hasInitialData = true;
+    this.stats.set(value.stats);
+    this.invoices.set(value.invoices);
+    this.chartInvoices.set(value.invoices);
+    this.products.set(value.products);
+    this.customers.set(value.customers);
+    this.loading.set(false);
+  }
 
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
@@ -525,7 +605,7 @@ export class DashboardPageComponent implements OnInit {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
-  }, 'dashboard'));
+  }, 'dashboard', this.permissions));
 
   readonly mobileNavItems = computed<DashboardNavItem[]>(() => {
     const copy = this.copy();
@@ -550,19 +630,19 @@ export class DashboardPageComponent implements OnInit {
 
   readonly quickActions = computed<QuickAction[]>(() => {
     const copy = this.copy();
-    return [
+    const actions: QuickAction[] = [
       { label: copy.quickActionNewInvoice, icon: 'post_add', tone: 'primary' },
       { label: copy.quickActionAddCustomer, icon: 'person_add', tone: 'secondary' },
       { label: copy.quickActionAddProduct, icon: 'add_box', tone: 'tertiary' },
-      { label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' },
     ];
+
+    // Only admin can manage employees
+    if (this.permissions.isAdmin()) {
+      actions.push({ label: copy.quickActionEmployees, icon: 'badge', tone: 'secondary' });
+    }
+
+    return actions;
   });
-
-  readonly revenueChartType: ChartType = 'bar';
-
-  readonly revenueChartData = computed<ChartData<'bar'>>(() => this.buildRevenueChartData());
-
-  readonly revenueChartOptions = computed<ChartOptions<'bar'>>(() => this.buildRevenueChartOptions());
 
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
@@ -580,45 +660,40 @@ export class DashboardPageComponent implements OnInit {
     rank: String(index + 1).padStart(2, '0'),
     code: product.code,
     name: product.name,
-    units: product.availableQuantity,
+    units: product.units,
     price: product.price,
   })));
 
   readonly recentCustomers = computed(() => this.customers().slice(0, 4));
 
-  ngOnInit() {
-    if (typeof window === 'undefined') return;
+  async ngOnInit() {
+    if (typeof window === 'undefined') {
+      return;
+    }
 
+    this.themeService.init();
     document.documentElement.lang = this.locale();
     window.localStorage.setItem('billflow-lang', this.locale());
-    this.chartReady.set(true);
+    this.keyboardShortcuts.register(
+      { keys: 'r', descriptionEn: 'Refresh dashboard', descriptionEs: 'Actualizar panel', category: 'actions', action: () => { void this.loadDashboardData(); } },
+    );
+    // Try to restore session: check the in-memory access token → silent
+    // /auth/refresh via the HttpOnly refresh cookie → redirect to /auth
+    // if the refresh fails.
+    const restored = await this.session.restoreSession();
+    if (!restored) return; // restoreSession already redirected to /auth
 
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) {
-        window.location.assign('/auth');
-        return;
-      }
+    if (this.hasInitialData) return;
 
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || 'Usuario';
-      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
-      if (candidate !== 'Usuario') {
-        this.userInitials = candidate
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((part) => part[0]?.toUpperCase() ?? '')
-          .join('');
-      }
+    await this.loadDashboardData();
+  }
 
-      void this.loadDashboardData();
-    } catch {
-      window.location.assign('/auth');
-    }
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('r');
   }
 
   private async loadDashboardData() {
+    this.loading.set(true);
     try {
       const [statsResult, invoicesResult, productsResult, customersResult] = await Promise.allSettled([
         this.api.getStats(),
@@ -633,6 +708,7 @@ export class DashboardPageComponent implements OnInit {
 
       if (invoicesResult.status === 'fulfilled') {
         this.invoices.set(invoicesResult.value.data.map((invoice) => this.mapInvoice(invoice)));
+        this.chartInvoices.set(invoicesResult.value.data.map((invoice) => this.mapInvoice(invoice)));
       }
 
       if (productsResult.status === 'fulfilled') {
@@ -640,14 +716,15 @@ export class DashboardPageComponent implements OnInit {
       }
 
       if (customersResult.status === 'fulfilled') {
-        this.customers.set(customersResult.value.data.map((customer) => this.mapCustomer(customer)));
+        const unknownCustomerLabel = getSharedTranslations(this.locale()).ssr.unknownCustomer;
+        this.customers.set(customersResult.value.data.map((customer) => this.mapCustomer(customer, unknownCustomerLabel)));
       }
 
       if ([statsResult, invoicesResult, productsResult, customersResult].some((result) => result.status === 'rejected')) {
-        await this.feedback.toast('warning', 'Datos parciales', 'Algunos módulos no pudieron cargarse.');
+        await this.feedback.toast('warning', this.copy().partialDataTitle, this.copy().partialDataText);
       }
     } catch {
-      await this.feedback.alert('error', 'No se pudo cargar el dashboard', 'Revisá la conexión del sistema.');
+      await this.feedback.alert('error', this.copy().dashboardErrorTitle, this.copy().dashboardErrorText);
     } finally {
       this.loading.set(false);
     }
@@ -660,13 +737,7 @@ export class DashboardPageComponent implements OnInit {
   }
 
   toggleDashboardLocale() {
-    const next: DashboardLocale = this.locale() === 'es' ? 'en' : 'es';
-    this.locale.set(next);
-    this.closeUserMenu();
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('billflow-lang', next);
-      document.documentElement.lang = next;
-    }
+    this.localeService.toggle();
   }
 
   toggleUserMenu(event?: MouseEvent) {
@@ -773,15 +844,6 @@ export class DashboardPageComponent implements OnInit {
     }
   }
 
-  async showPeriodDetail(label: string, value: string) {
-    await this.feedback.toast('info', `Ventas ${label}`, `Valor aproximado: ${value}`);
-  }
-
-  async setPeriod(value: string) {
-    this.period.set(value === 'month' ? 'month' : 'week');
-    await this.feedback.toast('info', this.period() === 'month' ? 'Vista mensual' : 'Vista semanal', 'Se actualizó el análisis visual.');
-  }
-
   kpiBackground(tone: DashboardKpi['tone']) {
     return {
       'bg-primary/5': tone === 'primary',
@@ -846,137 +908,6 @@ export class DashboardPageComponent implements OnInit {
     return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-ES', { dateStyle: 'medium' }).format(date);
   }
 
-  private buildRevenueChartData(): ChartData<'bar'> {
-    const today = new Date();
-    const invoices = this.invoices();
-    const labels = this.period() === 'month' ? this.monthLabels() : this.weekLabels();
-    const data = this.period() === 'month'
-      ? Array.from({ length: 12 }, (_, month) => this.sumForMonth(invoices, today.getFullYear(), month))
-      : Array.from({ length: 7 }, (_, index) => this.sumForWeekday(invoices, today, index));
-
-    return {
-      labels,
-      datasets: [
-        {
-          data,
-          label: this.copy().revenueTitle,
-          borderWidth: 2,
-          borderRadius: 12,
-          borderSkipped: false,
-          barPercentage: 0.72,
-          categoryPercentage: 0.72,
-          backgroundColor: 'rgba(79, 70, 229, 0.78)',
-          hoverBackgroundColor: 'rgba(53, 37, 205, 0.92)',
-          borderColor: 'rgba(53, 37, 205, 1)',
-        },
-      ],
-    };
-  }
-
-  private buildRevenueChartOptions(): ChartOptions<'bar'> {
-    return {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          displayColors: false,
-          backgroundColor: 'rgba(17, 24, 39, 0.95)',
-          titleColor: '#eef0ff',
-          bodyColor: '#eef0ff',
-          padding: 12,
-          cornerRadius: 12,
-          callbacks: {
-            label: (context) => ` ${this.formatMoney(Number(context.parsed.y ?? 0))}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11, weight: '600' },
-            maxRotation: 0,
-            autoSkip: true,
-            maxTicksLimit: 12,
-          },
-        },
-        y: {
-          beginAtZero: true,
-          grace: '10%',
-          grid: { color: 'rgba(148, 163, 184, 0.22)' },
-          ticks: {
-            color: '#64748b',
-            font: { size: 11 },
-            callback: (value) => this.formatCompactMoney(Number(value)),
-          },
-        },
-      },
-    };
-  }
-
-  private weekLabels() {
-    return this.locale() === 'es'
-      ? ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  }
-
-  private monthLabels() {
-    return this.locale() === 'es'
-      ? ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  }
-
-  private sumForWeekday(invoices: DashboardInvoice[], today: Date, index: number) {
-    const weekStart = this.startOfWeek(today);
-    const current = new Date(weekStart);
-    current.setDate(weekStart.getDate() + index);
-    return this.sumForDate(invoices, current);
-  }
-
-  private sumForMonth(invoices: DashboardInvoice[], year: number, month: number) {
-    return invoices
-      .filter((invoice) => this.sameMonthYear(invoice.date, year, month))
-      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
-  }
-
-  private sumForDate(invoices: DashboardInvoice[], current: Date) {
-    return invoices
-      .filter((invoice) => this.sameLocalDate(invoice.date, current))
-      .reduce((sum, invoice) => sum + Number(invoice.total ?? 0), 0);
-  }
-
-  private startOfWeek(date: Date) {
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const day = start.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    start.setDate(start.getDate() + diff);
-    return start;
-  }
-
-  private sameLocalDate(value: string, current: Date) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-
-    return date.getFullYear() === current.getFullYear()
-      && date.getMonth() === current.getMonth()
-      && date.getDate() === current.getDate();
-  }
-
-  private sameMonthYear(value: string, year: number, month: number) {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return false;
-
-    return date.getFullYear() === year && date.getMonth() === month;
-  }
-
-  private formatCompactMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1 }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
-  }
-
   private mapInvoice(invoice: InvoiceRowDto): DashboardInvoice {
     return {
       id: invoice.id,
@@ -989,6 +920,11 @@ export class DashboardPageComponent implements OnInit {
 
   private mapProduct(product: ProductRowDto): DashboardProduct {
     const rawPrice = product.unitPrice ?? product.price ?? 0;
+    if (!Number.isFinite(rawPrice) || rawPrice === 0) {
+      if (typeof window !== 'undefined' && (window as any).__BILLFLOW_DASHBOARD_DEBUG__) {
+        console.warn('[dashboard] mapProduct produced 0/NaN — backend field name may have changed', { source: (product as any).salePrice, mapped: rawPrice });
+      }
+    }
     return {
       rank: '00',
       code: product.code,
@@ -998,10 +934,11 @@ export class DashboardPageComponent implements OnInit {
     };
   }
 
-  private mapCustomer(customer: CustomerRowDto): DashboardCustomer {
+  private mapCustomer(customer: CustomerRowDto, unknownCustomerLabel: string): DashboardCustomer {
+    const fullName = `${customer.firstName ?? ''} ${customer.lastName ?? ''}`.trim();
     return {
       id: customer.id,
-      name: `${customer.name} ${customer.lastName}`.trim(),
+      name: fullName || unknownCustomerLabel,
       cedula: customer.cedula,
       email: customer.email,
     };

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { AuthLoginPayload, AuthText } from '../auth.dictionary';
+import { GoogleAuthService } from '../../../shared/services/google-auth.service';
 import { UiFeedbackService } from '../../../shared/services/ui-feedback.service';
 
 @Component({
@@ -10,7 +11,7 @@ import { UiFeedbackService } from '../../../shared/services/ui-feedback.service'
   imports: [CommonModule, FormsModule],
   host: { class: 'block w-full' },
   template: `
-    <div class="w-full max-w-[460px]">
+    <div class="app-auth-form-shell app-auth-form-shell--login">
       <div class="app-auth-brand">
         <div class="app-auth-brand__badge">
           <span class="material-symbols-outlined text-2xl">point_of_sale</span>
@@ -65,14 +66,30 @@ import { UiFeedbackService } from '../../../shared/services/ui-feedback.service'
               type="button"
               class="app-auth-field__toggle"
               (click)="togglePassword()"
-              [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'"
-              tabindex="-1"
+              [attr.aria-label]="showPassword ? copy.login.hidePasswordAria : copy.login.showPasswordAria"
             >
               <span class="material-symbols-outlined text-[20px]">{{ showPassword ? 'visibility_off' : 'visibility' }}</span>
             </button>
           </div>
           <p *ngIf="showErrors && passwordModel.errors?.['required']" class="app-auth-field__error">{{ copy.validation.passwordRequired }}</p>
           <p *ngIf="showErrors && passwordModel.errors?.['minlength']" class="app-auth-field__error">{{ copy.validation.passwordMinLength }}</p>
+          <div class="flex items-center justify-between pt-1">
+            <label class="app-auth-remember-me flex items-center gap-xs cursor-pointer select-none">
+              <input
+                type="checkbox"
+                class="app-auth-remember-me__checkbox"
+                name="rememberMe"
+                [(ngModel)]="rememberMe"
+              />
+              <span class="font-body-sm text-body-sm text-on-surface-variant">
+                {{ copy.login.rememberMe ?? 'Recordarme' }}
+              </span>
+            </label>
+            <button type="button" class="app-auth-help__link font-body-sm text-body-sm bg-transparent border-0 p-0" (click)="requestRecovery.emit()">
+              <span class="material-symbols-outlined text-[16px]">lock_reset</span>
+              {{ copy.login.forgotPassword }}
+            </button>
+          </div>
         </div>
 
         <!-- Submit -->
@@ -138,19 +155,32 @@ import { UiFeedbackService } from '../../../shared/services/ui-feedback.service'
     .app-auth-field__toggle:hover {
       color: var(--md-sys-color-on-surface-variant, #49454f);
     }
+    .app-auth-remember-me {
+      user-select: none;
+    }
+    .app-auth-remember-me__checkbox {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--md-sys-color-primary, #1976d2);
+      cursor: pointer;
+    }
   `]
 })
 export class LoginFormComponent {
   private readonly feedback = inject(UiFeedbackService);
+  private readonly googleAuth = inject(GoogleAuthService);
 
   @Input({ required: true }) copy!: AuthText;
   @Input() statusMessage: string | null = null;
   @Input() statusTone: 'idle' | 'success' | 'error' = 'idle';
   @Output() submitLogin = new EventEmitter<AuthLoginPayload>();
+  @Output() googleLogin = new EventEmitter<{ googleToken: string }>();
   @Output() requestSupport = new EventEmitter<void>();
+  @Output() requestRecovery = new EventEmitter<void>();
 
   email = '';
   password = '';
+  rememberMe = false;
   showPassword = false;
   showErrors = false;
 
@@ -159,8 +189,13 @@ export class LoginFormComponent {
   }
 
   async handleGoogleLogin() {
-    // Placeholder — Google OAuth se conecta cuando el backend lo soporte
-    await this.feedback.toast('info', 'Google login coming soon');
+    try {
+      const result = await this.googleAuth.signIn();
+      this.googleLogin.emit({ googleToken: result.idToken });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy.feedback.googleLoginFailed;
+      await this.feedback.toast('error', message);
+    }
   }
 
   async handleSubmit(form: { valid: boolean }) {
@@ -171,6 +206,6 @@ export class LoginFormComponent {
       return;
     }
 
-    this.submitLogin.emit({ identifier: this.email.trim(), secret: this.password });
+    this.submitLogin.emit({ identifier: this.email.trim(), secret: this.password, rememberMe: this.rememberMe });
   }
 }

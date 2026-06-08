@@ -5,7 +5,7 @@ type ToastIcon = 'success' | 'error' | 'warning' | 'info' | 'question';
 @Injectable({ providedIn: 'root' })
 export class UiFeedbackService {
   private isDarkMode() {
-    return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return typeof window !== 'undefined' && document.documentElement.classList.contains('dark');
   }
 
   private async loadSwal() {

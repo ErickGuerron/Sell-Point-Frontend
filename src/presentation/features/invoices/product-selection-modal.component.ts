@@ -19,6 +19,7 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
       icon="inventory_2"
       maxWidth="lg"
       [hasFooter]="true"
+      [disableUnsavedGuard]="true"
       (close)="doClose()"
     >
       <!-- Search + filter -->
@@ -236,7 +237,7 @@ export class ProductSelectionModalComponent {
       const res = await this.api.fetchProductsPage(query, page, this.productModalPageSize(), field);
       if (requestId !== this.productModalRequestId) return;
       this.productModalResults.set(res.data);
-      this.productModalTotal.set(res.pagination?.total ?? res.data.length);
+      this.productModalTotal.set(res.total);
       this.productModalPage.set(page);
     } catch (err) {
       if (requestId !== this.productModalRequestId) return;

@@ -15,10 +15,11 @@ import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/com
     <billflow-modal-shell
       *ngIf="open"
       title="{{ locale === 'es' ? 'Seleccionar cliente' : 'Select customer' }}"
-      [subtitle]="modalTotal() > 0 ? modalTotal() + (locale === 'es' ? ' clientes encontrados' : ' customers found') : (locale === 'es' ? 'Buscá por nombre o cédula' : 'Search by name or ID')"
+      [subtitle]="modalTotal() > 0 ? modalTotal() + (locale === 'es' ? ' clientes encontrados' : ' customers found') : (locale === 'es' ? 'Busque por nombre o cédula' : 'Search by name or ID')"
       icon="manage_accounts"
       maxWidth="lg"
       [hasFooter]="true"
+      [disableUnsavedGuard]="true"
       (close)="doClose()"
     >
       <!-- Search bar + filter -->
@@ -233,7 +234,7 @@ export class CustomerSelectionModalComponent {
       const res = await this.api.fetchCustomersPage(query, page, this.customerPageSize(), field);
       if (requestId !== this.customerModalRequestId) return;
       this.modalCustomers.set(res.data);
-      this.modalTotal.set(res.pagination?.total ?? res.data.length);
+      this.modalTotal.set(res.total);
       this.modalPage.set(page);
     } catch (err) {
       if (requestId !== this.customerModalRequestId) return;

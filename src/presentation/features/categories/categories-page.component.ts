@@ -1,22 +1,13 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-  Component,
-  computed,
-  inject,
-  signal,
-  HostListener,
-  ElementRef,
-  ViewChild,
-} from '@angular/core';
-import type { OnInit } from '@angular/core';
-import {
-  CategoryApiService,
-  type CategoryDto,
-  type CreateCategoryPayload,
-} from './category-api.service';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input, ElementRef, ViewChild } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
 import { LocaleService } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
+import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import type { BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -26,166 +17,20 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
-
-type CategoriesLocale = 'es' | 'en';
-
-interface CategoriesCopy {
-  moduleLabel: string;
-  title: string;
-  description: string;
-  resultsLabel: string;
-  themeLabel: string;
-  searchPlaceholder: string;
-  newCategory: string;
-  name: string;
-  descriptionLabel: string;
-  status: string;
-  actions: string;
-  edit: string;
-  deactivate: string;
-  activate: string;
-  confirmDeactivateTitle: string;
-  confirmDeactivateText: string;
-  confirmActivateTitle: string;
-  confirmActivateText: string;
-  confirmBtn: string;
-  cancelBtn: string;
-  noCategoriesTitle: string;
-  noCategoriesText: string;
-  showingText: string;
-  entriesText: string;
-  createdToast: string;
-  updatedToast: string;
-  toggledActive: string;
-  toggledInactive: string;
-  sidebarDashboard: string;
-  sidebarInvoices: string;
-  sidebarCustomers: string;
-  sidebarProducts: string;
-  sidebarEmployees: string;
-  sidebarCategories: string;
-  signOut: string;
-  settings: string;
-  notifications: string;
-  languageToggle: string;
-  sessionLabel: string;
-  modalCreateTitle: string;
-  modalCreateSubtitle: string;
-  modalEditTitle: string;
-  modalEditSubtitle: string;
-  save: string;
-  saveEdit: string;
-  cancel: string;
-  nameLabel: string;
-  goBackToProducts: string;
-}
-
-const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
-  es: {
-    moduleLabel: 'Módulo de Categorías',
-    title: 'Gestión de Categorías',
-    description: 'Administrá y editá las categorías de tus productos.',
-    resultsLabel: 'resultados',
-    themeLabel: 'Tema',
-    searchPlaceholder: 'Buscar categorías...',
-    newCategory: 'Nueva Categoría',
-    name: 'Nombre',
-    descriptionLabel: 'Descripción',
-    status: 'Estado',
-    actions: 'Acciones',
-    edit: 'Editar',
-    deactivate: 'Desactivar',
-    activate: 'Activar',
-    confirmDeactivateTitle: '¿Desactivar categoría?',
-    confirmDeactivateText:
-      'La categoría dejará de estar disponible para nuevos productos.',
-    confirmActivateTitle: '¿Activar categoría?',
-    confirmActivateText:
-      'La categoría volverá a estar disponible para usar.',
-    confirmBtn: 'Sí',
-    cancelBtn: 'Cancelar',
-    noCategoriesTitle: 'No hay categorías',
-    noCategoriesText: 'Probá con otro filtro o término de búsqueda.',
-    showingText: 'Mostrando',
-    entriesText: 'registros',
-    createdToast: 'Categoría creada correctamente',
-    updatedToast: 'Categoría actualizada correctamente',
-    toggledActive: 'Categoría activada correctamente',
-    toggledInactive: 'Categoría desactivada correctamente',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Facturas',
-    sidebarCustomers: 'Clientes',
-    sidebarProducts: 'Productos',
-    sidebarEmployees: 'Empleados',
-    sidebarCategories: 'Categorías',
-    signOut: 'Cerrar sesión',
-    settings: 'Configuración',
-    notifications: 'Notificaciones',
-    languageToggle: 'English',
-    sessionLabel: 'Sesión',
-    modalCreateTitle: 'Nueva Categoría',
-    modalCreateSubtitle: 'Completá los datos de la nueva categoría',
-    modalEditTitle: 'Editar Categoría',
-    modalEditSubtitle: 'Actualizá los datos de la categoría',
-    save: 'Guardar Categoría',
-    saveEdit: 'Actualizar Categoría',
-    cancel: 'Cancelar',
-    nameLabel: 'Nombre de la Categoría',
-    goBackToProducts: 'Volver a Productos',
-  },
-  en: {
-    moduleLabel: 'Categories Module',
-    title: 'Category Management',
-    description: 'Manage and edit your product categories.',
-    resultsLabel: 'results',
-    themeLabel: 'Theme',
-    searchPlaceholder: 'Search categories...',
-    newCategory: 'New Category',
-    name: 'Name',
-    descriptionLabel: 'Description',
-    status: 'Status',
-    actions: 'Actions',
-    edit: 'Edit',
-    deactivate: 'Deactivate',
-    activate: 'Activate',
-    confirmDeactivateTitle: 'Deactivate category?',
-    confirmDeactivateText:
-      'The category will no longer be available for new products.',
-    confirmActivateTitle: 'Activate category?',
-    confirmActivateText:
-      'The category will be available again for products.',
-    confirmBtn: 'Yes',
-    cancelBtn: 'Cancel',
-    noCategoriesTitle: 'No categories found',
-    noCategoriesText: 'Try another filter or search term.',
-    showingText: 'Showing',
-    entriesText: 'entries',
-    createdToast: 'Category created successfully',
-    updatedToast: 'Category updated successfully',
-    toggledActive: 'Category activated successfully',
-    toggledInactive: 'Category deactivated successfully',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Invoices',
-    sidebarCustomers: 'Customers',
-    sidebarProducts: 'Products',
-    sidebarEmployees: 'Employees',
-    sidebarCategories: 'Categories',
-    signOut: 'Sign out',
-    settings: 'Settings',
-    notifications: 'Notifications',
-    languageToggle: 'Español',
-    sessionLabel: 'Session',
-    modalCreateTitle: 'New Category',
-    modalCreateSubtitle: 'Fill in the new category details',
-    modalEditTitle: 'Edit Category',
-    modalEditSubtitle: 'Update the category details',
-    save: 'Save Category',
-    saveEdit: 'Update Category',
-    cancel: 'Cancel',
-    nameLabel: 'Category Name',
-    goBackToProducts: 'Back to Products',
-  },
-};
+import { CategoryKpiCardsComponent } from './components/category-kpi-cards.component';
+import { CategoryTableComponent } from './components/category-table.component';
+import { CategoryFormModalComponent } from './components/category-form-modal.component';
+import { GetCategoriesUseCase } from './domain/use-cases/get-categories.use-case';
+import { CreateCategoryUseCase } from './domain/use-cases/create-category.use-case';
+import { UpdateCategoryUseCase } from './domain/use-cases/update-category.use-case';
+import { ToggleCategoryActiveUseCase } from './domain/use-cases/toggle-category-active.use-case';
+import type { CategoryEntity } from './domain/category.entity';
+import { CategoryRepository } from './domain/category.repository';
+import { CategoryRemoteDataSource } from './data/category-remote-datasource';
+import { CategoryImplRepository } from './data/category-impl.repository';
+import { CATEGORIES_TEXT } from './i18n/categories.translations';
+import type { CategoriesCopy } from './i18n/categories.translations';
+import type { CategoriesInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-categories-page',
@@ -290,392 +135,190 @@ const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
             </div>
           </section>
 
-          <!-- KPIs: total from server; active from /categories/aggregates (TODO(backend)) -->
-          <section class="grid grid-cols-2 gap-4 mb-6">
-            <!-- Total Categories -->
-            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-              <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                <span class="material-symbols-outlined text-[96px] font-light">category</span>
-              </div>
-              <div class="flex items-center gap-4">
-                <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
-                  <span class="material-symbols-outlined text-[24px]">category</span>
+          <!-- KPI Cards -->
+          @defer (on timer(200ms)) {
+            <billflow-category-kpi-cards
+              [totalLabel]="copy().totalLabel"
+              [activeLabel]="copy().activeLabel"
+              [total]="totalCategoriesCount()"
+              [active]="activeCategoriesCount()"
+            ></billflow-category-kpi-cards>
+          } @placeholder {
+            <section class="grid grid-cols-2 lg:grid-cols-2 gap-4 mb-6">
+              @for (i of [1,2]; track i) {
+                <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl animate-pulse">
+                  <div class="flex items-center gap-4">
+                    <div class="h-12 w-12 rounded-xl bg-surface-container-high shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                      <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                      <div class="h-6 w-10 rounded bg-surface-container-high"></div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total Categorías' : 'Total Categories' }}</p>
-                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalCategories() }}</h3>
-                </div>
-              </div>
-            </div>
-
-            <!-- Active Categories — backend-driven (pending /categories/aggregates) -->
-            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-              <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
-              </div>
-              <div class="flex items-center gap-4">
-                <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
-                  <span class="material-symbols-outlined text-[24px]">check_circle</span>
-                </div>
-                <div>
-                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activas' : 'Active' }}</p>
-                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeCategoriesCount() }}</h3>
-                </div>
-              </div>
-            </div>
-          </section>
+              }
+            </section>
+          }
 
           <!-- Table Card -->
-          <section
-            class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden"
-          >
-            <!-- Toolbar -->
-            <div
-              class="p-4 md:p-5 flex flex-wrap items-center gap-3 border-b border-outline-variant/20"
-            >
-              <!-- Search -->
-              <div class="relative flex-1 min-w-[220px] max-w-md">
-                <span
-                  class="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none"
-                  >search</span
-                >
-                <input
-                  class="w-full pl-9 pr-3 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm"
-                  [placeholder]="copy().searchPlaceholder"
-                  [value]="searchQuery()"
-                  (input)="setSearchQuery(($any($event.target).value))"
-                />
-              </div>
-
-              <!-- Refresh button -->
-              <button
-                type="button"
-                [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-2 text-on-surface focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all shadow-sm hover:border-primary hover:text-primary"
-                (click)="void reloadCategories()"
-              >
-                <span
-                  class="material-symbols-outlined text-[20px]"
-                  [style.animation]="
-                    loading() ? 'spin 0.7s linear infinite' : 'none'
-                  "
-                  >refresh</span
-                >
-              </button>
-
-              <!-- Back to Products button -->
-              <a
-                href="/products"
-                class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
-              >
-                <span class="material-symbols-outlined text-[18px]"
-                  >arrow_back</span
-                >
-                {{ copy().goBackToProducts }}
-              </a>
-
-              <!-- New category button -->
-              <button
-                type="button"
-                class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm"
-                (click)="openCreateModal()"
-              >
-                <span class="material-symbols-outlined text-[18px]">add</span>
-                {{ copy().newCategory }}
-              </button>
-            </div>
-
-            <!-- Categories Table -->
-            <div class="overflow-x-auto">
-              <table class="min-w-max w-full border-collapse text-left">
-                <thead>
-                  <tr
-                    class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]"
+          @defer (on idle) {
+            <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
+              <!-- Toolbar: misma estética que productos — una sola fila -->
+              <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/20">
+                <div class="flex flex-wrap items-center gap-3">
+                  <!-- Refresh -->
+                  <button
+                    type="button"
+                    [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
+                    class="inline-flex items-center justify-center h-10 w-10 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
+                    (click)="void reloadCategories()"
                   >
-                    <th
-                      class="dashboard-table-card__th p-4 pl-7 font-semibold"
+                    <span
+                      class="material-symbols-outlined text-[20px] transition-transform"
+                      [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                      >refresh</span
                     >
-                      {{ copy().name }}
-                    </th>
-                    <th
-                      class="dashboard-table-card__th p-4 font-semibold"
-                    >
-                      {{ copy().descriptionLabel }}
-                    </th>
-                    <th
-                      class="dashboard-table-card__th p-4 font-semibold"
-                    >
-                      {{ copy().status }}
-                    </th>
-                    <th
-                      class="dashboard-table-card__th p-4 pr-7 font-semibold text-right"
-                    >
-                      {{ copy().actions }}
-                    </th>
-                  </tr>
-                </thead>
+                  </button>
 
-                <tbody class="font-body-sm text-body-sm">
-                  <tr
-                    *ngFor="let cat of categories()"
-                    class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200"
-                    [ngClass]="
-                      !cat.isActive
-                        ? 'opacity-70 bg-surface-container-lowest/20'
-                        : ''
-                    "
+                  <!-- Back to Products -->
+                  <a
+                    href="/products"
+                    class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap"
                   >
-                    <td class="p-4 pl-7 font-semibold text-on-background">
-                      <div class="flex items-center gap-3">
-                        <div
-                          class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0"
-                        >
-                          <span class="material-symbols-outlined text-[18px]"
-                            >category</span
-                          >
-                        </div>
-                        <span class="font-semibold">{{ cat.name }}</span>
-                      </div>
-                    </td>
-                    <td class="p-4">
-                      <span
-                        class="text-sm text-on-surface-variant max-w-[300px] truncate block"
-                        [title]="cat.description ?? ''"
-                      >
-                        {{ cat.description || '—' }}
-                      </span>
-                    </td>
-                    <td class="p-4">
-                      <span
-                        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide"
-                        [ngClass]="
-                          cat.isActive
-                            ? 'border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/5'
-                            : 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant'
-                        "
-                      >
-                        <span
-                          class="h-1.5 w-1.5 rounded-full"
-                          [ngClass]="
-                            cat.isActive
-                              ? 'bg-primary animate-pulse'
-                              : 'bg-outline'
-                          "
-                        ></span>
-                        {{
-                          cat.isActive
-                            ? locale() === 'es'
-                              ? 'ACTIVO'
-                              : 'ACTIVE'
-                            : locale() === 'es'
-                              ? 'INACTIVO'
-                              : 'INACTIVE'
-                        }}
-                      </span>
-                    </td>
-                    <td class="p-4 pr-7 text-right">
-                      <div
-                        class="flex items-center justify-end gap-1.5"
-                      >
-                        <!-- Edit Button -->
-                        <button
-                          type="button"
-                          [title]="copy().edit"
-                          class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                          (click)="openEditModal(cat)"
-                        >
-                          <span class="material-symbols-outlined text-[18px]"
-                            >edit</span
-                          >
-                        </button>
+                    <span class="material-symbols-outlined text-[18px]">arrow_back</span>
+                    {{ copy().goBackToProducts }}
+                  </a>
 
-                        <!-- Deactivate / Activate Button -->
-                        <button
-                          type="button"
-                          [title]="cat.isActive ? copy().deactivate : copy().activate"
-                          class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                          [ngClass]="
-                            cat.isActive
-                              ? 'bg-red-600 hover:bg-red-700'
-                              : 'bg-primary hover:opacity-85'
-                          "
-                          (click)="toggleActive(cat)"
-                        >
-                          <span
-                            class="material-symbols-outlined text-[18px]"
-                            >{{ cat.isActive ? 'close' : 'check' }}</span
-                          >
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr *ngIf="categories().length === 0 && !loading()">
-                    <td colspan="4" class="p-8">
-                      <div
-                        class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2"
-                      >
-                        <span
-                          class="material-symbols-outlined dashboard-table-card__empty-icon"
-                          >category</span
-                        >
-                        <p class="dashboard-table-card__empty-title">
-                          {{ copy().noCategoriesTitle }}
-                        </p>
-                        <p class="dashboard-table-card__empty-text">
-                          {{ copy().noCategoriesText }}
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr *ngIf="loading() && categories().length === 0">
-                    <td colspan="4" class="p-12 text-center text-on-surface-variant">
-                      <span
-                        class="material-symbols-outlined text-[32px] animate-spin inline-block"
-                        >refresh</span
-                      >
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Pagination Footer (default 5 per page) -->
-            <div
-              class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60"
-            >
-              <div
-                class="flex items-center gap-3 text-sm text-on-surface-variant"
-              >
-                <span>
-                  {{ copy().showingText }}
-                  <span class="font-semibold text-on-surface">{{
-                    visibleRangeStart()
-                  }}</span>
-                  {{ locale() === 'es' ? 'a' : 'to' }}
-                  <span class="font-semibold text-on-surface">{{
-                    visibleRangeEnd()
-                  }}</span>
-                  {{ locale() === 'es' ? 'de' : 'of' }}
-                  <span class="font-semibold text-on-surface">{{
-                    totalCategoriesCount()
-                  }}</span>
-                  {{ copy().entriesText }}
-                </span>
-                <select
-                  [value]="pageSize()"
-                  (change)="onPageSizeCombo($any($event.target).value)"
-                  class="bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 py-[5px] px-2 rounded-lg cursor-pointer shadow-sm transition-all"
-                >
-                  @for (option of pageSizeOptions; track option.value) {
-                    <option [value]="option.value">
-                      {{ option.label }}
-                    </option>
+                  <!-- New -->
+                  @if (permissions.isAdmin()) {
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+                      (click)="openCreateModal()"
+                    >
+                      <span class="material-symbols-outlined text-[18px]">add</span>
+                      {{ copy().newCategory }}
+                    </button>
                   }
-                </select>
+
+                  <!-- Search (empujado a la derecha, ancho fijo sin flex) -->
+                  <div class="relative w-56 ml-auto">
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline-variant pointer-events-none">search</span>
+                    <input
+                      #categorySearchInput
+                      class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm"
+                      [placeholder]="copy().searchPlaceholder"
+                      [value]="searchQuery()"
+                      (input)="setSearchQuery(($any($event.target).value))"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === 1"
-                  (click)="previousPage()"
-                >
-                  <span class="material-symbols-outlined text-[18px]"
-                    >chevron_left</span
-                  >
-                </button>
+              <!-- Table -->
+              <billflow-category-table
+                [copy]="copy()"
+                [categories]="categories()"
+                [loading]="loading()"
+                [statusActive]="locale() === 'es' ? 'ACTIVO' : 'ACTIVE'"
+                [statusInactive]="locale() === 'es' ? 'INACTIVO' : 'INACTIVE'"
+                [isAdmin]="permissions.isAdmin()"
+                (edit)="openEditModal($event)"
+                (toggle)="toggleActive($event)"
+              ></billflow-category-table>
 
-                <button
-                  *ngFor="let pageNumber of visiblePages()"
-                  type="button"
-                  class="h-9 w-9 rounded-lg text-sm font-semibold transition"
-                  [ngClass]="
-                    pageNumber === page()
-                      ? 'bg-primary text-on-primary shadow-sm'
-                      : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'
-                  "
-                  (click)="goToPage(pageNumber)"
-                >
-                  {{ pageNumber }}
-                </button>
-
-                <button
-                  type="button"
-                  class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
-                  [disabled]="page() === totalPages()"
-                  (click)="nextPage()"
-                >
-                  <span class="material-symbols-outlined text-[18px]"
-                    >chevron_right</span
+              <!-- Pagination Footer -->
+              <div
+                class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60"
+              >
+                <div class="flex items-center gap-3 text-sm text-on-surface-variant">
+                  <span>
+                    {{ copy().showingText }}
+                    <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span>
+                    {{ locale() === 'es' ? 'a' : 'to' }}
+                    <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span>
+                    {{ locale() === 'es' ? 'de' : 'of' }}
+                    <span class="font-semibold text-on-surface">{{ totalCategoriesCount() }}</span>
+                    {{ copy().entriesText }}
+                  </span>
+                  <select
+                    [value]="pageSize()"
+                    (change)="onPageSizeCombo(($any($event.target).value))"
+                    class="bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 py-[5px] px-2 rounded-lg cursor-pointer shadow-sm transition-all"
                   >
-                </button>
+                    @for (option of pageSizeOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                    [disabled]="page() === 1"
+                    (click)="previousPage()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">chevron_left</span>
+                  </button>
+
+                  @for (pageNumber of visiblePages(); track pageNumber) {
+                    <button
+                      type="button"
+                      class="h-9 w-9 rounded-lg text-sm font-semibold transition"
+                      [class.bg-primary]="pageNumber === page()"
+                      [class.text-on-primary]="pageNumber === page()"
+                      [class.shadow-sm]="pageNumber === page()"
+                      [class.text-on-surface-variant]="pageNumber !== page()"
+                      [class.hover:bg-surface-container-low]="pageNumber !== page()"
+                      [class.hover:text-on-surface]="pageNumber !== page()"
+                      (click)="goToPage(pageNumber)"
+                    >
+                      {{ pageNumber }}
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30"
+                    [disabled]="page() === totalPages()"
+                    (click)="nextPage()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            </section>
+          } @placeholder {
+            <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+              <div class="p-4 md:p-5 border-b border-outline-variant/30 flex items-center gap-3">
+                <div class="h-9 w-48 rounded-lg bg-surface-container-high"></div>
+                <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              </div>
+              <div class="p-8 flex items-center justify-center">
+                <div class="flex items-center gap-3 text-on-surface-variant">
+                  <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                  <span>{{ locale() === 'es' ? 'Cargando categorías...' : 'Loading categories...' }}</span>
+                </div>
               </div>
             </div>
-          </section>
+          }
         </main>
 
-        <!-- ══ Create/Edit Category Modal ══ -->
-        <billflow-modal-shell
-          *ngIf="categoryModalOpen()"
-          title="{{ editingCategory() ? copy().modalEditTitle : copy().modalCreateTitle }}"
-          subtitle="{{ editingCategory() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}"
-          icon="category"
-          maxWidth="md"
-          [hasFooter]="true"
-          (close)="closeCategoryModal()"
-        >
-          <div class="p-6 grid grid-cols-1 gap-5">
-            <!-- Name -->
-            <div>
-              <label class="block text-sm font-semibold text-on-surface mb-1.5"
-                >{{ copy().nameLabel }} <span class="text-error">*</span></label
-              >
-              <input
-                type="text"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                [maxLength]="100"
-                placeholder="Ej: Bebidas"
-                [ngModel]="formName()"
-                (ngModelChange)="formName.set($event)"
-              />
-            </div>
-
-            <!-- Description -->
-            <div>
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{
-                copy().descriptionLabel
-              }}</label>
-              <textarea
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant resize-none h-20"
-                placeholder="Ej: Bebidas gaseosas, aguas y jugos."
-                [ngModel]="formDescription()"
-                (ngModelChange)="formDescription.set($event)"
-              ></textarea>
-            </div>
-          </div>
-
-          <div footer class="flex w-full items-center justify-end gap-3">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-              (click)="closeCategoryModal()"
-            >
-              {{ copy().cancel }}
-            </button>
-            <button
-              type="button"
-              class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-              [disabled]="!formValid()"
-              (click)="saveCategory()"
-            >
-              {{ editingCategory() ? copy().saveEdit : copy().save }}
-            </button>
-          </div>
-        </billflow-modal-shell>
-        <!-- ══ /Create/Edit Category Modal ══ -->
+        <!-- Category Form Modal -->
+        @defer (on interaction) {
+          @if (categoryModalOpen()) {
+            <billflow-category-form-modal
+              [copy]="copy()"
+              [editing]="editingCategory()"
+              [(name)]="formName"
+              [(description)]="formDescription"
+              (close)="closeCategoryModal()"
+              (save)="saveCategory()"
+            />
+          }
+        } @placeholder {
+          <!-- Modal deferred until user interaction -->
+        }
 
         <!-- Mobile Nav -->
         <nav class="md:hidden app-dashboard-mobile-nav">
@@ -698,24 +341,33 @@ const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
           </a>
 
           <div class="app-dashboard-mobile-fab-wrap">
-            <button
-              type="button"
-              class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface"
-              (click)="openCreateModal()"
-            >
-              <span class="material-symbols-outlined text-[24px]">add</span>
-            </button>
+            @if (permissions.isAdmin()) {
+              <button
+                type="button"
+                class="w-14 h-14 bg-[#6862f3] text-white rounded-full shadow-lg shadow-[#6862f3]/30 flex items-center justify-center hover:bg-[#514be6] active:scale-95 transition-all border-[3px] border-surface"
+                (click)="openCreateModal()"
+              >
+                <span class="material-symbols-outlined text-[24px]">add</span>
+              </button>
+            }
           </div>
         </nav>
       </div>
     </billflow-page-shell>
   `,
 })
-export class CategoriesPageComponent implements OnInit {
-  private readonly api = inject(CategoryApiService);
+export class CategoriesPageComponent implements OnInit, OnDestroy {
+  private readonly getCategories = inject(GetCategoriesUseCase);
+  private readonly createCategory = inject(CreateCategoryUseCase);
+  private readonly updateCategory = inject(UpdateCategoryUseCase);
+  private readonly toggleCategoryActive = inject(ToggleCategoryActiveUseCase);
+  private readonly dataSource = inject(CategoryRemoteDataSource);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
-  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  protected readonly session = inject(SessionService);
+  protected readonly themeService = inject(ThemeService);
+  private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   Math = Math;
   String = String;
@@ -732,29 +384,38 @@ export class CategoriesPageComponent implements OnInit {
         employees: this.copy().sidebarEmployees,
         categories: this.copy().sidebarCategories,
       },
-      'categories'
-    )
+      'categories',
+      this.permissions,
+    ),
   );
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
-    { label: this.copy().sidebarCategories, icon: 'category', href: '/categories', active: true },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products' },
+      { label: this.copy().sidebarCategories, icon: 'category', href: '/categories', active: true },
+    ];
 
-  theme = signal<'light' | 'dark'>('light');
-  loading = signal(true);
-  categories = signal<CategoryDto[]>([]);
+    // Only ADMIN sees employees in mobile nav
+    if (this.permissions.isAdmin()) {
+      items.push({ label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees' });
+    }
+    return items;
+  });
+
+  loading = signal(false);
+  categories = signal<CategoryEntity[]>([]);
 
   // Filters
   searchQuery = signal('');
+  @ViewChild('categorySearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
 
   // Pagination
   page = signal(1);
   pageSize = signal(5); // default 5 as requested
   totalCategoriesCount = signal(0);
-  // TODO(backend): fetch from /categories/aggregates endpoint
+  totalPagesFromResponse = signal(0);
   activeCategoriesCount = signal(0);
 
   readonly pageSizeOptions: ComboboxOption[] = [
@@ -779,6 +440,18 @@ export class CategoriesPageComponent implements OnInit {
   // Form signals
   formName = signal('');
   formDescription = signal('');
+  private hasInitialData = false;
+
+  @Input() set initialData(value: CategoriesInitialData | null | undefined) {
+    if (!value || value.isAuthenticated === false) return;
+    this.hasInitialData = true;
+    this.categories.set(value.categories);
+    this.totalCategoriesCount.set(value.totalCategoriesCount);
+    this.activeCategoriesCount.set(value.activeCategoriesCount);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.loading.set(false);
+  }
 
   readonly formValid = computed(
     () => this.formName().trim().length > 0
@@ -786,10 +459,11 @@ export class CategoriesPageComponent implements OnInit {
 
   // ── Computed pagination ────────────────────────────────────────────────────
 
-  readonly totalCategories = computed(() => this.totalCategoriesCount());
-  readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.totalCategoriesCount() / this.pageSize()))
-  );
+  readonly totalPages = computed(() => {
+    const fromApi = this.totalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.totalCategoriesCount() / this.pageSize()));
+  });
 
   readonly visiblePages = computed(() => {
     const total = this.totalPages();
@@ -804,40 +478,64 @@ export class CategoriesPageComponent implements OnInit {
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   async ngOnInit() {
-    this.applyStoredTheme();
-    this.applyStoredUser();
+    this.themeService.init();
+    this.session.init();
+
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Category', descriptionEs: 'Nueva Categoría', category: 'actions', permission: PERMISSIONS.CATEGORIES_CREATE, action: () => { void this.openCreateModal(); } },
+        { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCategories(); } },
+        { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+      );
+
       document.documentElement.lang = this.locale();
+      if (this.hasInitialData) return;
       await this.reloadCategories();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async reloadCategories() {
     this.loading.set(true);
     try {
-      const res = await this.api.fetchCategoriesPage(
-        this.searchQuery(),
-        this.page(),
-        this.pageSize()
-      );
-      this.categories.set(res.data);
-      this.totalCategoriesCount.set(res.total);
-
-      // TODO(backend): once /categories/aggregates endpoint exists, call it here and set:
-      //   this.activeCategoriesCount.set(agg.active);
+      const result = await this.getCategories.execute({
+        query: this.searchQuery(),
+        page: this.page(),
+        limit: this.pageSize(),
+      });
+      this.categories.set(result.data);
+      this.totalCategoriesCount.set(result.total);
+      this.totalPagesFromResponse.set(result.totalPages);
     } catch (err) {
       console.error('[reload categories]', err);
       await this.feedback.alert(
         'error',
-        this.locale() === 'es'
-          ? 'No se pudieron cargar las categorías'
-          : 'Could not load categories',
-        this.locale() === 'es'
-          ? 'Revisá la conexión con el backend.'
-          : 'Please check the backend connection.'
+        this.locale() === 'es' ? 'No se pudieron cargar las categorías' : 'Could not load categories',
+        this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.',
       );
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async reloadKpis() {
+    try {
+      const kpis = await this.dataSource.getKpis();
+      this.totalCategoriesCount.set(kpis.totalCategories);
+      this.activeCategoriesCount.set(kpis.activeCount);
+    } catch (err) {
+      console.error('[categories] kpis load error:', err);
     }
   }
 
@@ -1003,6 +701,9 @@ export class CategoriesPageComponent implements OnInit {
           description: this.formDescription().trim() || undefined,
         });
         await this.feedback.toast('success', this.copy().updatedToast);
+        void this.reloadKpis();
+        this.closeCategoryModal();
+        await this.reloadCategories();
       } else {
         const payload: CreateCategoryPayload = {
           name: this.formName().trim(),
@@ -1010,9 +711,10 @@ export class CategoriesPageComponent implements OnInit {
         };
         await this.api.createCategory(payload);
         await this.feedback.toast('success', this.copy().createdToast);
+        void this.reloadKpis();
+        this.closeCategoryModal();
+        await this.reloadCategories();
       }
-      this.closeCategoryModal();
-      await this.reloadCategories();
     } catch (err: any) {
       console.error('[save category]', err);
       const errMsg =
@@ -1052,6 +754,7 @@ export class CategoriesPageComponent implements OnInit {
         ? this.copy().toggledInactive
         : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
+      void this.reloadKpis();
       await this.reloadCategories();
     } catch (err) {
       console.error('[toggle active]', err);

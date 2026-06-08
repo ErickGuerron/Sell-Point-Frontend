@@ -6,6 +6,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "predev": "node ./scripts/clean-dev-cache.mjs",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
@@ -25,11 +26,14 @@
     "@angular/material": "^21.2.12",
     "@angular/platform-browser": "^21.2.10",
     "@angular/platform-server": "^21.2.10",
+    "@astrojs/node": "^10.1.2",
     "@tailwindcss/vite": "^4.2.4",
     "@tsparticles/angular": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
     "astro": "^6.1.9",
     "chart.js": "^4.5.0",
+    "firebase": "^12.13.0",
+    "gentle-pi": "^0.4.1",
     "ng2-charts": "^8.0.0",
     "rxjs": "^7.8.2",
     "sweetalert2": "^11.26.24",

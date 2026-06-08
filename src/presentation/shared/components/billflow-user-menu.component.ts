@@ -1,5 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild, signal, inject } from '@angular/core';
+import { LocaleService } from '../services/locale.service';
+import { ThemeService } from '../services/theme.service';
+import { KeyboardShortcutService } from '../services/keyboard-shortcut.service';
 
 @Component({
   selector: 'billflow-user-menu',
@@ -27,6 +30,16 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
             <span>{{ languageLabel }}</span>
           </button>
 
+          <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="toggleTheme()">
+            <span class="material-symbols-outlined">{{ themeIcon() }}</span>
+            <span>{{ themeToggleLabel() }}</span>
+          </button>
+
+          <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="openShortcuts()">
+            <span class="material-symbols-outlined">keyboard</span>
+            <span>{{ shortcutsLabel() }}</span>
+          </button>
+
           <button type="button" class="app-dashboard-user-menu__item" role="menuitem" (click)="settings.emit()">
             <span class="material-symbols-outlined">settings</span>
             <span>{{ settingsLabel }}</span>
@@ -41,6 +54,10 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
   `,
 })
 export class BillflowUserMenuComponent {
+  private readonly localeService = inject(LocaleService);
+  private readonly themeService = inject(ThemeService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
+
   @Input() displayName = 'Usuario';
   @Input() initials = 'US';
   @Input() open = false;
@@ -56,7 +73,60 @@ export class BillflowUserMenuComponent {
   @Output() settings = new EventEmitter<void>();
   @Output() logout = new EventEmitter<void>();
 
+  private visible = signal(false);
+  private closing = signal(false);
+  protected open = signal(false);
+  private closeTimeout: number | undefined;
+
+  protected readonly locale = this.localeService.locale;
+  protected readonly theme = this.themeService.theme;
+
   @ViewChild('host') private host?: ElementRef<HTMLElement>;
+
+  toggleMenu(event: MouseEvent) {
+    event.stopPropagation();
+    if (this.visible()) { this.closeMenu(); return; }
+    if (this.closeTimeout !== undefined && typeof window !== 'undefined') {
+      window.clearTimeout(this.closeTimeout);
+      this.closeTimeout = undefined;
+    }
+    this.closing.set(false);
+    this.visible.set(true);
+    this.open.set(true);
+  }
+
+  private closeMenu() {
+    if (!this.visible() || this.closing()) return;
+    this.closing.set(true);
+    if (typeof window === 'undefined') return;
+    this.closeTimeout = window.setTimeout(() => {
+      this.visible.set(false);
+      this.open.set(false);
+      this.closing.set(false);
+      this.closeTimeout = undefined;
+    }, 180);
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggle();
+  }
+
+  themeToggleLabel(): string {
+    return this.themeService.themeToggleLabel(this.locale());
+  }
+
+  themeIcon(): string {
+    return this.theme() === 'dark' ? 'light_mode' : 'dark_mode';
+  }
+
+  openShortcuts(): void {
+    this.closeMenu();
+    this.keyboardShortcuts.toggle();
+  }
+
+  shortcutsLabel(): string {
+    return this.locale() === 'es' ? 'Atajos de Teclado' : 'Keyboard Shortcuts';
+  }
 
   @HostListener('document:click', ['$event'])
   handleDocumentClick(event: MouseEvent) {

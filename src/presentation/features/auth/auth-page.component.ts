@@ -1,68 +1,118 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, inject, signal } from '@angular/core';
 import type { OnDestroy, OnInit } from '@angular/core';
+import { HttpErrorResponse, provideHttpClient, withFetch } from '@angular/common/http';
 import { AUTH_TEXT, detectAuthLocale } from './auth.dictionary';
 import type { AuthLoginPayload } from './auth.dictionary';
 import { LoginFormComponent } from './components/login-form.component';
+import { PasswordRecoveryFormComponent } from './components/password-recovery-form.component';
+import { AuthApiService } from './data/auth-api.service';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-
-const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
+import { ThemeService } from '../../shared/services/theme.service';
+import { SessionService } from '../../shared/services/session.service';
+import { AuthTokenStore } from '../../shared/auth/auth-token.store';
+import { AuthHttpService } from '../../shared/services/auth-http.service';
 
 @Component({
   selector: 'billflow-auth-page',
   standalone: true,
-  imports: [CommonModule, LoginFormComponent],
+  imports: [CommonModule, LoginFormComponent, PasswordRecoveryFormComponent],
+  providers: [AuthApiService],
   host: { class: 'w-full flex justify-center' },
   template: `
     <div class="app-auth-shell">
-      <button
-        type="button"
-        class="app-auth-theme-toggle"
-        (click)="toggleLocale()"
-      >
-        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">language</span>
-        <span>{{ copy().language }}</span>
-      </button>
+      <div class="app-auth-top-actions">
+        <button
+          type="button"
+          class="app-auth-theme-toggle"
+          (click)="toggleLocale()"
+        >
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">language</span>
+          <span>{{ copy().language }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="app-auth-theme-toggle app-auth-theme-toggle--secondary"
+          (click)="toggleTheme()"
+        >
+          <span class="material-symbols-outlined text-[18px]" aria-hidden="true">
+            {{ theme() === 'dark' ? 'light_mode' : 'dark_mode' }}
+          </span>
+          <span>{{ themeToggleLabel() }}</span>
+        </button>
+      </div>
 
       <main class="app-auth-card">
-      <section class="app-auth-login-panel">
-        <billflow-login-form
-          [copy]="copy()"
-          [statusMessage]="loginStatusMessage()"
-          [statusTone]="loginStatusTone()"
-          (requestSupport)="openSupportModal()"
-          (submitLogin)="handleLogin($event)"
-        />
-      </section>
+        <section class="app-auth-login-panel">
+          <div class="app-auth-login-panel__inner">
+            <div class="app-auth-panel-stage" [class.app-auth-panel-stage--recovery]="authView() === 'recovery'">
+              <div class="app-auth-panel-surface">
+                <div
+                  class="app-auth-panel-view app-auth-panel-view--login"
+                  [class.app-auth-panel-view--active]="authView() === 'login'"
+                  [attr.aria-hidden]="authView() !== 'login'"
+                  [attr.inert]="authView() === 'login' ? null : ''"
+                >
+                  <billflow-login-form
+                    [copy]="copy()"
+                    [statusMessage]="loginStatusMessage()"
+                    [statusTone]="loginStatusTone()"
+                    (requestSupport)="openSupportModal()"
+                    (requestRecovery)="showRecoveryView()"
+                    (submitLogin)="handleLogin($event)"
+                    (googleLogin)="handleGoogleLogin($event.googleToken)"
+                  />
+                </div>
 
-      <section class="app-auth-visual-panel">
-        <ng-container *ngFor="let slide of slides; let index = index">
-          <img
-            class="app-auth-visual-image"
-            [class.opacity-100]="activeSlide() === index"
-            [class.opacity-0]="activeSlide() !== index"
-            [src]="slide.src"
-            [alt]="slide.alt"
-            loading="eager"
-            decoding="async"
-          />
-        </ng-container>
-
-        <div class="app-auth-visual-content">
-          <h2 class="font-display text-display app-auth-visual-title leading-tight" [innerHTML]="copy().panel.title"></h2>
-          <p class="font-body-lg text-body-lg app-auth-visual-text">{{ copy().panel.description }}</p>
-          <div class="app-auth-visual-indicators">
-            <button
-              *ngFor="let slide of slides; let index = index"
-              type="button"
-              class="app-auth-visual-indicator"
-              [ngClass]="activeSlide() === index ? 'app-auth-visual-indicator--active' : 'app-auth-visual-indicator--inactive'"
-              [attr.aria-label]="'Slide ' + (index + 1)"
-              (click)="showSlide(index)"
-            ></button>
+                <div
+                  class="app-auth-panel-view app-auth-panel-view--recovery"
+                  [class.app-auth-panel-view--active]="authView() === 'recovery'"
+                  [attr.aria-hidden]="authView() !== 'recovery'"
+                  [attr.inert]="authView() === 'recovery' ? null : ''"
+                >
+                  <billflow-password-recovery-form
+                    [copy]="copy()"
+                    [statusMessage]="recoveryStatusMessage()"
+                    [statusTone]="recoveryStatusTone()"
+                    (requestBack)="showLoginView()"
+                    (requestSupport)="openSupportModal()"
+                    (submitRecovery)="handlePasswordRecovery($event.email)"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+
+        <section class="app-auth-visual-panel">
+          <ng-container *ngFor="let slide of slides; let index = index">
+            <img
+              class="app-auth-visual-image"
+              [class.opacity-100]="activeSlide() === index"
+              [class.opacity-0]="activeSlide() !== index"
+              [src]="slide.src"
+              [alt]="slide.alt"
+              loading="eager"
+              decoding="async"
+            />
+          </ng-container>
+
+          <div class="app-auth-visual-content">
+            <h2 class="font-display text-display app-auth-visual-title leading-tight">{{ copy().panel.title }}</h2>
+            <p class="font-body-lg text-body-lg app-auth-visual-text">{{ copy().panel.description }}</p>
+            <div class="app-auth-visual-indicators">
+              <button
+                *ngFor="let slide of slides; let index = index"
+                type="button"
+                class="app-auth-visual-indicator"
+                [ngClass]="activeSlide() === index ? 'app-auth-visual-indicator--active' : 'app-auth-visual-indicator--inactive'"
+                [attr.aria-label]="copy().panel.slideLabel + ' ' + (index + 1)"
+                (click)="showSlide(index)"
+              ></button>
+            </div>
+          </div>
+        </section>
       </main>
 
       <div *ngIf="supportOpen() || supportClosing()" class="app-auth-support-overlay">
@@ -152,7 +202,7 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
           </div>
 
           <div class="mt-lg pt-sm border-t border-outline-variant/30 text-center">
-            <p class="font-body-sm text-body-sm text-on-surface-variant/70">Your default mail client will open securely.</p>
+            <p class="font-body-sm text-body-sm text-on-surface-variant/70">{{ copy().support.footer }}</p>
           </div>
         </div>
       </div>
@@ -160,13 +210,25 @@ const API_BASE_URL = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
   `
 })
 export class AuthPageComponent implements OnInit, OnDestroy {
+  static clientProviders = [provideHttpClient(withFetch())];
+  static renderProviders = [...AuthPageComponent.clientProviders];
+
   private readonly feedback = inject(UiFeedbackService);
+  private readonly themeService = inject(ThemeService);
+  private readonly session = inject(SessionService);
+  private readonly authApi = inject(AuthApiService);
+  private readonly authTokenStore = inject(AuthTokenStore);
+  private readonly authHttp = inject(AuthHttpService);
 
   locale = signal(detectAuthLocale());
+  authView = signal<'login' | 'recovery'>('login');
   activeSlide = signal(0);
+  theme = this.themeService.theme;
   copy = computed(() => AUTH_TEXT[this.locale()]);
   loginStatusMessage = signal<string | null>(null);
   loginStatusTone = signal<'idle' | 'success' | 'error'>('idle');
+  recoveryStatusMessage = signal<string | null>(null);
+  recoveryStatusTone = signal<'idle' | 'success' | 'error'>('idle');
   supportOpen = signal(false);
   supportClosing = signal(false);
   supportSelectedIssues = signal<string[]>([]);
@@ -191,6 +253,7 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   private supportCloseTimeout: number | undefined;
 
   ngOnInit() {
+    this.themeService.init();
     if (typeof window !== 'undefined' && this.slides.length > 1) {
       this.intervalId = window.setInterval(() => this.nextSlide(), 5000);
     }
@@ -238,6 +301,14 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     );
   }
 
+  toggleTheme() {
+    this.themeService.toggle();
+  }
+
+  themeToggleLabel() {
+    return this.themeService.themeToggleLabel(this.locale());
+  }
+
   openMailService(service: 'gmail' | 'outlook' | 'yahoo') {
     const subject = encodeURIComponent('BillFlow POS - IT Support Request');
     const issues = this.supportSelectedIssues();
@@ -260,67 +331,153 @@ export class AuthPageComponent implements OnInit, OnDestroy {
     this.closeSupportModal();
   }
 
+  async handleGoogleLogin(token: string) {
+    this.loginStatusMessage.set(null);
+    this.loginStatusTone.set('idle');
+
+    try {
+      const session = await this.authApi.loginWithGoogle(token);
+      const accessToken = (session as { accessToken?: string }).accessToken;
+      if (accessToken) {
+        this.authTokenStore.set(accessToken);
+      }
+      // Populate AuthIdentityStore from /auth/me. The refresh cookie is
+      // set by the backend on this response; the access token is the only
+      // thing kept in memory.
+      //
+      // Both awaits must complete BEFORE the navigation, otherwise the
+      // `billflow-identity` localStorage key is never written and the
+      // post-login page renders an unauthenticated state. If `/auth/me`
+      // 500s for any reason, log and continue — the refresh cookie is
+      // already set, so the next page's `restoreSession` will retry the
+      // hydrate via the in-memory access token.
+      try {
+        await this.authHttp.fetchAndStoreIdentity();
+        await this.session.hydrateUserProfile();
+      } catch (hydrateErr) {
+        // eslint-disable-next-line no-console
+        console.error('[auth-page] post-login identity hydrate failed', hydrateErr);
+      }
+      this.loginStatusTone.set('success');
+      this.loginStatusMessage.set(this.copy().feedback.success);
+      void this.feedback.toast('success', this.copy().feedback.success);
+      window.location.replace('/dashboard');
+    } catch (error) {
+      const httpError = error as HttpErrorResponse;
+      const errorCode = (httpError.error as Record<string, unknown> | null | undefined)?.error as string | undefined;
+      const message =
+        errorCode === 'GOOGLE_EMAIL_NOT_VERIFIED'
+          ? this.copy().feedback.googleEmailNotVerified
+          : errorCode === 'GOOGLE_EMAIL_MISMATCH'
+            ? this.copy().feedback.googleEmailMismatch
+            : errorCode === 'GOOGLE_DUPLICATE_LINK'
+              ? this.copy().feedback.googleDuplicateLink
+              : errorCode === 'GOOGLE_NO_ACCOUNT'
+                ? this.copy().feedback.googleNoAccount
+                : this.copy().feedback.googleVerificationFailed;
+
+      const finalMessage = httpError?.status ? message : this.copy().feedback.googleNetworkError;
+      this.loginStatusTone.set('error');
+      this.loginStatusMessage.set(finalMessage);
+      await this.feedback.toast('error', finalMessage);
+    }
+  }
+
   async handleLogin(payload: AuthLoginPayload) {
     this.loginStatusMessage.set(null);
     this.loginStatusTone.set('idle');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: payload.identifier,
-          password: payload.secret,
-          rememberMe: false,
-        }),
+const session = await this.authApi.login({
+        email: payload.identifier,
+        password: payload.secret,
+        rememberMe: Boolean(payload.rememberMe),
       });
-
-      if (!response.ok) {
-        // Intentar leer el body del error para detectar cuenta bloqueada
-        let body: Record<string, unknown> | null = null;
-        try {
-          body = (await response.json()) as Record<string, unknown>;
-        } catch {
-          // body no es JSON válido, seguir con el error genérico
-        }
-
-        const message =
-          (body?.message as string | undefined) ??
-          (body?.error as string | undefined) ??
-          '';
-
-        const isBlocked =
-          response.status === 423 ||
-          response.status === 403 ||
-          /blocked|locked|bloqueada|bloqueado|deshabilitada|disabled/i.test(message);
-
-        if (isBlocked) {
-          this.loginStatusTone.set('error');
-          this.loginStatusMessage.set(this.copy().feedback.blockedTitle);
-          await this.feedback.alert(
-            'warning',
-            this.copy().feedback.blockedTitle,
-            `${this.copy().feedback.blockedMessage}\n\n${this.copy().feedback.blockedContact}`,
-          );
-          return;
-        }
-
-        throw new Error('Invalid credentials');
+      const accessToken = (session as { accessToken?: string }).accessToken;
+      if (accessToken) {
+        this.authTokenStore.set(accessToken);
       }
-
-      const session = await response.json();
-      window.localStorage.setItem('billflow-session', JSON.stringify(session));
+      // Populate AuthIdentityStore from /auth/me. The refresh cookie is
+      // set by the backend on this response; the access token is the only
+      // thing kept in memory.
+      //
+      // Both awaits must complete BEFORE the navigation, otherwise the
+      // `billflow-identity` localStorage key is never written and the
+      // post-login page renders an unauthenticated state. If `/auth/me`
+      // 500s for any reason, log and continue — the refresh cookie is
+      // already set, so the next page's `restoreSession` will retry the
+      // hydrate via the in-memory access token.
+      try {
+        await this.authHttp.fetchAndStoreIdentity();
+        await this.session.hydrateUserProfile();
+      } catch (hydrateErr) {
+        // eslint-disable-next-line no-console
+        console.error('[auth-page] post-login identity hydrate failed', hydrateErr);
+      }
       this.loginStatusTone.set('success');
       this.loginStatusMessage.set(this.copy().feedback.success);
       void this.feedback.toast('success', this.copy().feedback.success);
-      window.setTimeout(() => {
-        window.location.replace('/dashboard');
-      }, 180);
-    } catch {
+      window.location.replace('/dashboard');
+    } catch (error) {
+      const httpError = error as HttpErrorResponse;
+      const body = httpError.error as Record<string, unknown> | string | null | undefined;
+      const message = typeof body === 'string' ? body : ((body?.message as string | undefined) ?? (body?.error as string | undefined) ?? '');
+
+      const isBlocked =
+        httpError.status === 423 ||
+        httpError.status === 403 ||
+        /blocked|locked|bloqueada|bloqueado|deshabilitada|disabled/i.test(message);
+
+      if (isBlocked) {
+        this.loginStatusTone.set('error');
+        this.loginStatusMessage.set(this.copy().feedback.blockedTitle);
+        await this.feedback.alert(
+          'warning',
+          this.copy().feedback.blockedTitle,
+          `${this.copy().feedback.blockedMessage}\n\n${this.copy().feedback.blockedContact}`,
+        );
+        return;
+      }
+
       this.loginStatusTone.set('error');
       this.loginStatusMessage.set(this.copy().feedback.invalid);
       await this.feedback.toast('error', this.copy().feedback.invalid);
     }
+  }
+
+  async handlePasswordRecovery(email: string) {
+    this.recoveryStatusMessage.set(null);
+    this.recoveryStatusTone.set('idle');
+
+    try {
+      await this.authApi.requestPasswordReset(email);
+
+      this.recoveryStatusTone.set('success');
+      this.recoveryStatusMessage.set(this.copy().recovery.success);
+      await this.feedback.toast('success', this.copy().recovery.success);
+    } catch (error) {
+      const httpError = error as HttpErrorResponse;
+      const body = httpError.error as Record<string, unknown> | string | null | undefined;
+      const message = typeof body === 'string' ? body : ((body?.message as string | undefined) ?? (body?.error as string | undefined) ?? this.copy().recovery.error);
+      const finalMessage = httpError.status === 429 ? this.copy().recovery.rateLimited : message || this.copy().recovery.error;
+      this.recoveryStatusTone.set('error');
+      this.recoveryStatusMessage.set(finalMessage);
+      await this.feedback.toast('error', finalMessage);
+    }
+  }
+
+  showRecoveryView() {
+    this.loginStatusMessage.set(null);
+    this.loginStatusTone.set('idle');
+    this.recoveryStatusMessage.set(null);
+    this.recoveryStatusTone.set('idle');
+    this.authView.set('recovery');
+  }
+
+  showLoginView() {
+    this.recoveryStatusMessage.set(null);
+    this.recoveryStatusTone.set('idle');
+    this.authView.set('login');
   }
 
   toggleLocale() {
@@ -345,3 +502,4 @@ export class AuthPageComponent implements OnInit, OnDestroy {
   }
 
 }
+

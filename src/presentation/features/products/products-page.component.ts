@@ -1,10 +1,12 @@
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { Component, computed, inject, signal, HostListener, ElementRef, ViewChild } from '@angular/core';
-import type { OnInit } from '@angular/core';
-import { ProductApiService, type ProductWithStockDto, type CategoryDto, type StockMovementDto, type CreateProductPayload, type AdjustStockPayload } from './product-api.service';
+import { Component, computed, inject, signal, ChangeDetectionStrategy, Input, ViewChild, type ElementRef } from '@angular/core';
+import type { OnInit, OnDestroy } from '@angular/core';
 import { UiFeedbackService } from '../../shared/services/ui-feedback.service';
-import { LocaleService } from '../../shared/services/locale.service';
+import { LocaleService, type AppLocale } from '../../shared/services/locale.service';
+import { SessionService } from '../../shared/services/session.service';
+import { ThemeService } from '../../shared/services/theme.service';
+import { PermissionsService, PERMISSIONS } from '../../shared/services/permissions.service';
+import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
@@ -14,270 +16,28 @@ import { BillflowNotificationButtonComponent } from '../../shared/components/bil
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
 import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
-
-type ProductsLocale = 'es' | 'en';
-
-interface ProductsCopy {
-  moduleLabel: string;
-  title: string;
-  description: string;
-  resultsLabel: string;
-  themeLabel: string;
-  searchPlaceholder: string;
-  newProduct: string;
-  code: string;
-  name: string;
-  descriptionLabel: string;
-  salePrice: string;
-  costPrice: string;
-  stock: string;
-  category: string;
-  status: string;
-  actions: string;
-  edit: string;
-  deactivate: string;
-  activate: string;
-  viewHistory: string;
-  confirmDeactivateTitle: string;
-  confirmDeactivateText: string;
-  confirmActivateTitle: string;
-  confirmActivateText: string;
-  confirmBtn: string;
-  cancelBtn: string;
-  allStatuses: string;
-  active: string;
-  inactive: string;
-  allCategories: string;
-  noProductsTitle: string;
-  noProductsText: string;
-  showingText: string;
-  entriesText: string;
-  createdToast: string;
-  updatedToast: string;
-  toggledActive: string;
-  toggledInactive: string;
-  sidebarDashboard: string;
-  sidebarInvoices: string;
-  sidebarCustomers: string;
-  sidebarProducts: string;
-  sidebarEmployees: string;
-  sidebarCategories: string;
-  signOut: string;
-  settings: string;
-  notifications: string;
-  languageToggle: string;
-  sessionLabel: string;
-  modalCreateTitle: string;
-  modalCreateSubtitle: string;
-  modalEditTitle: string;
-  modalEditSubtitle: string;
-  modalMovementsTitle: string;
-  modalMovementsSubtitle: string;
-  save: string;
-  saveEdit: string;
-  cancel: string;
-  // Form fields
-  codeLabel: string;
-  nameLabel: string;
-  salePriceLabel: string;
-  costPriceLabel: string;
-  initialStockLabel: string;
-  priceError: string;
-  stockError: string;
-  categorySelect: string;
-  // Movement list columns
-  mvtDate: string;
-  mvtType: string;
-  mvtQuantity: string;
-  mvtReason: string;
-  noMovementsTitle: string;
-  noMovementsText: string;
-  // Stock adjustment form
-  stockAdjustTitle: string;
-  stockAdjustType: string;
-  stockAdjustQty: string;
-  stockAdjustReason: string;
-  stockAdjustBtn: string;
-  stockAdjustSuccess: string;
-  stockAdjustError: string;
-  stockInsufficient: string;
-  stockTypeIn: string;
-  stockTypeOut: string;
-  stockTypeAdjust: string;
-}
-
-const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
-  es: {
-    moduleLabel: 'Módulo de Productos',
-    title: 'Gestión de Productos',
-    description: 'Administrá, editá y controlá el stock e historial de tus productos.',
-    resultsLabel: 'resultados',
-    themeLabel: 'Tema',
-    searchPlaceholder: 'Buscar productos...',
-    newProduct: 'Nuevo Producto',
-    code: 'Código',
-    name: 'Nombre',
-    descriptionLabel: 'Descripción',
-    salePrice: 'Precio Venta',
-    costPrice: 'Precio Costo',
-    stock: 'Stock',
-    category: 'Categoría',
-    status: 'Estado',
-    actions: 'Acciones',
-    edit: 'Editar',
-    deactivate: 'Desactivar',
-    activate: 'Activar',
-    viewHistory: 'Ver Historial de Stock',
-    confirmDeactivateTitle: '¿Desactivar producto?',
-    confirmDeactivateText: 'El producto dejará de estar disponible para nuevas ventas.',
-    confirmActivateTitle: '¿Activar producto?',
-    confirmActivateText: 'El producto volverá a estar disponible para vender.',
-    confirmBtn: 'Sí',
-    cancelBtn: 'Cancelar',
-    allStatuses: 'Todos los estados',
-    active: 'Activo',
-    inactive: 'Inactivo',
-    allCategories: 'Todas las categorías',
-    noProductsTitle: 'No hay productos',
-    noProductsText: 'Probá con otro filtro o término de búsqueda.',
-    showingText: 'Mostrando',
-    entriesText: 'registros',
-    createdToast: 'Producto creado correctamente',
-    updatedToast: 'Producto actualizado correctamente',
-    toggledActive: 'Producto activado correctamente',
-    toggledInactive: 'Producto desactivado correctamente',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Facturas',
-    sidebarCustomers: 'Clientes',
-    sidebarProducts: 'Productos',
-    sidebarEmployees: 'Empleados',
-    sidebarCategories: 'Categorías',
-    signOut: 'Cerrar sesión',
-    settings: 'Configuración',
-    notifications: 'Notificaciones',
-    languageToggle: 'English',
-    sessionLabel: 'Sesión',
-    modalCreateTitle: 'Nuevo Producto',
-    modalCreateSubtitle: 'Completá los datos del nuevo producto',
-    modalEditTitle: 'Editar Producto',
-    modalEditSubtitle: 'Actualizá los datos del producto',
-    modalMovementsTitle: 'Movimientos de Stock',
-    modalMovementsSubtitle: 'Historial de variaciones de inventario',
-    save: 'Guardar Producto',
-    saveEdit: 'Actualizar Producto',
-    cancel: 'Cancelar',
-    codeLabel: 'Código de Producto',
-    nameLabel: 'Nombre del Producto',
-    salePriceLabel: 'Precio de Venta',
-    costPriceLabel: 'Precio de Costo',
-    initialStockLabel: 'Stock Inicial',
-    priceError: 'El precio debe ser un número positivo',
-    stockError: 'El stock no puede ser negativo',
-    categorySelect: 'Seleccionar categoría',
-    mvtDate: 'Fecha y Hora',
-    mvtType: 'Tipo',
-    mvtQuantity: 'Cantidad',
-    mvtReason: 'Motivo',
-    noMovementsTitle: 'Sin movimientos',
-    noMovementsText: 'Este producto no registra ningún movimiento de stock aún.',
-    stockAdjustTitle: 'Ajustar Stock',
-    stockAdjustType: 'Tipo',
-    stockAdjustQty: 'Cantidad',
-    stockAdjustReason: 'Motivo',
-    stockAdjustBtn: 'Realizar Movimiento',
-    stockAdjustSuccess: 'Movimiento registrado correctamente',
-    stockAdjustError: 'Error al registrar el movimiento',
-    stockInsufficient: 'Stock insuficiente para realizar la salida',
-    stockTypeIn: 'Ingreso',
-    stockTypeOut: 'Salida',
-    stockTypeAdjust: 'Ajuste',
-  },
-  en: {
-    moduleLabel: 'Products Module',
-    title: 'Product Management',
-    description: 'Manage, edit, and audit the stock and history of your products.',
-    resultsLabel: 'results',
-    themeLabel: 'Theme',
-    searchPlaceholder: 'Search products...',
-    newProduct: 'New Product',
-    code: 'Code',
-    name: 'Name',
-    descriptionLabel: 'Description',
-    salePrice: 'Sale Price',
-    costPrice: 'Cost Price',
-    stock: 'Stock',
-    category: 'Category',
-    status: 'Status',
-    actions: 'Actions',
-    edit: 'Edit',
-    deactivate: 'Deactivate',
-    activate: 'Activate',
-    viewHistory: 'View Stock History',
-    confirmDeactivateTitle: 'Deactivate product?',
-    confirmDeactivateText: 'The product will no longer be available for new sales.',
-    confirmActivateTitle: 'Activate product?',
-    confirmActivateText: 'The product will be available again for sales.',
-    confirmBtn: 'Yes',
-    cancelBtn: 'Cancel',
-    allStatuses: 'All Statuses',
-    active: 'Active',
-    inactive: 'Inactive',
-    allCategories: 'All Categories',
-    noProductsTitle: 'No products found',
-    noProductsText: 'Try another filter or search term.',
-    showingText: 'Showing',
-    entriesText: 'entries',
-    createdToast: 'Product created successfully',
-    updatedToast: 'Product updated successfully',
-    toggledActive: 'Product activated successfully',
-    toggledInactive: 'Product deactivated successfully',
-    sidebarDashboard: 'Dashboard',
-    sidebarInvoices: 'Invoices',
-    sidebarCustomers: 'Customers',
-    sidebarProducts: 'Products',
-    sidebarEmployees: 'Employees',
-    sidebarCategories: 'Categories',
-    signOut: 'Sign out',
-    settings: 'Settings',
-    notifications: 'Notifications',
-    languageToggle: 'Español',
-    sessionLabel: 'Session',
-    modalCreateTitle: 'New Product',
-    modalCreateSubtitle: 'Fill in the new product details',
-    modalEditTitle: 'Edit Product',
-    modalEditSubtitle: 'Update the product details',
-    modalMovementsTitle: 'Stock Movements',
-    modalMovementsSubtitle: 'History of inventory changes',
-    save: 'Save Product',
-    saveEdit: 'Update Product',
-    cancel: 'Cancel',
-    codeLabel: 'Product Code',
-    nameLabel: 'Product Name',
-    salePriceLabel: 'Sale Price',
-    costPriceLabel: 'Cost Price',
-    initialStockLabel: 'Initial Stock',
-    priceError: 'Price must be a positive number',
-    stockError: 'Stock cannot be negative',
-    categorySelect: 'Select category',
-    mvtDate: 'Date & Time',
-    mvtType: 'Type',
-    mvtQuantity: 'Qty',
-    mvtReason: 'Reason',
-    noMovementsTitle: 'No movements',
-    noMovementsText: 'This product does not have any stock movements yet.',
-    stockAdjustTitle: 'Adjust Stock',
-    stockAdjustType: 'Type',
-    stockAdjustQty: 'Quantity',
-    stockAdjustReason: 'Reason',
-    stockAdjustBtn: 'Make Movement',
-    stockAdjustSuccess: 'Movement recorded successfully',
-    stockAdjustError: 'Error recording movement',
-    stockInsufficient: 'Insufficient stock for this operation',
-    stockTypeIn: 'Inbound',
-    stockTypeOut: 'Outbound',
-    stockTypeAdjust: 'Adjustment',
-  },
-};
+import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
+import { ProductKpiCardsComponent } from './components/product-kpi-cards.component';
+import { ProductTableComponent } from './components/product-table.component';
+import { ProductFormModalComponent } from './components/product-form-modal.component';
+import { ProductMovementsModalComponent } from './components/product-movements-modal.component';
+import { HasPermissionDirective, IsAdminDirective } from '../../shared/directives/has-permission.directive';
+import { GetProductsUseCase } from './domain/use-cases/get-products.use-case';
+import { GetProductByIdUseCase } from './domain/use-cases/get-product-by-id.use-case';
+import { CreateProductUseCase } from './domain/use-cases/create-product.use-case';
+import { GetNextProductCodeUseCase } from './domain/use-cases/get-next-product-code.use-case';
+import { UpdateProductUseCase } from './domain/use-cases/update-product.use-case';
+import { ToggleProductActiveUseCase } from './domain/use-cases/toggle-product-active.use-case';
+import { GetProductMovementsUseCase } from './domain/use-cases/get-product-movements.use-case';
+import { AdjustStockUseCase } from './domain/use-cases/adjust-stock.use-case';
+import type { ProductEntity, ProductMovementEntity, CreateProductPayload, UpdateProductPayload, StockAdjustmentPayload, ProductFilters } from './domain/product.entity';
+import { ProductRepository } from './domain/product.repository';
+import { ProductRemoteDataSource } from './data/product-remote-datasource';
+import { ProductImplRepository } from './data/product-impl.repository';
+import type { CategoryRawDto } from './data/product-remote-datasource';
+import { PRODUCTS_TEXT } from './i18n/products.translations';
+import type { ProductsCopy } from './i18n/products.translations';
+import type { ProductsInitialData } from '../../shared/ssr-page-data';
 
 @Component({
   selector: 'billflow-products-page',
@@ -292,7 +52,28 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     BillflowUserMenuComponent,
     BillflowModalShellComponent,
     BillflowComboboxComponent,
+    BillflowDateRangePickerComponent,
+    ProductKpiCardsComponent,
+    ProductTableComponent,
+    ProductFormModalComponent,
+    ProductMovementsModalComponent,
+    HasPermissionDirective,
+    IsAdminDirective,
   ],
+  providers: [
+    ProductRemoteDataSource,
+    ProductImplRepository,
+    { provide: ProductRepository, useClass: ProductImplRepository },
+    GetProductsUseCase,
+    GetProductByIdUseCase,
+    CreateProductUseCase,
+    GetNextProductCodeUseCase,
+    UpdateProductUseCase,
+    ToggleProductActiveUseCase,
+    GetProductMovementsUseCase,
+    AdjustStockUseCase,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
@@ -331,271 +112,159 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
         </header>
 
         <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
-          <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
-              <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
-            </div>
-            <div class="flex items-center gap-2 text-sm text-on-surface-variant">
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
-              <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span>
-            </div>
-          </section>
+          @defer (on timer(200ms)) {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
+                <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ totalProducts() }} {{ copy().resultsLabel }}</span>
+                <span class="rounded-full border border-outline-variant/60 px-3 py-1">{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span>
+              </div>
+            </section>
 
-          <!-- KPIs: total from server; active & low-stock come from /products/aggregates
-               (TODO(backend): implement the endpoint, then uncomment the aggregate call in reloadProducts) -->
-          <section class="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-            <!-- Total Products -->
-            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-              <div class="absolute -right-4 -bottom-4 text-primary/5 dark:text-primary/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                <span class="material-symbols-outlined text-[96px] font-light">inventory_2</span>
+            <billflow-product-kpi-cards
+              [totalProducts]="totalProductsCount()"
+              [activeCount]="activeCount()"
+              [lowStockCount]="lowStockCount()"
+              [locale]="locale()"
+            />
+          } @placeholder {
+            <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div class="h-8 w-48 rounded bg-surface-container-high animate-pulse"></div>
+                <div class="h-4 w-64 rounded bg-surface-container-high mt-2 animate-pulse"></div>
               </div>
-              <div class="flex items-center gap-4">
-                <div class="h-12 w-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shrink-0 shadow-sm">
-                  <span class="material-symbols-outlined text-[24px]">inventory_2</span>
-                </div>
-                <div>
-                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Total Productos' : 'Total Products' }}</p>
-                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ totalProducts() }}</h3>
-                </div>
+              <div class="flex items-center gap-2">
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
+                <div class="h-7 w-24 rounded-full bg-surface-container-high animate-pulse"></div>
               </div>
-            </div>
+            </section>
+            <section class="grid grid-cols-3 gap-4 mb-6">
+              @for (i of [1,2,3]; track i) {
+                <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 animate-pulse">
+                  <div class="flex items-center gap-4">
+                    <div class="h-10 w-10 rounded-xl bg-surface-container-high shrink-0"></div>
+                    <div class="flex-1 space-y-2">
+                      <div class="h-3 w-20 rounded bg-surface-container-high"></div>
+                      <div class="h-6 w-12 rounded bg-surface-container-high"></div>
+                    </div>
+                  </div>
+                </div>
+              }
+            </section>
+          }
+        </main>
 
-            <!-- Active Products — backend-driven (pending /products/aggregates) -->
-            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300">
-              <div class="absolute -right-4 -bottom-4 text-[#10b981]/5 dark:text-[#10b981]/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                <span class="material-symbols-outlined text-[96px] font-light">check_circle</span>
-              </div>
-              <div class="flex items-center gap-4">
-                <div class="h-12 w-12 rounded-xl bg-[#10b981]/10 text-[#10b981] flex items-center justify-center border border-[#10b981]/20 shrink-0 shadow-sm">
-                  <span class="material-symbols-outlined text-[24px]">check_circle</span>
-                </div>
-                <div>
-                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Activos' : 'Active' }}</p>
-                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ activeCount() }}</h3>
-                </div>
-              </div>
-            </div>
-
-            <!-- Low / Out of Stock — backend-driven (pending /products/aggregates) -->
-            <div class="dashboard-glass-card p-5 rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl relative overflow-hidden group hover:translate-y-[-4px] hover:shadow-lg transition-all duration-300 col-span-2 lg:col-span-1">
-              <div class="absolute -right-4 -bottom-4 text-error/5 dark:text-error/10 group-hover:scale-110 transition-transform duration-300 pointer-events-none">
-                <span class="material-symbols-outlined text-[96px] font-light">warning</span>
-              </div>
-              <div class="flex items-center gap-4">
-                <div class="h-12 w-12 rounded-xl bg-error/10 text-error flex items-center justify-center border border-error/20 shrink-0 shadow-sm">
-                  <span class="material-symbols-outlined text-[24px]">warning</span>
-                </div>
-                <div>
-                  <p class="text-xs font-semibold text-outline uppercase tracking-wider">{{ locale() === 'es' ? 'Bajo / Sin Stock' : 'Low / Out of Stock' }}</p>
-                  <h3 class="text-2xl font-bold text-on-background mt-1">{{ lowStockCount() }}</h3>
-                </div>
-              </div>
-            </div>
-          </section>
-
+        @defer (on idle) {
           <section class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden">
-            <!-- Toolbar: lupa toggle filters on left, actions on right -->
-            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/20">
+            <!-- Header: actions + filters + search en una sola fila (como imagen) -->
+            <div class="dashboard-table-card__head p-6 md:p-7 border-b border-outline-variant/20">
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  [title]="copy().reloadLabel"
+                  class="inline-flex items-center justify-center h-10 w-10 bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm"
+                  (click)="void reloadProducts()"
+                >
+                  <span
+                    class="material-symbols-outlined text-[20px] transition-transform"
+                    [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'"
+                  >refresh</span>
+                </button>
 
-              <!-- Search toggle (lupa) — ALWAYS visible -->
-              <button
-                type="button"
-                [title]="showFilters() ? (locale() === 'es' ? 'Ocultar filtros' : 'Hide filters') : (locale() === 'es' ? 'Mostrar filtros' : 'Show filters')"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
-                (click)="toggleFilters()"
-              >
-                <span class="material-symbols-outlined text-[20px]">search</span>
-              </button>
+                <a
+                  href="/categories"
+                  class="inline-flex items-center gap-2 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-4 py-2 text-sm font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap"
+                >
+                  <span class="material-symbols-outlined text-[18px]">category</span>
+                  <span class="hidden sm:inline">{{ copy().categoriesLabel }}</span>
+                </a>
 
-              <!-- Filters (only when toggled) -->
-              <ng-container *ngIf="showFilters()">
-                <!-- Status -->
+                <button
+                  *appIsAdmin
+                  type="button"
+                  class="inline-flex items-center gap-2 bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap"
+                  (click)="openCreateModal()"
+                >
+                  <span class="material-symbols-outlined text-[18px]">add</span>
+                  {{ copy().newProduct }}
+                </button>
+
+                <div class="w-px h-7 bg-outline-variant/30 mx-1"></div>
+
                 <billflow-combobox
                   [options]="statusFilterOptions()"
                   [value]="statusFilter()"
                   placeholder="{{ copy().allStatuses }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar estado...' : 'Search status...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                  searchPlaceholder="{{ copy().searchStatusPlaceholder }}"
+                  emptyLabel="{{ copy().noResultsText }}"
                   [compact]="true"
                   (valueChange)="setStatusFilter($event)"
                 ></billflow-combobox>
 
-                <!-- Category -->
                 <billflow-combobox
                   [options]="categoryFilterOptions()"
                   [value]="categoryFilter()"
                   placeholder="{{ copy().allCategories }}"
-                  searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
-                  emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                  searchPlaceholder="{{ copy().searchCategoryPlaceholder }}"
+                  emptyLabel="{{ copy().noResultsText }}"
                   [compact]="true"
                   (valueChange)="setCategoryFilter($event)"
                 ></billflow-combobox>
 
-                <!-- Search field type + text input (takes remaining space) -->
-                <div class="flex items-stretch flex-3 min-w-[180px]">
+                <!-- Search Group: Joined Combobox + Input (empujado a la derecha, ancho fijo sin flex) -->
+                <div class="flex items-stretch w-80 ml-auto">
                   <billflow-combobox
                     [options]="searchFieldOptions()"
                     [value]="searchField()"
-                    placeholder="{{ locale() === 'es' ? 'Todos' : 'All' }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar campo...' : 'Search field...' }}"
-                    emptyLabel="{{ locale() === 'es' ? 'Sin resultados' : 'No results' }}"
+                    placeholder="{{ copy().allLabel }}"
+                    searchPlaceholder="{{ copy().searchFieldPlaceholder }}"
+                    emptyLabel="{{ copy().noResultsText }}"
                     [compact]="true"
                     (valueChange)="searchField.set($event)"
+                    class="rounded-r-none"
                   ></billflow-combobox>
                   <div class="relative flex-1">
-                    <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-[15px] text-outline-variant pointer-events-none">search</span>
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline-variant pointer-events-none text-[18px]">search</span>
                     <input
-                      class="w-full pl-8 pr-2 py-[5px] bg-surface-container-lowest border border-outline-variant/60 text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all shadow-sm h-full rounded-none rounded-r-lg"
-                      [placeholder]="searchField() === 'code' ? (locale() === 'es' ? 'Buscar por código...' : 'Search by code...') : searchField() === 'name' ? (locale() === 'es' ? 'Buscar por nombre...' : 'Search by name...') : copy().searchPlaceholder"
+                      #productSearchInput
+                      class="w-full min-w-0 pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant/60 text-sm text-on-surface focus:outline-none focus:border-primary/50 focus:ring-4 focus:ring-primary/10 transition-all shadow-sm h-full rounded-none rounded-r-lg"
+                      [placeholder]="searchField() === 'code' ? copy().searchByCodePlaceholder : searchField() === 'name' ? copy().searchByNamePlaceholder : copy().searchPlaceholder"
                       [value]="searchQuery()"
                       (input)="setSearchQuery(($any($event.target).value))"
                     />
                   </div>
                 </div>
-              </ng-container>
 
-              <!-- Spacer pushes actions to the right -->
-              <div class="flex-1"></div>
-
-              <!-- Refresh — ALWAYS visible -->
-              <button
-                type="button"
-                [title]="locale() === 'es' ? 'Recargar' : 'Reload'"
-                class="inline-flex items-center justify-center bg-surface-container-lowest border border-outline-variant/60 rounded-lg p-1.5 text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm shrink-0"
-                (click)="void reloadProducts()"
-              >
-                <span class="material-symbols-outlined text-[18px]" [style.animation]="loading() ? 'spin 0.7s linear infinite' : 'none'">refresh</span>
-              </button>
-
-              <!-- Go to Categories — ALWAYS visible -->
-              <a
-                href="/categories"
-                class="inline-flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/60 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-on-surface hover:border-primary hover:text-primary transition-all shadow-sm whitespace-nowrap shrink-0"
-              >
-                <span class="material-symbols-outlined text-[16px]">category</span>
-                <span class="hidden sm:inline">{{ locale() === 'es' ? 'Categorías' : 'Categories' }}</span>
-              </a>
-
-              <!-- New Product — ALWAYS visible -->
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 bg-primary text-on-primary rounded-lg px-2.5 py-1.5 text-xs font-bold hover:opacity-90 transition-all shadow-sm whitespace-nowrap shrink-0"
-                (click)="openCreateModal()"
-              >
-                <span class="material-symbols-outlined text-[16px]">add</span>
-                <span class="hidden sm:inline">{{ copy().newProduct }}</span>
-              </button>
+                <billflow-date-range-picker
+                  [fromDate]="createdFrom()"
+                  [toDate]="createdTo()"
+                  [fromLabel]="copy().fromLabel || 'Desde'"
+                  [toLabel]="copy().toLabel || 'Hasta'"
+                  (fromDateChange)="createdFrom.set($event); page.set(1); void reloadProducts()"
+                  (toDateChange)="createdTo.set($event); page.set(1); void reloadProducts()"
+                ></billflow-date-range-picker>
+              </div>
             </div>
 
-            <!-- Products Table -->
-            <div class="overflow-x-auto">
-              <table class="min-w-max w-full border-collapse text-left">
-                <thead>
-                  <tr class="dashboard-table-card__head-row font-label-bold text-[11px] uppercase tracking-[0.1em]">
-                    <th class="dashboard-table-card__th p-4 pl-7 font-semibold">{{ copy().code }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().name }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().category }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold text-right">{{ copy().salePrice }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold text-right">{{ copy().costPrice }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold text-right">{{ copy().stock }}</th>
-                    <th class="dashboard-table-card__th p-4 font-semibold">{{ copy().status }}</th>
-                    <th class="dashboard-table-card__th p-4 pr-7 font-semibold text-right">{{ copy().actions }}</th>
-                  </tr>
-                </thead>
-
-                <tbody class="font-body-sm text-body-sm">
-                  <tr *ngFor="let product of products()" class="dashboard-table-card__row group border-b border-outline-variant/20 hover:bg-surface-container-low/40 transition-colors duration-200" [ngClass]="!product.isActive ? 'opacity-70 bg-surface-container-lowest/20' : ''">
-                    <td class="p-4 pl-7 font-mono font-bold text-primary">
-                      {{ product.code }}
-                    </td>
-                    <td class="p-4 font-semibold text-on-background">
-                      <div>
-                        <div class="font-semibold text-on-background">{{ product.name }}</div>
-                        <div class="text-[11px] text-outline mt-0.5 font-normal max-w-[250px] truncate" [title]="product.description ?? ''">
-                          {{ product.description || '—' }}
-                        </div>
-                      </div>
-                    </td>
-                    <td class="p-4">
-                      <span class="rounded-full bg-surface-container-high px-2.5 py-1 text-xs text-on-surface font-medium border border-outline-variant/40">
-                        {{ product.categoryName }}
-                      </span>
-                    </td>
-                    <td class="p-4 text-right font-medium text-on-surface">
-                      {{ formatMoney(product.salePrice) }}
-                    </td>
-                    <td class="p-4 text-right font-medium text-outline">
-                      {{ formatMoney(product.costPrice) }}
-                    </td>
-                    <td class="p-4 text-right font-semibold">
-                      <span [ngClass]="product.currentStock <= 0 ? 'text-error' : product.currentStock <= 5 ? 'text-amber-500' : 'text-tertiary'">
-                        {{ product.currentStock }}
-                      </span>
-                    </td>
-                    <td class="p-4">
-                      <span
-                        class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-bold tracking-wide"
-                        [ngClass]="product.isActive ? 'border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/5' : 'border-outline-variant/40 bg-surface-container-high text-on-surface-variant'"
-                      >
-                        <span class="h-1.5 w-1.5 rounded-full" [ngClass]="product.isActive ? 'bg-primary animate-pulse' : 'bg-outline'"></span>
-                        {{ product.isActive ? (locale() === 'es' ? 'ACTIVO' : 'ACTIVE') : (locale() === 'es' ? 'INACTIVO' : 'INACTIVE') }}
-                      </span>
-                    </td>
-                    <td class="p-4 pr-7 text-right">
-                      <div class="flex items-center justify-end gap-1.5">
-                        <!-- History (Movements) Button -->
-                        <button
-                          type="button"
-                          [title]="copy().viewHistory"
-                          class="inline-flex h-8 w-8 items-center justify-center bg-[#10b981] text-white rounded-lg shadow-sm transition-all duration-200 hover:bg-[#059669] active:scale-90 cursor-pointer"
-                          (click)="openMovementsModal(product)"
-                        >
-                          <span class="material-symbols-outlined text-[18px]">history</span>
-                        </button>
-
-                        <!-- Edit Button -->
-                        <button
-                          type="button"
-                          [title]="copy().edit"
-                          class="inline-flex h-8 w-8 items-center justify-center bg-primary text-on-primary rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                          (click)="openEditModal(product)"
-                        >
-                          <span class="material-symbols-outlined text-[18px]">edit</span>
-                        </button>
-
-                        <!-- Deactivate / Activate Button -->
-                        <button
-                          type="button"
-                          [title]="product.isActive ? copy().deactivate : copy().activate"
-                          class="inline-flex h-8 w-8 items-center justify-center text-white rounded-lg shadow-sm transition-all duration-200 hover:opacity-85 active:scale-90 cursor-pointer"
-                          [ngClass]="product.isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-primary hover:opacity-85'"
-                          (click)="toggleActive(product)"
-                        >
-                          <span class="material-symbols-outlined text-[18px]">{{ product.isActive ? 'close' : 'check' }}</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr *ngIf="products().length === 0">
-                    <td colspan="8" class="p-8">
-                      <div class="dashboard-table-card__empty dashboard-table-card__empty--stacked mt-2">
-                        <span class="material-symbols-outlined dashboard-table-card__empty-icon">inventory_2</span>
-                        <p class="dashboard-table-card__empty-title">{{ copy().noProductsTitle }}</p>
-                        <p class="dashboard-table-card__empty-text">{{ copy().noProductsText }}</p>
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <billflow-product-table
+              [products]="visibleProducts()"
+              [loading]="loading()"
+              [locale]="locale()"
+              [copy]="copy()"
+              [isAdmin]="permissions.isAdmin()"
+              (edit)="openEditModal($event)"
+              (toggleActive)="toggleActive($event)"
+              (viewMovements)="openMovementsModal($event)"
+            />
 
             <!-- Pagination Footer -->
             <div class="flex flex-col gap-4 border-t border-outline-variant/40 bg-surface/60 p-5 md:flex-row md:items-center md:justify-between dark:bg-slate-900/60">
               <div class="flex items-center gap-3 text-sm text-on-surface-variant">
                 <span>
-                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ locale() === 'es' ? 'a' : 'to' }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ locale() === 'es' ? 'de' : 'of' }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
+                  {{ copy().showingText }} <span class="font-semibold text-on-surface">{{ visibleRangeStart() }}</span> {{ copy().rangeFrom }} <span class="font-semibold text-on-surface">{{ visibleRangeEnd() }}</span> {{ copy().rangeOf }} <span class="font-semibold text-on-surface">{{ totalProductsCount() }}</span> {{ copy().entriesText }}
                 </span>
                 <select
                   class="bg-surface border border-outline-variant rounded-lg px-2 py-1 text-xs font-medium text-on-surface cursor-pointer focus:outline-none focus:border-primary"
@@ -610,6 +279,18 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
               </div>
 
               <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1 mr-2">
+                  <label class="text-xs text-on-surface-variant hidden sm:inline">{{ copy().goToLabel }}</label>
+                  <input
+                    type="number"
+                    min="1"
+                    [max]="totalPages()"
+                    class="w-14 h-9 rounded-lg border border-outline-variant/60 bg-surface text-sm text-center text-on-surface focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    [value]="page()"
+                    (keyup.enter)="goToPageFromInput($event)"
+                  />
+                </div>
+
                 <button type="button" class="rounded-lg border border-outline-variant/60 px-3 py-2 text-sm text-on-surface-variant transition hover:border-primary hover:text-primary disabled:opacity-30" [disabled]="page() === 1" (click)="previousPage()">
                   <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                 </button>
@@ -624,278 +305,56 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
               </div>
             </div>
           </section>
-        </main>
-
-        <!-- ══ Create/Edit Product Modal ══ -->
-        <billflow-modal-shell
-          *ngIf="productModalOpen()"
-          title="{{ editingProduct() ? copy().modalEditTitle : copy().modalCreateTitle }}"
-          subtitle="{{ editingProduct() ? copy().modalEditSubtitle : copy().modalCreateSubtitle }}"
-          icon="inventory"
-          maxWidth="xl"
-          [hasFooter]="true"
-          (close)="closeProductModal()"
-        >
-          <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-            <!-- Code -->
-            <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().codeLabel }} <span class="text-error">*</span></label>
-              <input
-                type="text"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                [maxLength]="50"
-                placeholder="Ej: BEB-001"
-                [ngModel]="formCode()"
-                [disabled]="editingProduct() !== null"
-                (ngModelChange)="formCode.set($event.trim().toUpperCase())"
-              />
+        } @placeholder {
+          <div class="dashboard-glass-card dashboard-table-card rounded-2xl p-0 overflow-hidden animate-pulse">
+            <div class="p-3 md:p-3 flex items-center gap-1.5 border-b border-outline-variant/30">
+              <div class="h-9 w-9 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
+              <div class="h-9 w-32 rounded-lg bg-surface-container-high"></div>
             </div>
-
-            <!-- Category -->
-            <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().category }} <span class="text-error">*</span></label>
-              <billflow-combobox
-                [options]="categorySelectOptions()"
-                [value]="formCategoryId()"
-                placeholder="{{ copy().categorySelect }}"
-                searchPlaceholder="{{ locale() === 'es' ? 'Buscar categoría...' : 'Search category...' }}"
-                (valueChange)="formCategoryId.set($event)"
-              ></billflow-combobox>
-            </div>
-
-            <!-- Name -->
-            <div class="md:col-span-2">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().nameLabel }} <span class="text-error">*</span></label>
-              <input
-                type="text"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                [maxLength]="255"
-                placeholder="Ej: Coca Cola 1L"
-                [ngModel]="formName()"
-                (ngModelChange)="formName.set($event)"
-              />
-            </div>
-
-            <!-- Description -->
-            <div class="md:col-span-2">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().descriptionLabel }}</label>
-              <textarea
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant resize-none h-20"
-                placeholder="Ej: Bebida gaseosa refrescante sabor cola."
-                [ngModel]="formDescription()"
-                (ngModelChange)="formDescription.set($event)"
-              ></textarea>
-            </div>
-
-            <!-- Cost Price -->
-            <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().costPriceLabel }} <span class="text-error">*</span></label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                placeholder="0.00"
-                [ngModel]="formCostPrice()"
-                (ngModelChange)="formCostPrice.set($event)"
-              />
-            </div>
-
-            <!-- Sale Price -->
-            <div class="md:col-span-1">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().salePriceLabel }} <span class="text-error">*</span></label>
-              <input
-                type="number"
-                step="0.01"
-                min="0.01"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                placeholder="0.00"
-                [ngModel]="formSalePrice()"
-                (ngModelChange)="formSalePrice.set($event)"
-              />
-            </div>
-
-            <!-- Initial Stock (Only for Creation) -->
-            <div class="md:col-span-2" *ngIf="editingProduct() === null">
-              <label class="block text-sm font-semibold text-on-surface mb-1.5">{{ copy().initialStockLabel }}</label>
-              <input
-                type="number"
-                min="0"
-                class="w-full px-4 py-2.5 bg-surface border border-outline-variant rounded-xl text-sm text-on-surface focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all placeholder:text-outline-variant"
-                placeholder="0"
-                [ngModel]="formInitialStock()"
-                (ngModelChange)="formInitialStock.set($event)"
-              />
-            </div>
-          </div>
-
-          <div footer class="flex w-full items-center justify-end gap-3">
-            <button
-              type="button"
-              class="px-4 py-2 rounded-xl text-sm font-semibold text-on-surface-variant hover:bg-surface-container transition-all border border-outline-variant/50"
-              (click)="closeProductModal()"
-            >
-              {{ copy().cancel }}
-            </button>
-            <button
-              type="button"
-              class="px-5 py-2 rounded-xl text-sm font-semibold bg-primary text-on-primary hover:opacity-90 transition-all shadow-sm disabled:opacity-50"
-              [disabled]="!formValid()"
-              (click)="saveProduct()"
-            >
-              {{ editingProduct() ? copy().saveEdit : copy().save }}
-            </button>
-          </div>
-        </billflow-modal-shell>
-        <!-- ══ /Create/Edit Product Modal ══ -->
-
-        <!-- ══ Stock Movements Modal (adjust + history) ══ -->
-        <billflow-modal-shell
-          *ngIf="movementsModalOpen()"
-          title="{{ selectedProductForMovements()?.name }} ({{ selectedProductForMovements()?.code }})"
-          subtitle="{{ copy().modalMovementsSubtitle }}"
-          icon="history"
-          maxWidth="2xl"
-          [hasFooter]="false"
-          (close)="closeMovementsModal()"
-        >
-          <div class="p-6">
-            <!-- ══ Stock Adjustment Form ══ -->
-            <div class="rounded-xl border border-outline-variant/40 bg-surface-container-low/30 p-4 mb-5">
-              <h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
-                <span class="material-symbols-outlined text-[18px] text-primary">swap_vert</span>
-                {{ copy().stockAdjustTitle }}
-              </h4>
-              <div class="flex flex-wrap items-end gap-3">
-                <!-- Type -->
-                <div class="min-w-[120px]">
-                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustType }}</label>
-                  <billflow-combobox
-                    [options]="movementTypeOptions()"
-                    [value]="mvtFormType()"
-                    placeholder="{{ copy().stockAdjustType }}"
-                    searchPlaceholder="{{ locale() === 'es' ? 'Buscar...' : 'Search...' }}"
-                    [compact]="true"
-                    (valueChange)="mvtFormType.set($event)"
-                  ></billflow-combobox>
-                </div>
-
-                <!-- Quantity -->
-                <div class="min-w-[100px]">
-                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustQty }}</label>
-                  <input
-                    type="number"
-                    min="1"
-                    class="w-full px-3 py-[5px] bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all"
-                    placeholder="0"
-                    [value]="mvtFormQuantity()"
-                    (input)="onMvtQuantityInput($any($event.target).value)"
-                  />
-                </div>
-
-                <!-- Reason -->
-                <div class="flex-1 min-w-[150px]">
-                  <label class="block text-[10px] font-bold text-outline uppercase tracking-wider mb-1">{{ copy().stockAdjustReason }}</label>
-                  <input
-                    type="text"
-                    class="w-full px-3 py-[5px] bg-surface-container-lowest border border-outline-variant/60 rounded-lg text-xs text-on-surface focus:outline-none focus:border-primary/50 transition-all"
-                    [placeholder]="locale() === 'es' ? 'Motivo del ajuste...' : 'Adjustment reason...'"
-                    [value]="mvtFormDescription()"
-                    (input)="mvtFormDescription.set($any($event.target).value)"
-                  />
-                </div>
-
-                <!-- Submit -->
-                <button
-                  type="button"
-                  class="inline-flex items-center gap-1 bg-primary text-on-primary rounded-lg px-3 py-[5px] text-xs font-bold hover:opacity-90 transition-all shadow-sm disabled:opacity-50 shrink-0"
-                  [disabled]="!mvtFormValid() || mvtFormSubmitting()"
-                  (click)="submitMovement()"
-                >
-                  <span class="material-symbols-outlined text-[16px]" [style.animation]="mvtFormSubmitting() ? 'spin 0.7s linear infinite' : 'none'">{{ mvtFormSubmitting() ? 'refresh' : 'check' }}</span>
-                  {{ copy().stockAdjustBtn }}
-                </button>
-              </div>
-            </div>
-            <!-- ══ /Stock Adjustment Form ══ -->
-
-            <!-- ══ Movement History ══ -->
-            <h4 class="text-sm font-bold text-on-surface mb-3 flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px] text-outline">history</span>
-              {{ locale() === 'es' ? 'Historial de Movimientos' : 'Movement History' }}
-            </h4>
-            <div class="overflow-x-auto rounded-xl border border-outline-variant/40 overflow-hidden mb-4">
-              <table class="w-full border-collapse text-left">
-                <thead>
-                  <tr class="bg-surface-container-low font-label-bold text-[10px] uppercase tracking-[0.1em] border-b border-outline-variant/40">
-                    <th class="p-3 pl-5 font-semibold text-outline">{{ copy().mvtDate }}</th>
-                    <th class="p-3 font-semibold text-outline text-center">{{ copy().mvtType }}</th>
-                    <th class="p-3 font-semibold text-outline text-right">{{ copy().mvtQuantity }}</th>
-                    <th class="p-3 font-semibold text-outline text-right">{{ locale() === 'es' ? 'Stock Ant.' : 'Prev. Stock' }}</th>
-                    <th class="p-3 font-semibold text-outline text-right">{{ locale() === 'es' ? 'Stock Nuevo' : 'New Stock' }}</th>
-                    <th class="p-3 pr-5 font-semibold text-outline">{{ copy().mvtReason }}</th>
-                  </tr>
-                </thead>
-                <tbody class="font-mono text-xs">
-                  <tr *ngFor="let m of movements()" class="border-b border-outline-variant/20 hover:bg-surface-container-low/20 transition-colors">
-                    <td class="p-3 pl-5 text-on-surface">
-                      {{ formatDateTime(m.createdAt) }}
-                    </td>
-                    <td class="p-3 text-center">
-                      <span
-                        class="inline-flex rounded px-2 py-0.5 text-[10px] font-bold"
-                        [ngClass]="m.type === 'IN' ? 'bg-[#10b981]/15 text-[#10b981]' : m.type === 'OUT' ? 'bg-red-600/15 text-red-500' : m.type === 'SALE' ? 'bg-orange-500/15 text-orange-500' : 'bg-amber-500/15 text-amber-500'"
-                      >
-                        {{ m.type }}
-                      </span>
-                    </td>
-                    <td class="p-3 text-right font-bold" [ngClass]="m.type === 'IN' ? 'text-[#10b981]' : (m.type === 'OUT' || m.type === 'SALE') ? 'text-red-500' : 'text-on-surface'">
-                      {{ m.type === 'IN' ? '+' : (m.type === 'OUT' || m.type === 'SALE') ? '-' : '' }}{{ m.quantity }}
-                    </td>
-                    <td class="p-3 text-right font-mono text-xs text-on-surface-variant">
-                      {{ m.previousStock }}
-                    </td>
-                    <td class="p-3 text-right font-mono text-xs font-semibold text-on-surface">
-                      {{ m.newStock }}
-                    </td>
-                    <td class="p-3 pr-5 text-on-surface-variant max-w-[200px] truncate" [title]="m.reason">
-                      {{ m.reason || '—' }}
-                    </td>
-                  </tr>
-                  <tr *ngIf="movements().length === 0 && !mvtLoading()">
-                    <td colspan="6" class="p-8 text-center text-on-surface-variant">
-                      <span class="material-symbols-outlined text-4xl text-outline-variant mb-2">history</span>
-                      <p class="font-semibold">{{ copy().noMovementsTitle }}</p>
-                      <p class="text-xs">{{ copy().noMovementsText }}</p>
-                    </td>
-                  </tr>
-                  <tr *ngIf="mvtLoading()">
-                    <td colspan="6" class="p-8 text-center text-on-surface-variant">
-                      <span class="material-symbols-outlined text-[24px] animate-spin">refresh</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Movements Pager -->
-            <div class="flex items-center justify-between text-xs text-on-surface-variant" *ngIf="mvtTotalPages() > 1">
-              <span>
-                {{ copy().showingText }} {{ (mvtPage() - 1) * mvtPageSize() + 1 }} - {{ Math.min(mvtTotalCount(), mvtPage() * mvtPageSize()) }} {{ locale() === 'es' ? 'de' : 'of' }} {{ mvtTotalCount() }}
-              </span>
-              <div class="flex items-center gap-1">
-                <button type="button" class="p-1.5 border border-outline-variant/60 rounded hover:border-primary disabled:opacity-30 cursor-pointer" [disabled]="mvtPage() === 1" (click)="mvtPrevPage()">
-                  <span class="material-symbols-outlined text-sm">chevron_left</span>
-                </button>
-                <span class="px-2 font-semibold">{{ mvtPage() }} / {{ mvtTotalPages() }}</span>
-                <button type="button" class="p-1.5 border border-outline-variant/60 rounded hover:border-primary disabled:opacity-30 cursor-pointer" [disabled]="mvtPage() === mvtTotalPages()" (click)="mvtNextPage()">
-                  <span class="material-symbols-outlined text-sm">chevron_right</span>
-                </button>
+            <div class="p-8 flex items-center justify-center">
+              <div class="flex items-center gap-3 text-on-surface-variant">
+                <svg class="animate-spin h-5 w-5 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                <span>{{ copy().loadingText }}</span>
               </div>
             </div>
           </div>
-        </billflow-modal-shell>
-        <!-- ══ /Stock Movements Modal ══ -->
+        }
+
+        @defer (on interaction) {
+          <billflow-product-form-modal
+            [open]="productModalOpen()"
+            [editingProduct]="editingProduct()"
+            [categories]="categories()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [initialCode]="nextProductCode()"
+            [saving]="productSaving()"
+            (save)="handleProductSave($event)"
+            (close)="closeProductModal()"
+          />
+
+          <billflow-product-movements-modal
+            [open]="movementsModalOpen()"
+            [product]="selectedProductForMovements()"
+            [locale]="locale()"
+            [copy]="copy()"
+            [movements]="movements()"
+            [mvtLoading]="mvtLoading()"
+            [mvtPage]="mvtPage()"
+            [mvtTotalPages]="mvtTotalPages()"
+            [mvtTotalCount]="mvtTotalCount()"
+            [mvtPageSize]="mvtPageSize()"
+            [mvtFormSubmitting]="mvtFormSubmitting()"
+            [resetFormTrigger]="resetFormTrigger()"
+            (adjustStock)="handleAdjustStock($event)"
+            (prevPage)="mvtPrevPage()"
+            (nextPage)="mvtNextPage()"
+            (close)="closeMovementsModal()"
+          />
+        } @placeholder {
+          <!-- Product modals deferred until user interaction -->
+        }
 
         <nav class="md:hidden app-dashboard-mobile-nav">
           <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
@@ -913,17 +372,33 @@ const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     </billflow-page-shell>
   `,
 })
-export class ProductsPageComponent implements OnInit {
-  private readonly api = inject(ProductApiService);
+export class ProductsPageComponent implements OnInit, OnDestroy {
+  private readonly getProductsUseCase = inject(GetProductsUseCase);
+  private readonly getProductByIdUseCase = inject(GetProductByIdUseCase);
+  private readonly createProductUseCase = inject(CreateProductUseCase);
+  private readonly getNextProductCodeUseCase = inject(GetNextProductCodeUseCase);
+  private readonly updateProductUseCase = inject(UpdateProductUseCase);
+  private readonly toggleProductActiveUseCase = inject(ToggleProductActiveUseCase);
+  private readonly getProductMovementsUseCase = inject(GetProductMovementsUseCase);
+  private readonly adjustStockUseCase = inject(AdjustStockUseCase);
+  private readonly dataSource = inject(ProductRemoteDataSource);
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
-  @ViewChild('userMenuPanel') private userMenuPanel?: ElementRef<HTMLElement>;
+  protected readonly session = inject(SessionService);
+  protected readonly themeService = inject(ThemeService);
+  private readonly permissions = inject(PermissionsService);
+  private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   Math = Math;
   String = String;
   Number = Number;
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
+
+  @Input() set initialLocale(value: AppLocale | null | undefined) {
+    if (!value) return;
+    this.localeService.seedLocale(value);
+  }
 
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
@@ -932,26 +407,36 @@ export class ProductsPageComponent implements OnInit {
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
     categories: this.copy().sidebarCategories,
-  }, 'products'));
+  }, 'products', this.permissions));
 
-  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => [
-    { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
-    { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
-    { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers' },
-    { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products', active: true },
-  ]);
+  readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {
+    const items: BillflowSidebarItem[] = [
+      { label: this.copy().sidebarDashboard, icon: 'dashboard', href: '/dashboard' },
+      { label: this.copy().sidebarInvoices, icon: 'receipt_long', href: '/invoices' },
+      { label: this.copy().sidebarCustomers, icon: 'groups', href: '/customers' },
+      { label: this.copy().sidebarProducts, icon: 'inventory_2', href: '/products', active: true },
+    ];
 
-  theme = signal<'light' | 'dark'>('light');
-  loading = signal(true);
-  products = signal<ProductWithStockDto[]>([]);
-  categories = signal<CategoryDto[]>([]);
-  
+    // Only ADMIN sees employees in mobile nav
+    if (this.permissions.isAdmin()) {
+      items.push({ label: this.copy().sidebarEmployees, icon: 'badge', href: '/employees' });
+    }
+    return items;
+  });
+
+  // ─── State signals ──────────────────────────────────────────────────────────
+  loading = signal(false);
+  products = signal<ProductEntity[]>([]);
+  categories = signal<CategoryRawDto[]>([]);
+
   // Filters
-  showFilters = signal(false);
   searchQuery = signal('');
+  @ViewChild('productSearchInput') private searchInputRef?: ElementRef<HTMLInputElement>;
   searchField = signal<'all' | 'code' | 'name'>('all');
   statusFilter = signal<'all' | 'active' | 'inactive'>('all');
   categoryFilter = signal<string>('all');
+  createdFrom = signal<string | null>(null);
+  createdTo = signal<string | null>(null);
 
   // Combobox options (computed from locale and categories)
   readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
@@ -961,7 +446,7 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   readonly searchFieldOptions = computed<ComboboxOption[]>(() => [
-    { value: 'all', label: this.locale() === 'es' ? 'Todos' : 'All' },
+    { value: 'all', label: this.copy().allLabel },
     { value: 'code', label: this.copy().code },
     { value: 'name', label: this.copy().name },
   ]);
@@ -985,8 +470,9 @@ export class ProductsPageComponent implements OnInit {
   
   // Pagination
   page = signal(1);
-  pageSize = signal(10);
+  pageSize = signal(5);
   totalProductsCount = signal(0);
+  totalPagesFromResponse = signal(0);
 
   // TODO(backend): fetch these from a /products/aggregates endpoint
   activeCount = signal(0);
@@ -1052,7 +538,19 @@ export class ProductsPageComponent implements OnInit {
   ]);
 
   readonly totalProducts = computed(() => this.totalProductsCount());
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize())));
+  readonly totalPages = computed(() => {
+    const fromApi = this.totalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize()));
+  });
+
+  readonly visibleProducts = computed(() => {
+    const products = this.products();
+    if (products.length <= this.pageSize()) return products;
+
+    const start = (this.page() - 1) * this.pageSize();
+    return products.slice(start, start + this.pageSize());
+  });
 
   readonly visiblePages = computed(() => {
     const total = this.totalPages();
@@ -1064,16 +562,81 @@ export class ProductsPageComponent implements OnInit {
     return pages;
   });
 
-  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Product modal state
+  productModalOpen = signal(false);
+  editingProduct = signal<ProductEntity | null>(null);
+  nextProductCode = signal('');
+  productSaving = signal(false);
+
+  // Movements modal state
+  movementsModalOpen = signal(false);
+  selectedProductForMovements = signal<ProductEntity | null>(null);
+  movements = signal<ProductMovementEntity[]>([]);
+  mvtLoading = signal(false);
+  mvtPage = signal(1);
+  mvtPageSize = signal(5);
+  mvtTotalCount = signal(0);
+  mvtTotalPagesFromResponse = signal(0);
+  mvtTotalPages = computed(() => {
+    const fromApi = this.mvtTotalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize()));
+  });
+  mvtFormSubmitting = signal(false);
+  private resetFormTrigger = signal(0);
+  private hasInitialData = false;
+
+  @Input() set initialData(value: ProductsInitialData | null | undefined) {
+    if (!value || value.isAuthenticated === false) return;
+    this.hasInitialData = true;
+    this.products.set(value.products);
+    this.categories.set(value.categories);
+    this.totalProductsCount.set(value.totalProductsCount);
+    this.page.set(value.page);
+    this.pageSize.set(value.pageSize);
+    this.activeCount.set(value.activeCount);
+    this.lowStockCount.set(value.lowStockCount);
+    this.loading.set(false);
+  }
+
+  // ─── Abort / debounce handles ──────────────────────────────────────────────
+  private abortController: AbortController | null = null;
+  private searchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  // ─── TrackBy ────────────────────────────────────────────────────────────────
+  trackByPage(_index: number, page: number): number { return page; }
+  trackByHref(_index: number, item: BillflowSidebarItem): string { return item.href; }
+
+  // ─── Lifecycle ─────────────────────────────────────────────────────────────
   async ngOnInit() {
-    this.applyStoredTheme();
-    this.applyStoredUser();
+    this.themeService.init();
+    this.session.init();
+
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Product', descriptionEs: 'Nuevo Producto', category: 'actions', permission: PERMISSIONS.PRODUCTS_CREATE, action: () => { void this.openCreateModal(); } },
+        { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadProducts(); } },
+        { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+      );
+
       document.documentElement.lang = this.locale();
-      // Load categories first so dropdown works, then load products
+      if (this.hasInitialData) return;
       await this.loadCategories();
       await this.reloadProducts();
+      void this.reloadKpis();
     }
+  }
+
+  ngOnDestroy(): void {
+    this.keyboardShortcuts.unregister('n', 'r', '/');
+  }
+
+  private focusSearch(): void {
+    this.searchInputRef?.nativeElement.focus();
+    this.searchInputRef?.nativeElement.select();
   }
 
   async loadCategories() {
@@ -1103,10 +666,7 @@ export class ProductsPageComponent implements OnInit {
       );
       this.products.set(res.data);
       this.totalProductsCount.set(res.total);
-
-      // TODO(backend): once /products/aggregates endpoint exists, call it here and set:
-      //   this.activeCount.set(agg.active);
-      //   this.lowStockCount.set(agg.lowStock);
+      this.totalPagesFromResponse.set(res.totalPages);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return; // Silently ignore cancelled requests
@@ -1114,17 +674,24 @@ export class ProductsPageComponent implements OnInit {
       console.error('[reload products]', err);
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los productos' : 'Could not load products',
-        this.locale() === 'es' ? 'Revisá la conexión con el backend.' : 'Please check the backend connection.');
+        this.locale() === 'es' ? 'Revise la conexión con el backend.' : 'Please check the backend connection.');
     } finally {
       this.loading.set(false);
     }
   }
 
-  // ── Search & Filters ──────────────────────────────────────────────────────
-  toggleFilters() {
-    this.showFilters.update((v) => !v);
+  async reloadKpis() {
+    try {
+      const kpis = await this.dataSource.getKpis();
+      this.totalProductsCount.set(kpis.totalProducts);
+      this.activeCount.set(kpis.activeCount);
+      this.lowStockCount.set(kpis.lowStockCount);
+    } catch (err) {
+      console.error('[products] kpis load error:', err);
+    }
   }
 
+  // ─── Search & Filters ──────────────────────────────────────────────────────
   setSearchQuery(value: string) {
     this.searchQuery.set(value);
     this.page.set(1);
@@ -1193,98 +760,48 @@ export class ProductsPageComponent implements OnInit {
     this.localeService.toggle();
   }
 
-  // ── User menu ─────────────────────────────────────────────────────────────
-  openNotifications() {
-    void this.feedback.toast('info', this.copy().notifications,
-      this.locale() === 'es' ? 'Tenés 3 movimientos críticos esperando revisión.' : 'You have 3 critical movements waiting for review.');
-  }
-
-  toggleUserMenu(event?: MouseEvent) {
-    event?.stopPropagation();
-    if (this.userMenuVisible()) { this.closeUserMenu(); return; }
-    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
-      window.clearTimeout(this.userMenuCloseTimeout);
-      this.userMenuCloseTimeout = undefined;
-    }
-    this.userMenuClosing.set(false);
-    this.userMenuVisible.set(true);
-    this.userMenuOpen.set(true);
-  }
-
-  closeUserMenu() {
-    if (!this.userMenuVisible() || this.userMenuClosing()) return;
-    this.userMenuClosing.set(true);
-    if (typeof window === 'undefined') return;
-    this.userMenuCloseTimeout = window.setTimeout(() => {
-      this.userMenuVisible.set(false);
-      this.userMenuOpen.set(false);
-      this.userMenuClosing.set(false);
-      this.userMenuCloseTimeout = undefined;
-    }, 180);
-  }
-
-  @HostListener('document:click', ['$event'])
-  handleDocumentClick(event: MouseEvent) {
-    if (!this.userMenuOpen()) return;
-    const target = event.target as Node | null;
-    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
-    this.closeUserMenu();
-  }
-
-  openUserSettings() {
-    this.closeUserMenu();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/profile';
-    }
-  }
-
-  async logout() {
-    this.closeUserMenu();
-    const confirmed = await this.feedback.confirm(this.copy().signOut,
-      this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?',
-      this.copy().signOut, this.copy().cancelBtn);
-    if (!confirmed || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
-  }
-
-  // ── Product Modal ─────────────────────────────────────────────────────────
-  openCreateModal() {
+  // ─── Product Modal ─────────────────────────────────────────────────────────
+  async openCreateModal() {
     this.editingProduct.set(null);
-    this.resetForm();
+    try {
+      this.nextProductCode.set(await this.getNextProductCodeUseCase.execute());
+    } catch (err) {
+      console.error('[next product code]', err);
+      await this.feedback.alert(
+        'error',
+        this.locale() === 'es' ? 'No se pudo preparar el código del producto' : 'Could not prepare product code',
+        this.locale() === 'es' ? 'Intentá nuevamente.' : 'Please try again.',
+      );
+      return;
+    }
     this.productModalOpen.set(true);
   }
 
-  openEditModal(product: ProductWithStockDto) {
-    this.editingProduct.set(product);
-    this.formCode.set(product.code);
-    this.formName.set(product.name);
-    this.formDescription.set(product.description ?? '');
-    this.formSalePrice.set(product.salePrice);
-    this.formCostPrice.set(product.costPrice);
-    this.formInitialStock.set(null);
-    this.formCategoryId.set(product.categoryId);
-    this.productModalOpen.set(true);
+  async openEditModal(product: ProductEntity) {
+    this.nextProductCode.set('');
+    try {
+      const detailedProduct = await this.getProductByIdUseCase.execute(product.id);
+      this.editingProduct.set(detailedProduct);
+      this.productModalOpen.set(true);
+    } catch (err) {
+      console.error('[get product by id]', err);
+      await this.feedback.alert(
+        'error',
+        this.locale() === 'es' ? 'No se pudo cargar el producto' : 'Could not load product',
+        this.locale() === 'es' ? 'Intentá nuevamente.' : 'Please try again.',
+      );
+    }
   }
 
   closeProductModal() {
     this.productModalOpen.set(false);
     this.editingProduct.set(null);
+    this.nextProductCode.set('');
   }
 
-  private resetForm() {
-    this.formCode.set('');
-    this.formName.set('');
-    this.formDescription.set('');
-    this.formSalePrice.set(null);
-    this.formCostPrice.set(null);
-    this.formInitialStock.set(null);
-    this.formCategoryId.set('');
-  }
-
-  async saveProduct() {
-    if (!this.formValid()) return;
-
+  async handleProductSave(payload: CreateProductPayload | UpdateProductPayload) {
+    if (this.productSaving()) return;
+    this.productSaving.set(true);
     try {
       const editing = this.editingProduct();
       if (editing) {
@@ -1313,12 +830,15 @@ export class ProductsPageComponent implements OnInit {
       }
       this.closeProductModal();
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err: any) {
       console.error('[save product]', err);
       const errMsg = err.message || (this.locale() === 'es' ? 'Error al guardar el producto' : 'Error saving product');
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'Error al guardar el producto' : 'Error saving product',
         errMsg);
+    } finally {
+      this.productSaving.set(false);
     }
   }
 
@@ -1338,6 +858,7 @@ export class ProductsPageComponent implements OnInit {
       const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[toggle active]', err);
       await this.feedback.alert('error',
@@ -1351,6 +872,7 @@ export class ProductsPageComponent implements OnInit {
     this.movements.set([]);
     this.mvtPage.set(1);
     this.mvtTotalCount.set(0);
+    this.mvtTotalPagesFromResponse.set(0);
     this.movementsModalOpen.set(true);
     void this.loadMovements();
   }
@@ -1369,6 +891,7 @@ export class ProductsPageComponent implements OnInit {
       const res = await this.api.getProductMovements(product.id, this.mvtPage(), this.mvtPageSize());
       this.movements.set(res.data);
       this.mvtTotalCount.set(res.total);
+      this.mvtTotalPagesFromResponse.set(res.totalPages);
     } catch (err) {
       console.error('[load movements]', err);
     } finally {
@@ -1421,6 +944,7 @@ export class ProductsPageComponent implements OnInit {
       this.mvtPage.set(1);
       await this.loadMovements();
       await this.reloadProducts();
+      void this.reloadKpis();
     } catch (err) {
       console.error('[submitMovement]', err);
       const msg = err instanceof Error ? err.message : String(err);
