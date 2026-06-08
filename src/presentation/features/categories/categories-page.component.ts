@@ -397,6 +397,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   page = signal(1);
   pageSize = signal(5);
   totalCategoriesCount = signal(0);
+  totalPagesFromResponse = signal(0);
   activeCategoriesCount = signal(0);
 
   readonly pageSizeOptions: ComboboxOption[] = [
@@ -428,9 +429,11 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
 
   // ── Computed pagination ────────────────────────────────────────────────────
 
-  readonly totalPages = computed(() =>
-    Math.max(1, Math.ceil(this.totalCategoriesCount() / this.pageSize())),
-  );
+  readonly totalPages = computed(() => {
+    const fromApi = this.totalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.totalCategoriesCount() / this.pageSize()));
+  });
 
   readonly visiblePages = computed(() => {
     const total = this.totalPages();
@@ -478,6 +481,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
       });
       this.categories.set(result.data);
       this.totalCategoriesCount.set(result.total);
+      this.totalPagesFromResponse.set(result.totalPages);
     } catch (err) {
       console.error('[reload categories]', err);
       await this.feedback.alert(
