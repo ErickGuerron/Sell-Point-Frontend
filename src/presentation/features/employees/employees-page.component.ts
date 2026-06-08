@@ -635,6 +635,7 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
   loading = signal(true);
   employees = signal<EmployeeRowDto[]>([]);
   totalCount = signal(0);
+  totalPagesFromResponse = signal(0);
   totalEmployeesKpi = signal(0);
   activeEmployeesKpi = signal(0);
   inactiveEmployeesKpi = signal(0);
@@ -838,6 +839,7 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
       });
       this.employees.set(result.data || []);
       this.totalCount.set(result.total || 0);
+      this.totalPagesFromResponse.set(result.totalPages);
     } catch (err) {
       console.error('[employees] load error:', err);
       await this.feedback.alert('error',
@@ -903,7 +905,11 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
   }
 
   // ── Pagination ──
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize())));
+  readonly totalPages = computed(() => {
+    const fromApi = this.totalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.totalCount() / this.pageSize()));
+  });
   readonly visiblePages = computed(() => {
     const total = this.totalPages();
     const current = this.page();

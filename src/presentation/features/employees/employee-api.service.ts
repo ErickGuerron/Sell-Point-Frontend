@@ -25,6 +25,7 @@ export interface EmployeeListResponse {
   total: number;
   page: number;
   limit: number;
+  totalPages: number;
 }
 
 export interface EmployeeKpis {
@@ -118,14 +119,15 @@ export class EmployeeApiService {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
     const body = (await response.json()) as any;
-    // Backend may return a plain array or { data: [...], pagination: {...} }
+    // Backend may return a plain array or { data: [...], total, page, limit, totalPages }
     const list: any[] = Array.isArray(body) ? body : (body.data || []);
-    const total = body.pagination?.total ?? body.total ?? list.length;
+    const total = body.total ?? list.length;
     return {
       data: list.map((u) => this.mapUser(u)),
       total,
-      page: body.pagination?.page ?? body.page ?? params.page ?? 1,
-      limit: body.pagination?.limit ?? body.limit ?? params.limit ?? 10,
+      page: body.page ?? params.page ?? 1,
+      limit: body.limit ?? params.limit ?? 10,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(total / (body.limit ?? params.limit ?? 10))),
     };
   }
 

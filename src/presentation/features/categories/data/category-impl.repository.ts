@@ -22,6 +22,7 @@ export class CategoryImplRepository extends CategoryRepository {
       total: page.total,
       page: page.page,
       limit: page.limit,
+      totalPages: page.totalPages,
     };
   }
 

@@ -1,6 +1,7 @@
 ﻿import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../shared/services/auth-http.service';
 import { resolveApiBaseUrl } from '../../shared/services/api-base';
+import type { PaginatedList } from '../../shared/types/pagination';
 
 const API_BASE_URL = resolveApiBaseUrl();
 
@@ -104,16 +105,6 @@ export interface CreateInvoiceSeriesPayload {
 
 export type UpdateInvoiceSeriesPayload = Partial<CreateInvoiceSeriesPayload>;
 
-interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
 interface BackendCustomer {
   id: string;
   firstName: string;
@@ -193,7 +184,7 @@ export class InvoiceApiService {
     status?: string,
     invoiceNumber?: string,
     branchId?: string,
-  ): Promise<PaginatedResponse<InvoiceRowDto>> {
+  ): Promise<PaginatedList<InvoiceRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
@@ -204,7 +195,14 @@ export class InvoiceApiService {
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
 
     const body = await response.json() as any;
-    return this.mapPaginated(body, (item: BackendInvoice) => this.mapBackendInvoice(item));
+    const data = (body.data || []).map((item: BackendInvoice) => this.mapBackendInvoice(item));
+    return {
+      data,
+      total: body.total ?? data.length,
+      page: body.page ?? 1,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(data.length / (body.limit ?? limit))),
+    };
   }
 
   async getInvoiceKpis(): Promise<InvoiceKpisDto> {
@@ -264,7 +262,7 @@ export class InvoiceApiService {
     return response.blob();
   }
 
-  async listInvoiceSeries(params: { page?: number; limit?: number; branchId?: string; isActive?: boolean } = {}): Promise<PaginatedResponse<InvoiceSeriesRowDto>> {
+  async listInvoiceSeries(params: { page?: number; limit?: number; branchId?: string; isActive?: boolean } = {}): Promise<PaginatedList<InvoiceSeriesRowDto>> {
     const query = new URLSearchParams({
       page: String(params.page ?? 1),
       limit: String(params.limit ?? 20),
@@ -274,7 +272,14 @@ export class InvoiceApiService {
 
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/invoice-series?${query.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-    return this.mapPaginated(await response.json() as any, (item: InvoiceSeriesRowDto) => item);
+    const body = await response.json() as any;
+    return {
+      data: (body.data || []) as InvoiceSeriesRowDto[],
+      total: body.total ?? (body.data || []).length,
+      page: body.page ?? 1,
+      limit: body.limit ?? (params.limit ?? 20),
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil((body.total ?? (body.data || []).length) / (body.limit ?? (params.limit ?? 20)))),
+    };
   }
 
   async createInvoiceSeries(payload: CreateInvoiceSeriesPayload): Promise<InvoiceSeriesRowDto> {
@@ -311,26 +316,43 @@ export class InvoiceApiService {
     return response.json() as Promise<InvoiceSeriesRowDto>;
   }
 
-  async searchCustomers(q: string, limit = 20): Promise<PaginatedResponse<CustomerRowDto>> {
+  async searchCustomers(q: string, limit = 20): Promise<PaginatedList<CustomerRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
-    return this.mapPaginated(body, (b: BackendCustomer) => this.mapBackendCustomer(b));
+    const data = (body.data || []).map((b: BackendCustomer) => this.mapBackendCustomer(b));
+    return {
+      data,
+      total: body.total ?? data.length,
+      page: body.page ?? 1,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(data.length / (body.limit ?? limit))),
+    };
   }
 
-  async fetchCustomersPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<CustomerRowDto>> {
+  async fetchCustomersPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedList<CustomerRowDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/customers?${params.toString()}`);
     if (!response.ok) throw new Error(`Request failed: ${response.status}`);
     const body = await response.json() as any;
-    const mapped = this.mapPaginated(body, (b: BackendCustomer) => this.mapBackendCustomer(b));
-    return { ...mapped, data: this.filterCustomers(mapped.data, q, filterField) };
+    const data = this.filterCustomers(
+      (body.data || []).map((b: BackendCustomer) => this.mapBackendCustomer(b)),
+      q,
+      filterField,
+    );
+    return {
+      data,
+      total: body.total ?? data.length,
+      page: body.page ?? page,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(data.length / (body.limit ?? limit))),
+    };
   }
 
-  async searchProducts(q: string, limit = 20): Promise<PaginatedResponse<ProductRowDto>> {
+  async searchProducts(q: string, limit = 20): Promise<PaginatedList<ProductRowDto>> {
     const params = new URLSearchParams({ page: '1', limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
@@ -338,18 +360,17 @@ export class InvoiceApiService {
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
     const capped = rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p));
+    const total = body.total ?? capped.length;
     return {
       data: capped,
-      pagination: {
-        total: body.pagination?.total ?? body.total ?? capped.length,
-        page: 1,
-        limit,
-        totalPages: Math.ceil((body.pagination?.total ?? body.total ?? capped.length) / limit),
-      },
+      total,
+      page: 1,
+      limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(total / limit)),
     };
   }
 
-  async fetchProductsPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedResponse<ProductRowDto>> {
+  async fetchProductsPage(q: string, page: number, limit = 10, filterField = 'all'): Promise<PaginatedList<ProductRowDto>> {
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (q.trim()) params.set('q', q.trim());
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/products?${params.toString()}`);
@@ -357,14 +378,13 @@ export class InvoiceApiService {
     const body = await response.json() as any;
     const rawItems: any[] = body.data || [];
     const capped = this.filterProducts(rawItems.slice(0, limit).map((p: any) => this.mapBackendProduct(p)), q, filterField);
+    const total = body.total ?? capped.length;
     return {
       data: capped,
-      pagination: {
-        total: body.pagination?.total ?? body.total ?? capped.length,
-        page: body.pagination?.page ?? body.page ?? page,
-        limit: body.pagination?.limit ?? body.limit ?? limit,
-        totalPages: body.pagination?.totalPages ?? body.totalPages ?? Math.ceil((body.pagination?.total ?? body.total ?? capped.length) / limit),
-      },
+      total,
+      page: body.page ?? page,
+      limit: body.limit ?? limit,
+      totalPages: body.totalPages ?? Math.max(1, Math.ceil(total / (body.limit ?? limit))),
     };
   }
 
@@ -413,23 +433,6 @@ export class InvoiceApiService {
 
   invoicePdfUrl(id: string): string {
     return `${API_BASE_URL}/invoices/${id}/pdf`;
-  }
-
-  private mapPaginated<TInput, TOutput>(body: any, mapper: (item: TInput) => TOutput): PaginatedResponse<TOutput> {
-    const rawData = Array.isArray(body?.data) ? body.data : [];
-    const page = Number(body?.pagination?.page ?? body?.page ?? 1);
-    const limit = Number(body?.pagination?.limit ?? body?.limit ?? (rawData.length || 1));
-    const total = Number(body?.pagination?.total ?? body?.total ?? rawData.length);
-
-    return {
-      data: rawData.map((item: TInput) => mapper(item)),
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Number(body?.pagination?.totalPages ?? body?.totalPages ?? Math.max(1, Math.ceil(total / Math.max(1, limit)))),
-      },
-    };
   }
 
   private mapBackendInvoice(invoice: BackendInvoice): InvoiceRowDto {

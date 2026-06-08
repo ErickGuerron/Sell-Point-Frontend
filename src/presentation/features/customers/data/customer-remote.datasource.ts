@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { AuthHttpService } from '../../../shared/services/auth-http.service';
 import { resolveApiBaseUrl } from '../../../shared/services/api-base';
 import { ApiRequestError } from '../../employees/employee-api.service';
+import type { PaginatedList } from '../../../shared/types/pagination';
 
 const API_BASE = resolveApiBaseUrl();
 const USE_MOCK = false;
@@ -21,23 +22,13 @@ interface BackendCustomer {
   updatedAt: string;
 }
 
-interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
 export interface CustomerKpis {
   totalCustomers: number;
   activeCustomers: number;
   inactiveCustomers: number;
 }
 
-export { type BackendCustomer, type PaginatedResponse };
+export { type BackendCustomer, type PaginatedList };
 
 // ─── Mock data (migrated from InvoiceApiService) ─────────────────────────────
 
@@ -89,7 +80,7 @@ export class CustomerRemoteDataSource {
     return (await res.json()) as CustomerKpis;
   }
 
-  async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; createdFrom?: string; createdTo?: string; }): Promise<PaginatedResponse<BackendCustomer>> {
+  async list(params: { page: number; limit: number; q?: string; cedula?: string; isActive?: 'true' | 'false' | 'all'; createdFrom?: string; createdTo?: string; }): Promise<PaginatedList<BackendCustomer>> {
     if (USE_MOCK) {
       // Spec 4 R2: honour the isActive filter on the mock slice too,
       // so dev-mode smoke tests see the same active-only subset.
@@ -102,12 +93,10 @@ export class CustomerRemoteDataSource {
       const data = filtered.slice(start, start + params.limit);
       return {
         data,
-        pagination: {
-          total: filtered.length,
-          page: Math.max(1, params.page),
-          limit: params.limit,
-          totalPages: Math.max(1, Math.ceil(filtered.length / params.limit)),
-        },
+        total: filtered.length,
+        page: Math.max(1, params.page),
+        limit: params.limit,
+        totalPages: Math.max(1, Math.ceil(filtered.length / params.limit)),
       };
     }
     const searchParams = new URLSearchParams({
@@ -125,7 +114,7 @@ export class CustomerRemoteDataSource {
     if (params.createdTo) searchParams.set('createdTo', params.createdTo);
 
     const res = await this.authHttp.fetchWithRefresh(`${API_BASE}/customers?${searchParams.toString()}`);
-    return await res.json() as PaginatedResponse<BackendCustomer>;
+    return await res.json() as PaginatedList<BackendCustomer>;
   }
 
   async create(payload: {

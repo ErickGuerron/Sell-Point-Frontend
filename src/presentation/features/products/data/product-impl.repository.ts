@@ -34,6 +34,7 @@ export class ProductImplRepository extends ProductRepository {
       total: page.total,
       page: page.page,
       limit: page.limit,
+      totalPages: page.totalPages,
     };
   }
 
@@ -77,6 +78,7 @@ export class ProductImplRepository extends ProductRepository {
       total: result.total,
       page: result.page,
       limit: result.limit,
+      totalPages: result.totalPages,
     };
   }
 

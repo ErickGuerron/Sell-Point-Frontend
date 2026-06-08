@@ -16,7 +16,10 @@ export class CustomerImplRepository extends CustomerRepository {
     const result = await this.ds.list(params);
     return {
       data: result.data.map(mapBackendToEntity),
-      pagination: result.pagination,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
     };
   }
 

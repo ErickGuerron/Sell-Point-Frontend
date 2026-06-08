@@ -458,13 +458,18 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   page = signal(1);
   pageSize = signal(5);
   totalProductsCount = signal(0);
+  totalPagesFromResponse = signal(0);
 
   // TODO(backend): fetch these from a /products/aggregates endpoint
   activeCount = signal(0);
   lowStockCount = signal(0);
 
   readonly totalProducts = computed(() => this.totalProductsCount());
-  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize())));
+  readonly totalPages = computed(() => {
+    const fromApi = this.totalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.totalProductsCount() / this.pageSize()));
+  });
 
   readonly visibleProducts = computed(() => {
     const products = this.products();
@@ -498,7 +503,12 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   mvtPage = signal(1);
   mvtPageSize = signal(5);
   mvtTotalCount = signal(0);
-  mvtTotalPages = computed(() => Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize())));
+  mvtTotalPagesFromResponse = signal(0);
+  mvtTotalPages = computed(() => {
+    const fromApi = this.mvtTotalPagesFromResponse();
+    if (fromApi > 0) return fromApi;
+    return Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize()));
+  });
   mvtFormSubmitting = signal(false);
   private resetFormTrigger = signal(0);
   private hasInitialData = false;
@@ -578,6 +588,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
       const res = await this.getProductsUseCase.execute(filters, signal);
       this.products.set(res.data);
       this.totalProductsCount.set(res.total);
+      this.totalPagesFromResponse.set(res.totalPages);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return;
@@ -764,6 +775,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     this.movements.set([]);
     this.mvtPage.set(1);
     this.mvtTotalCount.set(0);
+    this.mvtTotalPagesFromResponse.set(0);
     this.movementsModalOpen.set(true);
     void this.loadMovements();
   }
@@ -782,6 +794,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
       const res = await this.getProductMovementsUseCase.execute(product.id, this.mvtPage(), this.mvtPageSize());
       this.movements.set(res.data);
       this.mvtTotalCount.set(res.total);
+      this.mvtTotalPagesFromResponse.set(res.totalPages);
     } catch (err) {
       console.error('[load movements]', err);
     } finally {

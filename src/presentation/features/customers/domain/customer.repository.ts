@@ -1,4 +1,5 @@
 import type { CustomerEntity, CreateCustomerPayload } from './customer.entity';
+import type { PaginatedList } from '../../../shared/types/pagination';
 
 export interface CustomerListParams {
   page: number;
@@ -13,17 +14,7 @@ export interface CustomerListParams {
   createdTo?: string;
 }
 
-export interface CustomerPagination {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface CustomerListResult {
-  data: CustomerEntity[];
-  pagination: CustomerPagination;
-}
+export type CustomerListResult = PaginatedList<CustomerEntity>;
 
 /** Abstract repository — domain contract, zero framework dependencies. */
 export abstract class CustomerRepository {
