@@ -402,10 +402,10 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     try {
       const result = await this.listCustomers.execute(this.buildListParams());
       this.customers.set(result.data);
-      this.totalCustomers.set(result.pagination.total);
-      this.totalPages.set(Math.max(1, result.pagination.totalPages));
-      this.page.set(result.pagination.page);
-      this.pageSize.set(result.pagination.limit);
+      this.totalCustomers.set(result.total);
+      this.totalPages.set(result.totalPages);
+      this.page.set(result.page);
+      this.pageSize.set(result.limit);
     } catch {
       await this.feedback.alert('error',
         this.locale() === 'es' ? 'No se pudieron cargar los clientes' : 'Could not load customers',
