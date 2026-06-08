@@ -2,49 +2,19 @@ import { Injectable, inject, signal } from '@angular/core';
 import { UiFeedbackService } from './ui-feedback.service';
 import { LocaleService } from './locale.service';
 import { AuthHttpService } from './auth-http.service';
-import { resolveApiBaseUrl } from './api-base';
-import { clearBillflowSessionCookie } from '../billflow-session';
+import { AuthTokenStore } from '../auth/auth-token.store';
+import { AuthIdentityStore } from '../auth/auth-identity.store';
 import { getSharedTranslations } from '../i18n/shared.translations';
 
-const API_BASE_URL = resolveApiBaseUrl();
-
-interface BillflowSession {
-  id?: string;
-  username?: string;
-  employeeId?: string;
-  email?: string;
+interface BillflowIdentity {
+  displayName?: string;
   role?: string;
-  firstName?: string;
-  lastName?: string;
-  fullName?: string;
-  user?: { name?: string; firstName?: string; lastName?: string; fullName?: string };
-}
-
-interface AuthMeResponse {
-  id?: string;
+  theme?: string;
+  email?: string;
   username?: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
-  name?: string;
-  email?: string;
-  role?: string;
-    user?: {
-      id?: string;
-      username?: string;
-      firstName?: string;
-      lastName?: string;
-      fullName?: string;
-    name?: string;
-    email?: string;
-    role?: string;
-  };
-}
-
-interface StoredSession {
-  accessToken?: string;
-  refreshToken?: string;
-  token?: string;
   [key: string]: unknown;
 }
 
@@ -55,91 +25,72 @@ export class SessionService {
   private readonly feedback = inject(UiFeedbackService);
   private readonly localeService = inject(LocaleService);
   private readonly authHttp = inject(AuthHttpService);
+  private readonly authTokenStore = inject(AuthTokenStore);
+  private readonly authIdentityStore = inject(AuthIdentityStore);
   private hydratePromise: Promise<void> | null = null;
 
   init(): void {
     if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as BillflowSession;
-
-      this.applyIdentity(session);
-
-      if (!this.hasReadableIdentity(session)) {
-        void this.hydrateUserProfile();
-      }
-    } catch {
-      this.displayName.set('Usuario');
-      this.userInitials.set('US');
+    const identity = this.authIdentityStore.get();
+    if (this.hasReadableIdentity(identity)) {
+      this.applyIdentity(identity);
+      return;
     }
+    void this.hydrateUserProfile();
   }
 
   /**
-   * Attempt to restore a session using stored credentials.
-   * Priority: localStorage session → refresh token → redirect to /auth
-   * Returns true if session was restored and is usable.
+   * Attempt to restore a session. Priority:
+   *  1. In-memory access token (already in {@link AuthTokenStore}), if its
+   *     JWT `exp` claim is still in the future.
+   *  2. Silent `/auth/refresh` using the HttpOnly refresh cookie.
+   *  3. Failure → clear stores and redirect to `/auth`.
    */
   async restoreSession(): Promise<boolean> {
     if (typeof window === 'undefined') return false;
 
-    const raw = window.localStorage.getItem('billflow-session');
-    if (!raw) return false;
-
-    try {
-      const session = JSON.parse(raw) as StoredSession;
-
-      // No refresh token means no session restore possible
-      if (!session?.refreshToken) return false;
-
-      // Try to refresh using the stored refresh token
-      const refreshed = await this.tryRefresh(session.refreshToken);
-      if (refreshed) return true;
-
-      // Refresh failed — clear everything and redirect to auth
-      this.clearSession();
-      window.location.replace('/auth');
-      return false;
-    } catch {
-      this.clearSession();
-      return false;
+    const existing = this.authTokenStore.get();
+    if (existing && this.isAccessTokenValid(existing)) {
+      this.applyIdentity(this.authIdentityStore.get());
+      return true;
     }
+
+    // Either no token, or the cached one is expired — fall through to refresh.
+    if (existing) this.authTokenStore.clear();
+
+    const refreshed = await this.authHttp.refreshAccessToken();
+    if (refreshed) {
+      this.applyIdentity(this.authIdentityStore.get());
+      return true;
+    }
+
+    this.authTokenStore.clear();
+    this.authIdentityStore.clear();
+    window.location.replace('/auth');
+    return false;
   }
 
-  private async tryRefresh(refreshToken: string): Promise<boolean> {
+  /**
+   * Defensive JWT `exp` check. The access token is self-contained, so we
+   * can decode the payload locally and reject expired tokens before
+   * hitting the network. This avoids a wasted 401 round-trip and gives
+   * `restoreSession` honest semantics. Fails closed on any parse error.
+   */
+  private isAccessTokenValid(token: string): boolean {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!response.ok) return false;
-
-      const newSession = await response.json() as {
-        accessToken: string;
-        refreshToken?: string;
-        expiresIn?: number;
-      };
-
-      const raw = window.localStorage.getItem('billflow-session');
-      const current = raw ? JSON.parse(raw) as StoredSession : {};
-      const merged: StoredSession = { ...current, ...newSession };
-
-      window.localStorage.setItem('billflow-session', JSON.stringify(merged));
-
-      // Hydrate profile with new token
-      void this.hydrateUserProfile();
-      return true;
+      const parts = token.split('.');
+      if (parts.length < 2) return false;
+      const payload = JSON.parse(atob(parts[1])) as { exp?: number };
+      if (typeof payload.exp !== 'number') return false;
+      return payload.exp * 1000 > Date.now();
     } catch {
       return false;
     }
   }
 
   private clearSession(): void {
-    try {
-      window.localStorage.removeItem('billflow-session');
-    } catch { /* ignore */ }
-    clearBillflowSessionCookie();
+    this.authTokenStore.clear();
+    this.authIdentityStore.clear();
   }
 
   async hydrateUserProfile(): Promise<void> {
@@ -148,33 +99,14 @@ export class SessionService {
 
     this.hydratePromise = (async () => {
       try {
-        const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/auth/me`);
-        if (!response.ok) return;
-
-        const profile = await response.json() as AuthMeResponse;
-        const raw = window.localStorage.getItem('billflow-session');
-        const current = raw ? JSON.parse(raw) as BillflowSession : {};
-        const merged: BillflowSession = {
-          ...current,
-          id: profile.id ?? current.id,
-          username: profile.username ?? profile.user?.username ?? current.username,
-          email: profile.email ?? current.email,
-          role: profile.role ?? current.role,
-          firstName: profile.firstName ?? profile.user?.firstName ?? current.firstName,
-          lastName: profile.lastName ?? profile.user?.lastName ?? current.lastName,
-          fullName: profile.fullName ?? profile.user?.fullName ?? current.fullName,
-          user: {
-            ...current.user,
-            username: profile.username ?? profile.user?.username ?? current.user?.username,
-            firstName: profile.firstName ?? profile.user?.firstName ?? current.user?.firstName,
-            lastName: profile.lastName ?? profile.user?.lastName ?? current.user?.lastName,
-            fullName: profile.fullName ?? profile.user?.fullName ?? current.user?.fullName,
-            name: profile.name ?? profile.user?.name ?? current.user?.name,
-          },
+        const profile = await this.authHttp.fetchAndStoreIdentity();
+        if (!profile) return;
+        const next: BillflowIdentity = {
+          ...(this.authIdentityStore.get() as BillflowIdentity),
+          ...profile,
         };
-
-        window.localStorage.setItem('billflow-session', JSON.stringify(merged));
-        this.applyIdentity(merged);
+        this.authIdentityStore.set(next);
+        this.applyIdentity(next);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error('[SessionService.hydrateUserProfile]', err);
@@ -186,31 +118,32 @@ export class SessionService {
     return this.hydratePromise;
   }
 
-  private hasReadableIdentity(session: BillflowSession): boolean {
+  private hasReadableIdentity(identity: BillflowIdentity): boolean {
     return Boolean(
-      session.employeeId
-        || session.fullName
-        || session.username
-        || session.firstName
-        || session.lastName
-        || session.email
-        || session.user?.fullName
-        || session.user?.name
-        || session.user?.username
-        || session.user?.firstName,
+      identity.fullName
+        || identity.username
+        || identity.firstName
+        || identity.lastName
+        || identity.email
+        || identity.displayName
+        || (identity.user as { fullName?: string; name?: string; username?: string; firstName?: string } | undefined)?.fullName
+        || (identity.user as { fullName?: string; name?: string; username?: string; firstName?: string } | undefined)?.name
+        || (identity.user as { fullName?: string; name?: string; username?: string; firstName?: string } | undefined)?.username
+        || (identity.user as { fullName?: string; name?: string; username?: string; firstName?: string } | undefined)?.firstName,
     );
   }
 
-  private applyIdentity(session: BillflowSession): void {
-    const candidate = session.employeeId
-      || session.fullName
-      || session.username
-      || session.user?.fullName
-      || [session.firstName, session.lastName].filter(Boolean).join(' ').trim()
-      || session.user?.name
-      || session.user?.username
-      || session.user?.firstName
-      || session.email?.split('@')[0]
+  private applyIdentity(identity: BillflowIdentity): void {
+    const inner = identity.user as { fullName?: string; name?: string; username?: string; firstName?: string } | undefined;
+    const candidate = identity.displayName
+      || identity.fullName
+      || identity.username
+      || [identity.firstName, identity.lastName].filter(Boolean).join(' ').trim()
+      || inner?.fullName
+      || inner?.name
+      || inner?.username
+      || inner?.firstName
+      || identity.email?.split('@')[0]
       || 'Usuario';
 
     this.displayName.set(candidate || 'Usuario');
@@ -229,13 +162,7 @@ export class SessionService {
   }
 
   hasStoredSession(): boolean {
-    if (typeof window === 'undefined') return false;
-
-    try {
-      return Boolean(window.localStorage.getItem('billflow-session'));
-    } catch {
-      return false;
-    }
+    return Boolean(this.authTokenStore.get());
   }
 
   async logout(): Promise<void> {

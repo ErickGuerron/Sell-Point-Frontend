@@ -417,7 +417,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   private hasInitialData = false;
 
   @Input() set initialData(value: CategoriesInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.categories.set(value.categories);
     this.totalCategoriesCount.set(value.totalCategoriesCount);
@@ -450,12 +450,17 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
-    this.keyboardShortcuts.register(
-      { keys: 'n', descriptionEn: 'New Category', descriptionEs: 'Nueva Categoría', category: 'actions', permission: PERMISSIONS.CATEGORIES_CREATE, action: () => { void this.openCreateModal(); } },
-      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCategories(); } },
-      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
-    );
+
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Category', descriptionEs: 'Nueva Categoría', category: 'actions', permission: PERMISSIONS.CATEGORIES_CREATE, action: () => { void this.openCreateModal(); } },
+        { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadCategories(); } },
+        { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+      );
+
       document.documentElement.lang = this.locale();
       if (this.hasInitialData) return;
       await this.reloadCategories();

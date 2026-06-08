@@ -764,7 +764,7 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
   private hasInitialData = false;
 
   @Input() set initialData(value: InvoicesInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.invoices.set(value.invoices);
     this.invoiceKpis.set(value.invoiceKpis);
@@ -853,14 +853,20 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
-    if (typeof window !== 'undefined') document.documentElement.lang = this.locale();
-    this.keyboardShortcuts.register(
-      { keys: 'n', descriptionEn: 'New Invoice', descriptionEs: 'Nueva Factura', category: 'actions', permission: PERMISSIONS.INVOICES_CREATE, action: () => { window.location.href = '/create-invoice'; } },
-      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadInvoices(); } },
-      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
-    );
-    if (this.hasInitialData) return;
-    await this.reloadInvoices();
+    if (typeof window !== 'undefined') {
+      document.documentElement.lang = this.locale();
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Invoice', descriptionEs: 'Nueva Factura', category: 'actions', permission: PERMISSIONS.INVOICES_CREATE, action: () => { window.location.href = '/create-invoice'; } },
+        { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadInvoices(); } },
+        { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+      );
+
+      if (this.hasInitialData) return;
+      await this.reloadInvoices();
+    }
   }
 
   ngOnDestroy(): void {

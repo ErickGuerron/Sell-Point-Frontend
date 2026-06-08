@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "_comment": "auth-cookie-refresh slice 2: rewrites mirror the dev proxy plugin in astro.config.mjs. The browser sees a single origin (Vercel domain), so the HttpOnly refresh cookie is set and sent automatically (SameSite=Strict works). Replace the Render backend URL when the production backend is deployed. If the backend lives elsewhere (Railway, Fly.io, custom domain), update both destinations below.",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://sellpoint-api.onrender.com/$1"
+    },
+    {
+      "source": "/auth/(.*)",
+      "destination": "https://sellpoint-api.onrender.com/auth/$1"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-XSS-Protection", "value": "1; mode=block" }
+      ]
+    }
+  ]
+}

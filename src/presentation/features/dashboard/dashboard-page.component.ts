@@ -585,7 +585,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   }
 
   @Input() set initialData(value: DashboardInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.stats.set(value.stats);
     this.invoices.set(value.invoices);
@@ -673,7 +673,9 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     this.keyboardShortcuts.register(
       { keys: 'r', descriptionEn: 'Refresh dashboard', descriptionEs: 'Actualizar panel', category: 'actions', action: () => { void this.loadDashboardData(); } },
     );
-    // Try to restore session: check localStorage → refresh via API → redirect if fails
+    // Try to restore session: check the in-memory access token → silent
+    // /auth/refresh via the HttpOnly refresh cookie → redirect to /auth
+    // if the refresh fails.
     const restored = await this.session.restoreSession();
     if (!restored) return; // restoreSession already redirected to /auth
 
