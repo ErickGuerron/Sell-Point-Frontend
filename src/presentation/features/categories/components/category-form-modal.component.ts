@@ -32,6 +32,8 @@ import type { CategoriesCopy } from '../i18n/categories.translations';
             [maxLength]="100"
             [placeholder]="copy().namePlaceholder"
             [(ngModel)]="name"
+            (input)="onNameInput($event)"
+            (blur)="onNameBlur()"
           />
         </div>
 
@@ -96,9 +98,26 @@ export class CategoryFormModalComponent implements OnInit {
   }
 
   /**
-   * Host-side helper that routes the Cancel button through the shell's
-   * `requestClose()`. The shell owns the unsaved-changes guard.
+   * Strips leading spaces on every keystroke so the user cannot start
+   * the name with a space. Internal spaces (e.g. "Food & Beverages")
+   * are preserved.
    */
+  onNameInput(event: Event): void {
+    const raw = (event.target as HTMLInputElement).value;
+    const trimmed = raw.trimStart();
+    if (trimmed !== raw) {
+      this.name.set(trimmed);
+    }
+  }
+
+  /**
+   * Trims trailing whitespace on blur. Catches pasted or tabbed-in spaces
+   * at the end without blocking internal spaces while typing.
+   */
+  onNameBlur(): void {
+    this.name.update(v => v.trim());
+  }
+
   async requestClose(): Promise<void> {
     await this.shell()?.requestClose();
   }
