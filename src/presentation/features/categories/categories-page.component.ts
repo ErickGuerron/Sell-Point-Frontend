@@ -15,7 +15,6 @@ import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-pa
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
-import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 import { CategoryKpiCardsComponent } from './components/category-kpi-cards.component';
 import { CategoryTableComponent } from './components/category-table.component';
@@ -43,27 +42,35 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
     BillflowMobileSidebarComponent,
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
-    BillflowModalShellComponent,
     BillflowComboboxComponent,
+    CategoryKpiCardsComponent,
+    CategoryTableComponent,
+    CategoryFormModalComponent,
   ],
+  providers: [
+    CategoryRemoteDataSource,
+    CategoryImplRepository,
+    { provide: CategoryRepository, useClass: CategoryImplRepository },
+    GetCategoriesUseCase,
+    CreateCategoryUseCase,
+    UpdateCategoryUseCase,
+    ToggleCategoryActiveUseCase,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
       [locale]="locale()"
-      (settings)="openUserSettings()"
-      (logout)="logout()"
+      (settings)="session.openUserSettings()"
+      (logout)="session.logout()"
     >
-      <billflow-dashboard-particles-background
-        class="app-invoice-bg"
-      ></billflow-dashboard-particles-background>
+      <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
         <header
           class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl"
         >
-          <div
-            class="py-3 px-5 md:px-6 flex items-center justify-between gap-4"
-          >
+          <div class="py-3 px-5 md:px-6 flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 shrink-0">
               <span class="hidden md:inline-flex lg:hidden">
                 <billflow-mobile-sidebar
@@ -73,64 +80,41 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
                   (actionClick)="openCreateModal()"
                 ></billflow-mobile-sidebar>
               </span>
-              <span class="material-symbols-outlined text-outline"
-                >category</span
-              >
-              <span class="font-h3 text-h3 text-on-background">{{
-                copy().moduleLabel
-              }}</span>
+              <span class="material-symbols-outlined text-outline">category</span>
+              <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
 
-            <div
-              class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40"
-              #userMenuPanel
-            >
-              <billflow-notification-button
-                (clicked)="openNotifications()"
-              ></billflow-notification-button>
+            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
+              <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
               <billflow-user-menu
-                [displayName]="displayName"
-                [initials]="userInitials"
-                [open]="userMenuVisible()"
-                [closing]="userMenuClosing()"
+                [displayName]="session.displayName()"
+                [initials]="session.userInitials()"
                 [showLanguageToggle]="true"
                 [languageLabel]="copy().languageToggle"
                 [settingsLabel]="copy().settings"
                 [logoutLabel]="copy().signOut"
                 [sessionLabel]="copy().sessionLabel"
-                (toggle)="toggleUserMenu($event)"
-                (close)="closeUserMenu()"
                 (languageToggle)="toggleLocale()"
-                (settings)="openUserSettings()"
-                (logout)="logout()"
+                (settings)="session.openUserSettings()"
+                (logout)="session.logout()"
               ></billflow-user-menu>
             </div>
           </div>
         </header>
 
         <main class="mx-auto w-full max-w-7xl px-5 pb-5 md:px-8">
-          <!-- Header section -->
-          <section
-            class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"
-          >
+          <!-- Header -->
+          <section class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h1 class="font-h1 text-h1 tracking-tight text-on-background">
-                {{ copy().title }}
-              </h1>
-              <p class="mt-2 text-body-md text-on-surface-variant">
-                {{ copy().description }}
-              </p>
+              <h1 class="font-h1 text-h1 tracking-tight text-on-background">{{ copy().title }}</h1>
+              <p class="mt-2 text-body-md text-on-surface-variant">{{ copy().description }}</p>
             </div>
-            <div
-              class="flex items-center gap-2 text-sm text-on-surface-variant"
-            >
-              <span
-                class="rounded-full border border-outline-variant/60 px-3 py-1"
-                >{{ totalCategories() }} {{ copy().resultsLabel }}</span
+            <div class="flex items-center gap-2 text-sm text-on-surface-variant">
+              <span class="rounded-full border border-outline-variant/60 px-3 py-1"
+                >{{ totalCategoriesCount() }} {{ copy().resultsLabel }}</span
               >
-              <span
-                class="rounded-full border border-outline-variant/60 px-3 py-1"
-                >{{ copy().themeLabel }}: {{ currentThemeLabel() }}</span
+              <span class="rounded-full border border-outline-variant/60 px-3 py-1"
+                >{{ copy().themeLabel }}: {{ themeService.currentThemeLabel(locale()) }}</span
               >
             </div>
           </section>
@@ -322,23 +306,23 @@ import type { CategoriesInitialData } from '../../shared/ssr-page-data';
 
         <!-- Mobile Nav -->
         <nav class="md:hidden app-dashboard-mobile-nav">
-          <a
-            *ngFor="let item of mobileNavItems()"
-            class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link"
-            [href]="item.href"
-            [ngClass]="
-              item.active
-                ? 'text-primary border-primary app-dashboard-mobile-link--active'
-                : 'border-transparent'
-            "
-          >
-            <span
-              class="material-symbols-outlined"
-              [style.font-variation-settings]="iconVariationSettings(item.active)"
-              >{{ item.icon }}</span
+          @for (item of mobileNavItems(); track item.label) {
+            <a
+              class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link"
+              [href]="item.href"
+              [class.text-primary]="item.active"
+              [class.border-primary]="item.active"
+              [class.app-dashboard-mobile-link--active]="item.active"
+              [class.border-transparent]="!item.active"
             >
-            <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
-          </a>
+              <span
+                class="material-symbols-outlined"
+                [style.font-variation-settings]="themeService.iconVariationSettings(item.active ?? false)"
+                >{{ item.icon }}</span
+              >
+              <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
+            </a>
+          }
 
           <div class="app-dashboard-mobile-fab-wrap">
             @if (permissions.isAdmin()) {
@@ -369,8 +353,6 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   private readonly permissions = inject(PermissionsService);
   private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
-  Math = Math;
-  String = String;
   locale = this.localeService.locale;
   copy = computed(() => CATEGORIES_TEXT[this.locale()]);
 
@@ -413,7 +395,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
 
   // Pagination
   page = signal(1);
-  pageSize = signal(5); // default 5 as requested
+  pageSize = signal(5);
   totalCategoriesCount = signal(0);
   totalPagesFromResponse = signal(0);
   activeCategoriesCount = signal(0);
@@ -425,17 +407,9 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
     { value: '50', label: '50' },
   ];
 
-  // User
-  displayName = 'Usuario';
-  userInitials = 'US';
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  userMenuOpen = signal(false);
-  private userMenuCloseTimeout: number | undefined;
-
   // Modal state
   categoryModalOpen = signal(false);
-  editingCategory = signal<CategoryDto | null>(null);
+  editingCategory = signal<CategoryEntity | null>(null);
 
   // Form signals
   formName = signal('');
@@ -452,10 +426,6 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
     this.pageSize.set(value.pageSize);
     this.loading.set(false);
   }
-
-  readonly formValid = computed(
-    () => this.formName().trim().length > 0
-  );
 
   // ── Computed pagination ────────────────────────────────────────────────────
 
@@ -547,14 +517,6 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
     void this.reloadCategories();
   }
 
-  onPageSizeChange(event: Event) {
-    const value = parseInt((event.target as HTMLSelectElement).value, 10);
-    if (!Number.isFinite(value) || value < 5) return;
-    this.pageSize.set(value);
-    this.page.set(1);
-    void this.reloadCategories();
-  }
-
   onPageSizeCombo(value: string) {
     const num = parseInt(value, 10);
     if (!Number.isFinite(num) || num < 5) return;
@@ -586,83 +548,8 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
 
   // ── Theme & locale ─────────────────────────────────────────────────────────
 
-  toggleTheme() {
-    const next = this.theme() === 'dark' ? 'light' : 'dark';
-    this.theme.set(next);
-    this.persistTheme(next);
-  }
-
   toggleLocale() {
     this.localeService.toggle();
-  }
-
-  // ── User menu ──────────────────────────────────────────────────────────────
-
-  openNotifications() {
-    void this.feedback.toast(
-      'info',
-      this.copy().notifications,
-      this.locale() === 'es'
-        ? 'Tenés 3 movimientos críticos esperando revisión.'
-        : 'You have 3 critical movements waiting for review.'
-    );
-  }
-
-  toggleUserMenu(event?: MouseEvent) {
-    event?.stopPropagation();
-    if (this.userMenuVisible()) {
-      this.closeUserMenu();
-      return;
-    }
-    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
-      window.clearTimeout(this.userMenuCloseTimeout);
-      this.userMenuCloseTimeout = undefined;
-    }
-    this.userMenuClosing.set(false);
-    this.userMenuVisible.set(true);
-    this.userMenuOpen.set(true);
-  }
-
-  closeUserMenu() {
-    if (!this.userMenuVisible() || this.userMenuClosing()) return;
-    this.userMenuClosing.set(true);
-    if (typeof window === 'undefined') return;
-    this.userMenuCloseTimeout = window.setTimeout(() => {
-      this.userMenuVisible.set(false);
-      this.userMenuOpen.set(false);
-      this.userMenuClosing.set(false);
-      this.userMenuCloseTimeout = undefined;
-    }, 180);
-  }
-
-  @HostListener('document:click', ['$event'])
-  handleDocumentClick(event: MouseEvent) {
-    if (!this.userMenuOpen()) return;
-    const target = event.target as Node | null;
-    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
-    this.closeUserMenu();
-  }
-
-  openUserSettings() {
-    this.closeUserMenu();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/profile';
-    }
-  }
-
-  async logout() {
-    this.closeUserMenu();
-    const confirmed = await this.feedback.confirm(
-      this.copy().signOut,
-      this.locale() === 'es'
-        ? '¿Seguro que querés salir del panel?'
-        : 'Are you sure you want to leave the dashboard?',
-      this.copy().signOut,
-      this.copy().cancelBtn
-    );
-    if (!confirmed || typeof window === 'undefined') return;
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
   }
 
   // ── Category Modal ─────────────────────────────────────────────────────────
@@ -673,7 +560,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
     this.categoryModalOpen.set(true);
   }
 
-  openEditModal(cat: CategoryDto) {
+  openEditModal(cat: CategoryEntity) {
     this.editingCategory.set(cat);
     this.formName.set(cat.name);
     this.formDescription.set(cat.description ?? '');
@@ -691,12 +578,12 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   }
 
   async saveCategory() {
-    if (!this.formValid()) return;
+    if (!this.formName().trim()) return;
 
     try {
       const editing = this.editingCategory();
       if (editing) {
-        await this.api.updateCategory(editing.id, {
+        await this.updateCategory.execute(editing.id, {
           name: this.formName().trim(),
           description: this.formDescription().trim() || undefined,
         });
@@ -705,11 +592,10 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
         this.closeCategoryModal();
         await this.reloadCategories();
       } else {
-        const payload: CreateCategoryPayload = {
+        await this.createCategory.execute({
           name: this.formName().trim(),
           description: this.formDescription().trim() || undefined,
-        };
-        await this.api.createCategory(payload);
+        });
         await this.feedback.toast('success', this.copy().createdToast);
         void this.reloadKpis();
         this.closeCategoryModal();
@@ -719,40 +605,30 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
       console.error('[save category]', err);
       const errMsg =
         err.message ||
-        (this.locale() === 'es'
-          ? 'Error al guardar la categoría'
-          : 'Error saving category');
+        (this.locale() === 'es' ? 'Error al guardar la categoría' : 'Error saving category');
       await this.feedback.alert(
         'error',
-        this.locale() === 'es'
-          ? 'Error al guardar la categoría'
-          : 'Error saving category',
-        errMsg
+        this.locale() === 'es' ? 'Error al guardar la categoría' : 'Error saving category',
+        errMsg,
       );
     }
   }
 
   // ── Toggle Active ──────────────────────────────────────────────────────────
 
-  async toggleActive(cat: CategoryDto) {
+  async toggleActive(cat: CategoryEntity) {
     const isActive = cat.isActive;
     const confirmed = await this.feedback.confirm(
-      isActive
-        ? this.copy().confirmDeactivateTitle
-        : this.copy().confirmActivateTitle,
-      isActive
-        ? this.copy().confirmDeactivateText
-        : this.copy().confirmActivateText,
+      isActive ? this.copy().confirmDeactivateTitle : this.copy().confirmActivateTitle,
+      isActive ? this.copy().confirmDeactivateText : this.copy().confirmActivateText,
       this.copy().confirmBtn,
-      this.copy().cancelBtn
+      this.copy().cancelBtn,
     );
     if (!confirmed) return;
 
     try {
-      await this.api.toggleCategoryActive(cat.id, isActive);
-      const msg = isActive
-        ? this.copy().toggledInactive
-        : this.copy().toggledActive;
+      await this.toggleCategoryActive.execute(cat.id, isActive);
+      const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
       void this.reloadKpis();
       await this.reloadCategories();
@@ -760,28 +636,12 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
       console.error('[toggle active]', err);
       await this.feedback.alert(
         'error',
-        this.locale() === 'es'
-          ? 'Error al cambiar el estado'
-          : 'Error changing status'
+        this.locale() === 'es' ? 'Error al cambiar el estado' : 'Error changing status',
       );
     }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
-
-  iconVariationSettings(active = false) {
-    return active ? "'FILL' 1" : "'FILL' 0";
-  }
-
-  currentThemeLabel() {
-    return this.locale() === 'es'
-      ? this.theme() === 'dark'
-        ? 'Modo oscuro'
-        : 'Modo claro'
-      : this.theme() === 'dark'
-        ? 'Dark mode'
-        : 'Light mode';
-  }
 
   visibleRangeStart() {
     if (this.categories().length === 0) return 0;
@@ -789,74 +649,6 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
   }
 
   visibleRangeEnd() {
-    return Math.min(
-      this.totalCategoriesCount(),
-      this.page() * this.pageSize()
-    );
-  }
-
-  // ── Private ────────────────────────────────────────────────────────────────
-
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as {
-        id?: string;
-        employeeId?: string;
-        email?: string;
-        role?: string;
-        user?: {
-          name?: string;
-          firstName?: string;
-          fullName?: string;
-        };
-      };
-      const candidate =
-        session.employeeId ||
-        session.id ||
-        session.email?.split('@')[0] ||
-        session.user?.fullName ||
-        session.user?.name ||
-        session.user?.firstName ||
-        'Usuario';
-      this.displayName =
-        candidate === 'Usuario' ? candidate : candidate.toUpperCase();
-      if (candidate !== 'Usuario') {
-        this.userInitials = candidate
-          .split(/\s+/)
-          .filter(Boolean)
-          .slice(0, 2)
-          .map((part) => part[0]?.toUpperCase() ?? '')
-          .join('');
-      } else {
-        this.userInitials = 'US';
-      }
-    } catch {
-      this.displayName = 'Usuario';
-      this.userInitials = 'US';
-    }
-  }
-
-  private applyStoredTheme() {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('billflow-theme');
-    const prefersDark =
-      window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-    const next =
-      stored === 'dark' || stored === 'light'
-        ? stored
-        : prefersDark
-          ? 'dark'
-          : 'light';
-    this.theme.set(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  }
-
-  private persistTheme(next: 'light' | 'dark') {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('billflow-theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
+    return Math.min(this.totalCategoriesCount(), this.page() * this.pageSize());
   }
 }

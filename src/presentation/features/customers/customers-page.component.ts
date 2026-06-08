@@ -10,6 +10,7 @@ import { PermissionsService, PERMISSIONS } from '../../shared/services/permissio
 import { KeyboardShortcutService } from '../../shared/services/keyboard-shortcut.service';
 import { type BillflowSidebarItem } from '../../shared/components/billflow-sidebar.component';
 import { buildBillflowSidebarItems } from '../../shared/billflow-navigation';
+import type { ComboboxOption } from '../../shared/components/billflow-combobox.component';
 import { BillflowPageShellComponent } from '../../shared/components/billflow-page-shell.component';
 import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-particles-background.component';
@@ -212,7 +213,7 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
   private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
   locale = this.localeService.locale;
-  copy = computed(() => CUSTOMERS_TEXT[this.locale()]);
+  copy = customersCopy(this.locale);
 
   @Input() set initialLocale(value: AppLocale | null | undefined) {
     if (!value) return;
@@ -237,6 +238,7 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
   serverEmailError = signal<string | null>(null);
   private reloadTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // ── Computeds ──────────────────────────────────────────────────────────────
   readonly sidebarItems = computed(() => buildBillflowSidebarItems({
     dashboard: this.copy().sidebarDashboard,
     invoices: this.copy().sidebarInvoices,
@@ -260,16 +262,6 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     return items;
   });
 
-  theme = signal<'light' | 'dark'>('light');
-  loading = signal(true);
-  customers = signal<CustomerRowDto[]>([]);
-  searchQuery = signal('');
-  statusFilter = signal<'all' | 'active' | 'inactive'>('all');
-  page = signal(1);
-  pageSize = signal(5);
-  displayName = 'Usuario';
-  userInitials = 'US';
-
   readonly pageSizeOptions: ComboboxOption[] = [
     { value: '5', label: '5' },
     { value: '10', label: '10' },
@@ -292,42 +284,15 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     { value: 'email', label: this.copy().email },
     { value: 'phone', label: this.copy().phone },
   ]);
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  userMenuOpen = signal(false);
-  private userMenuCloseTimeout: number | undefined;
-
-  // ── Customer modal state ──────────────────────────────────────────────────
-  customerModalOpen = signal(false);
-  editingCustomer = signal<CustomerRowDto | null>(null);
-
-  // Form signals
-  formFirstName = signal('');
-  formLastName = signal('');
-  formCedula = signal('');
-  formPhone = signal('');
-  formEmail = signal('');
-  formAddress = signal('');
-  nameFieldError = signal<'firstName' | 'lastName' | null>(null);
-
-  readonly formValid = computed(() =>
-    this.formFirstName().trim().length > 0
-    && this.formLastName().trim().length > 0
-    && this.formCedula().trim().length >= 6
-  );
-
-  searchField = signal<'all' | 'name' | 'lastName' | 'cedula' | 'email' | 'phone'>('all');
 
   readonly totalCustomersCount = computed(() => this.totalCustomers());
   readonly activeCustomersCount = computed(() => this.activeKpi());
   readonly inactiveCustomersCount = computed(() => this.inactiveKpi());
 
-  // ── Filters & pagination ──────────────────────────────────────────────────
   readonly filteredCustomers = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const status = this.statusFilter();
     const field = this.searchField();
-
     return this.customers().filter((customer) => {
       const matchesStatus = status === 'all'
         || (status === 'active' && customer.isActive)
@@ -518,14 +483,10 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     void this.reloadCustomers();
   }
 
-  // ── Pagination ────────────────────────────────────────────────────────────
-  nextPage() {
-    if (this.page() < this.totalPages()) this.page.update((v) => v + 1);
-  }
+  // ── Modal handlers ────────────────────────────────────────────────────────
+  openCreateModal() { this.editingCustomer.set(null); this.customerModalOpen.set(true); }
 
-  previousPage() {
-    if (this.page() > 1) this.page.update((v) => v - 1);
-  }
+  openEditModal(customer: CustomerEntity) { this.editingCustomer.set(customer); this.customerModalOpen.set(true); }
 
   private clearServerErrors(): void {
     this.serverCedulaError.set(null);
@@ -614,10 +575,10 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     try {
       const editing = this.editingCustomer();
       if (editing) {
-        await this.api.updateCustomer(editing.id, payload);
+        await this.updateCustomer.execute(editing.id, payload);
         await this.feedback.toast('success', this.copy().updatedToast);
       } else {
-        await this.api.createCustomer(payload);
+        await this.createCustomer.execute(payload);
         await this.feedback.toast('success', this.copy().createdToast);
       }
       this.closeCustomerModal();
@@ -632,21 +593,17 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     void this.reloadKpis();
   }
 
-  /** Logical deactivation/activation */
-  async toggleActive(customer: CustomerRowDto) {
-    const isActive = customer.active;
+  async handleToggleActive(customer: CustomerEntity) {
+    const isActive = customer.isActive;
     const confirmed = await this.feedback.confirm(
       isActive ? this.copy().confirmDeactivateTitle : this.copy().confirmActivateTitle,
       isActive ? this.copy().confirmDeactivateText : this.copy().confirmActivateText,
-      this.copy().confirmBtn,
-      this.copy().cancelBtn,
+      this.copy().confirmBtn, this.copy().cancelBtn,
     );
     if (!confirmed) return;
-
     try {
-      await this.api.toggleCustomerActive(customer.id, isActive);
-      const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
-      await this.feedback.toast('success', msg);
+      await this.toggleActive.execute(customer.id, isActive);
+      await this.feedback.toast('success', isActive ? this.copy().toggledInactive : this.copy().toggledActive);
       await this.reloadCustomers();
       void this.reloadKpis();
     } catch (err) {
@@ -656,126 +613,4 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Form sanitization (reuse same logic as create-invoice) ────────────────
-  onNameInput(value: string, target: 'firstName' | 'lastName') {
-    const cleaned = value.replace(/[^a-zA-ZáéíóúñüÁÉÍÓÚÑÜ\s]/g, '');
-    if (target === 'firstName') this.formFirstName.set(cleaned);
-    else this.formLastName.set(cleaned);
-    if (value !== cleaned) this.nameFieldError.set(target);
-    else if (this.nameFieldError() === target) this.nameFieldError.set(null);
-  }
-
-  onNumericInput(value: string, target: 'cedula' | 'phone') {
-    if (target === 'cedula') {
-      this.formCedula.set(value.replace(/\D/g, '').slice(0, 10));
-    } else {
-      this.formPhone.set(value.replace(/\D/g, ''));
-    }
-  }
-
-  iconVariationSettings(active = false) {
-    return active ? "'FILL' 1" : "'FILL' 0";
-  }
-
-  currentThemeLabel() {
-    return this.locale() === 'es'
-      ? (this.theme() === 'dark' ? 'Modo oscuro' : 'Modo claro')
-      : (this.theme() === 'dark' ? 'Dark mode' : 'Light mode');
-  }
-
-  visibleRangeStart() {
-    if (this.filteredCustomers().length === 0) return 0;
-    return (this.page() - 1) * this.pageSize() + 1;
-  }
-
-  visibleRangeEnd() {
-    return Math.min(this.filteredCustomers().length, this.page() * this.pageSize());
-  }
-
-  formatMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
-  }
-
-  customerFullName(customer: { name: string; lastName?: string }): string {
-    return customer.lastName?.trim()
-      ? `${customer.name} ${customer.lastName}`
-      : customer.name;
-  }
-
-  getCustomerInitials(customer: CustomerRowDto): string {
-    const first = customer.name ? customer.name.charAt(0) : '';
-    const last = customer.lastName ? customer.lastName.charAt(0) : '';
-    return (first + last).toUpperCase();
-  }
-
-  getCustomerGradient(customer: CustomerRowDto): string {
-    const hash = customer.name.charCodeAt(0) + (customer.lastName?.charCodeAt(0) || 0);
-    const gradients = [
-      'from-[#4f46e5]/20 to-[#06b6d4]/20 text-[#4f46e5] dark:text-[#c3c0ff] border-[#4f46e5]/20',
-      'from-[#ec4899]/20 to-[#f43f5e]/20 text-[#ec4899] dark:text-[#ffb2b7] border-[#ec4899]/20',
-      'from-[#10b981]/20 to-[#3b82f6]/20 text-[#10b981] dark:text-[#89ceff] border-[#10b981]/20',
-      'from-[#f59e0b]/20 to-[#ef4444]/20 text-[#f59e0b] dark:text-[#ffb2b7] border-[#f59e0b]/20',
-      'from-[#8b5cf6]/20 to-[#d946ef]/20 text-[#8b5cf6] dark:text-[#c3c0ff] border-[#8b5cf6]/20',
-    ];
-    return gradients[hash % gradients.length];
-  }
-
-  showCustomerInfo(customer: CustomerRowDto) {
-    const statusText = customer.active
-      ? (this.locale() === 'es' ? 'Activo' : 'Active')
-      : (this.locale() === 'es' ? 'Inactivo' : 'Inactive');
-    const fullName = this.customerFullName(customer);
-
-    const html = `
-<div style="font-family: monospace; font-size: 14px; line-height: 1.8; text-align: left;">
-  <div style="font-weight: bold; padding-bottom: 6px; border-bottom: 1px solid #ccc; margin-bottom: 10px;">
-    ${this.locale() === 'es' ? 'DATOS PERSONALES' : 'PERSONAL INFO'}
-  </div>
-  <div><strong>${this.locale() === 'es' ? 'Nombre' : 'Name'}:</strong> ${fullName}</div>
-  <div><strong>${this.locale() === 'es' ? 'Cédula' : 'ID'}:</strong> ${customer.cedula ?? '—'}</div>
-  <div><strong>Email:</strong> ${customer.email || '—'}</div>
-  <div><strong>${this.locale() === 'es' ? 'Teléfono' : 'Phone'}:</strong> ${customer.phone || '—'}</div>
-  <div><strong>${this.locale() === 'es' ? 'Dirección' : 'Address'}:</strong> ${customer.address || '—'}</div>
-  <div style="font-weight: bold; padding-top: 10px; margin-top: 10px; border-top: 1px solid #ccc;">
-    ${this.locale() === 'es' ? 'ESTADO' : 'STATUS'}
-  </div>
-  <div><strong>${this.locale() === 'es' ? 'Estado' : 'Status'}:</strong> ${statusText}</div>
-</div>`;
-
-    void this.feedback.alertHtml(
-      'info',
-      this.locale() === 'es' ? 'Detalles del Cliente' : 'Customer Details',
-      html,
-    );
-  }
-
-  // ── Private ───────────────────────────────────────────────────────────────
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
-      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
-      if (candidate !== 'Usuario') {
-        this.userInitials = candidate.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
-      } else { this.userInitials = 'US'; }
-    } catch { this.displayName = 'Usuario'; this.userInitials = 'US'; }
-  }
-
-  private applyStoredTheme() {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('billflow-theme');
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-    const next = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
-    this.theme.set(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  }
-
-  private persistTheme(next: 'light' | 'dark') {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('billflow-theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  }
 }

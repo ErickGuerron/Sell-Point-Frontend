@@ -312,7 +312,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
 
           <div class="app-dashboard-tablet-drawer__nav space-y-1.5">
             <a *ngFor="let item of sidebarItems()" [href]="item.href" class="app-dashboard-tablet-drawer__link flex items-center gap-3 px-4 py-3 rounded-xl transition-all active:scale-95 app-dashboard-nav-link" [ngClass]="item.active ? 'bg-primary/10 text-primary font-bold app-dashboard-nav-link--active' : 'font-medium'" (click)="closeTabletSidebar()">
-              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+              <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
               {{ item.label }}
             </a>
           </div>
@@ -336,7 +336,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </button>
 
             <div class="min-w-0">
-              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ copy().greeting }}, {{ displayName }}</h2>
+              <h2 class="font-h2 text-h2 dashboard-gradient-text">{{ copy().greeting }}, {{ session.displayName() }}</h2>
               <p class="font-body-sm text-body-sm text-outline mt-1.5 font-medium">
                 {{ copy().activitySummary }} · {{ stats()?.totalClientes ?? 0 }} {{ copy().activeClients }}
               </p>
@@ -350,22 +350,18 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
             </div>
 
               <div class="flex items-center justify-end gap-2 shrink-0 self-auto relative z-40">
-                <billflow-notification-button (clicked)="showNotifications()"></billflow-notification-button>
+                <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="displayName"
-                  [initials]="userInitials"
-                  [open]="userMenuVisible()"
-                  [closing]="userMenuClosing()"
+                  [displayName]="session.displayName()"
+                  [initials]="session.userInitials()"
                   [showLanguageToggle]="true"
                   [languageLabel]="copy().languageLabel"
                   [settingsLabel]="copy().settingsLabel"
                   [logoutLabel]="copy().logoutConfirm"
                   [sessionLabel]="copy().settingsLabel"
-                  (toggle)="toggleUserMenu($event)"
-                  (close)="closeUserMenu()"
                   (languageToggle)="toggleDashboardLocale()"
-                  (settings)="openUserSettings()"
-                  (logout)="logout()"
+                  (settings)="session.openUserSettings()"
+                  (logout)="session.logout()"
                 ></billflow-user-menu>
               </div>
           </div>
@@ -541,7 +537,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
 
       <nav class="md:hidden app-dashboard-mobile-nav">
         <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-          <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+          <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
           <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
         </a>
 
@@ -740,73 +736,12 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     this.localeService.toggle();
   }
 
-  toggleUserMenu(event?: MouseEvent) {
-    event?.stopPropagation();
-    if (this.userMenuVisible()) {
-      this.closeUserMenu();
-      return;
-    }
-
-    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
-      window.clearTimeout(this.userMenuCloseTimeout);
-      this.userMenuCloseTimeout = undefined;
-    }
-
-    this.userMenuClosing.set(false);
-    this.userMenuVisible.set(true);
-    this.userMenuOpen.set(true);
-  }
-
-  closeUserMenu() {
-    if (!this.userMenuVisible() || this.userMenuClosing()) return;
-
-    this.userMenuClosing.set(true);
-    if (typeof window === 'undefined') return;
-
-    this.userMenuCloseTimeout = window.setTimeout(() => {
-      this.userMenuVisible.set(false);
-      this.userMenuOpen.set(false);
-      this.userMenuClosing.set(false);
-      this.userMenuCloseTimeout = undefined;
-    }, 180);
-  }
-
-  @HostListener('document:click', ['$event'])
-  handleDocumentClick(event: MouseEvent) {
-    if (!this.userMenuOpen()) return;
-
-    const target = event.target as Node | null;
-    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
-
-    this.closeUserMenu();
-  }
-
-  openUserSettings() {
-    this.closeUserMenu();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/profile';
-    }
-  }
-
-  async logout() {
-    this.closeUserMenu();
-    const confirmed = await this.feedback.confirm(this.copy().logoutTitle, this.copy().logoutText, this.copy().logoutConfirm, this.copy().logoutCancel);
-    if (!confirmed || typeof window === 'undefined') return;
-
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
-  }
-
   toggleTabletSidebar() {
     this.tabletSidebarOpen.update((current) => !current);
   }
 
   closeTabletSidebar() {
     this.tabletSidebarOpen.set(false);
-  }
-
-  async showNotifications() {
-    await this.feedback.alert('info', this.copy().notificationsTitle, this.copy().notificationsText);
   }
 
   async showInvoiceOverview() {
@@ -893,10 +828,6 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
       'bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20': tone === 'warning',
       'bg-error/10 text-error border border-error/20': tone === 'error',
     };
-  }
-
-  iconVariationSettings(active = false) {
-    return active ? "'FILL' 1" : "'FILL' 0";
   }
 
   formatMoney(value: number) {

@@ -10,12 +10,12 @@ import { KeyboardShortcutService } from '../services/keyboard-shortcut.service';
   imports: [CommonModule],
   template: `
     <div #host class="relative">
-      <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer overflow-hidden" style="width:2.875rem; height:2.875rem; border-radius:9999px;" (click)="toggle.emit($event)" [attr.aria-expanded]="open" aria-haspopup="menu">
+      <button type="button" class="app-dashboard-user-badge bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm shadow-sm hover:bg-primary/20 transition-colors cursor-pointer overflow-hidden" style="width:2.875rem; height:2.875rem; border-radius:9999px;" (click)="toggleMenu($event)" [attr.aria-expanded]="open()" aria-haspopup="menu">
         <span class="w-full h-full rounded-full bg-primary text-on-primary flex items-center justify-center text-xs shrink-0 overflow-hidden">{{ initials }}</span>
       </button>
 
-      <div *ngIf="open" #panel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="closing" role="menu">
-        <button type="button" class="app-dashboard-user-menu__backdrop" aria-label="Cerrar menú" (click)="close.emit()"></button>
+      <div *ngIf="visible()" #panel class="app-dashboard-user-menu" [class.app-dashboard-user-menu--exit]="closing()" role="menu">
+        <button type="button" class="app-dashboard-user-menu__backdrop" aria-label="Cerrar menú" (click)="closeMenu()"></button>
         <div class="app-dashboard-user-menu__panel">
           <div class="app-dashboard-user-menu__header">
             <div class="app-dashboard-user-menu__avatar">{{ initials }}</div>
@@ -60,15 +60,11 @@ export class BillflowUserMenuComponent {
 
   @Input() displayName = 'Usuario';
   @Input() initials = 'US';
-  @Input() open = false;
-  @Input() closing = false;
   @Input() showLanguageToggle = false;
   @Input() languageLabel = 'ES';
   @Input() settingsLabel = 'Settings';
   @Input() logoutLabel = 'Sign out';
   @Input() sessionLabel = 'Session';
-  @Output() toggle = new EventEmitter<MouseEvent>();
-  @Output() close = new EventEmitter<void>();
   @Output() languageToggle = new EventEmitter<void>();
   @Output() settings = new EventEmitter<void>();
   @Output() logout = new EventEmitter<void>();
@@ -130,10 +126,9 @@ export class BillflowUserMenuComponent {
 
   @HostListener('document:click', ['$event'])
   handleDocumentClick(event: MouseEvent) {
-    if (!this.open) return;
-
+    if (!this.open()) return;
     const target = event.target as Node | null;
     if (target && this.host?.nativeElement.contains(target)) return;
-    this.close.emit();
+    this.closeMenu();
   }
 }

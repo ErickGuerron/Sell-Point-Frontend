@@ -281,23 +281,19 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
                 <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
               </div>
 
-              <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
-                <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
+              <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
+                <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
                 <billflow-user-menu
-                  [displayName]="displayName"
-                  [initials]="userInitials"
-                  [open]="userMenuVisible()"
-                  [closing]="userMenuClosing()"
+                  [displayName]="session.displayName()"
+                  [initials]="session.userInitials()"
                   [showLanguageToggle]="true"
                   [languageLabel]="copy().languageToggle"
                   [settingsLabel]="copy().settings"
                   [logoutLabel]="copy().signOut"
                   [sessionLabel]="copy().sessionLabel"
-                  (toggle)="toggleUserMenu($event)"
-                  (close)="closeUserMenu()"
                   (languageToggle)="toggleLocale()"
-                  (settings)="openUserSettings()"
-                  (logout)="logout()"
+                  (settings)="session.openUserSettings()"
+                  (logout)="session.logout()"
                 ></billflow-user-menu>
               </div>
             </div>
@@ -691,7 +687,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
 
           <nav class="md:hidden app-dashboard-mobile-nav">
             <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-              <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+              <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
               <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
             </a>
 
@@ -799,13 +795,6 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     { value: 'customerName', label: this.copy().filterCustomer },
     { value: 'total', label: this.copy().filterAmount },
   ]);
-  displayName = 'Usuario';
-  userInitials = 'US';
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  userMenuOpen = signal(false);
-  private userMenuCloseTimeout: number | undefined;
-
   readonly filteredInvoices = computed(() => {
     const query = this.searchQuery().trim().toLowerCase();
     const filterField = this.invoiceFilterField();
@@ -911,12 +900,6 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleTheme() {
-    const next = this.theme() === 'dark' ? 'light' : 'dark';
-    this.theme.set(next);
-    this.persistTheme(next);
-  }
-
   toggleLocale() {
     this.localeService.toggle();
   }
@@ -952,71 +935,6 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     if (typeof window !== 'undefined') {
       window.location.assign('/create-invoice');
     }
-  }
-
-  iconVariationSettings(active = false) {
-    return active ? "'FILL' 1" : "'FILL' 0";
-  }
-
-  openNotifications() {
-    void this.feedback.toast('info', this.copy().notifications, this.locale() === 'es' ? 'Tenés 3 movimientos críticos esperando revisión.' : 'You have 3 critical movements waiting for review.');
-  }
-
-  toggleUserMenu(event?: MouseEvent) {
-    event?.stopPropagation();
-    if (this.userMenuVisible()) {
-      this.closeUserMenu();
-      return;
-    }
-
-    if (this.userMenuCloseTimeout !== undefined && typeof window !== 'undefined') {
-      window.clearTimeout(this.userMenuCloseTimeout);
-      this.userMenuCloseTimeout = undefined;
-    }
-
-    this.userMenuClosing.set(false);
-    this.userMenuVisible.set(true);
-    this.userMenuOpen.set(true);
-  }
-
-  closeUserMenu() {
-    if (!this.userMenuVisible() || this.userMenuClosing()) return;
-
-    this.userMenuClosing.set(true);
-    if (typeof window === 'undefined') return;
-
-    this.userMenuCloseTimeout = window.setTimeout(() => {
-      this.userMenuVisible.set(false);
-      this.userMenuOpen.set(false);
-      this.userMenuClosing.set(false);
-      this.userMenuCloseTimeout = undefined;
-    }, 180);
-  }
-
-  @HostListener('document:click', ['$event'])
-  handleDocumentClick(event: MouseEvent) {
-    if (!this.userMenuOpen()) return;
-
-    const target = event.target as Node | null;
-    if (!target || this.userMenuPanel?.nativeElement.contains(target)) return;
-
-    this.closeUserMenu();
-  }
-
-  openUserSettings() {
-    this.closeUserMenu();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/profile';
-    }
-  }
-
-  async logout() {
-    this.closeUserMenu();
-    const confirmed = await this.feedback.confirm(this.copy().signOut, this.locale() === 'es' ? '¿Seguro que querés salir del panel?' : 'Are you sure you want to leave the dashboard?', this.copy().signOut, this.locale() === 'es' ? 'Cancelar' : 'Cancel');
-    if (!confirmed || typeof window === 'undefined') return;
-
-    window.localStorage.removeItem('billflow-session');
-    window.location.replace('/auth');
   }
 
   nextPage() {
@@ -1119,12 +1037,6 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  currentThemeLabel() {
-    return this.locale() === 'es'
-      ? (this.theme() === 'dark' ? 'Modo oscuro' : 'Modo claro')
-      : (this.theme() === 'dark' ? 'Dark mode' : 'Light mode');
-  }
-
   visibleRangeStart() {
     if (this.filteredInvoices().length === 0) return 0;
     return (this.page() - 1) * this.pageSize() + 1;
@@ -1171,20 +1083,5 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     a.setHours(0, 0, 0, 0);
     b.setHours(0, 0, 0, 0);
     return Math.max(0, Math.floor((b.getTime() - a.getTime()) / 86400000));
-  }
-
-  private applyStoredTheme() {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('billflow-theme');
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-    const next = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
-    this.theme.set(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  }
-
-  private persistTheme(next: 'light' | 'dark') {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('billflow-theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
   }
 }

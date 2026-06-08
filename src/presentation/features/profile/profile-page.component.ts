@@ -30,15 +30,22 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
   ],
+  providers: [
+    ProfileRemoteDataSource,
+    ProfileImplRepository,
+    { provide: ProfileRepository, useClass: ProfileImplRepository },
+    ProfileStore,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <billflow-page-shell
       [items]="sidebarItems()"
       [locale]="localeService.locale()"
       (settings)="goToProfile()"
-      (logout)="logout()"
+      (logout)="session.logout()"
     >
       <div class="flex-1 min-w-0 app-dashboard-main">
-        <!-- ══ Top bar (same as other pages) ══ -->
+        <!-- ══ Top bar ══ -->
         <header
           class="sticky top-0 z-40 border-b border-outline-variant/40 bg-surface/80 dark:bg-slate-900/80 backdrop-blur-xl"
         >
@@ -56,23 +63,19 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
 
-            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
-              <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
+            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
+              <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
               <billflow-user-menu
-                [displayName]="displayName"
-                [initials]="userInitials"
-                [open]="userMenuVisible()"
-                [closing]="userMenuClosing()"
+                [displayName]="session.displayName()"
+                [initials]="session.userInitials()"
                 [showLanguageToggle]="true"
                 [languageLabel]="copy().languageToggle"
                 [settingsLabel]="copy().settings"
                 [logoutLabel]="copy().signOut"
                 [sessionLabel]="copy().sessionLabel"
-                (toggle)="toggleUserMenu($event)"
-                (close)="closeUserMenu()"
                 (languageToggle)="toggleLocale()"
                 (settings)="goToProfile()"
-                (logout)="logout()"
+                (logout)="session.logout()"
               ></billflow-user-menu>
             </div>
           </div>
@@ -93,7 +96,7 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
           <!-- Loading state -->
           <div
-            *ngIf="loading()"
+            *ngIf="store.loading()"
             class="flex flex-col items-center justify-center py-24 gap-4"
           >
             <span class="material-symbols-outlined text-[48px] text-outline animate-spin">progress_activity</span>
@@ -102,7 +105,7 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
           <!-- Error state -->
           <div
-            *ngIf="error() && !loading()"
+            *ngIf="store.error() && !store.loading()"
             class="flex flex-col items-center justify-center py-24 gap-4"
           >
             <span class="material-symbols-outlined text-[48px] text-error">error_outline</span>
@@ -111,15 +114,14 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
             <button
               type="button"
               class="mt-2 px-6 py-2.5 bg-primary text-on-primary rounded-xl font-bold hover:bg-primary/90 active:scale-95 transition-all"
-              (click)="loadProfile()"
+              (click)="store.loadProfile()"
             >
               {{ copy().retry }}
             </button>
           </div>
 
           <!-- ══ Profile content ══ -->
-          <div *ngIf="me() && !loading() && !error()" class="space-y-6">
-
+          <div *ngIf="store.profile() && !store.loading() && !store.error()" class="space-y-6">
             <!-- Avatar + name header card -->
             <div class="dashboard-glass-card rounded-2xl border border-outline-variant/40 bg-surface/40 backdrop-blur-xl p-6 md:p-8 relative overflow-hidden">
               <div class="absolute -right-8 -bottom-8 text-primary/5 dark:text-primary/10 pointer-events-none">
@@ -129,29 +131,29 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
                 <div
                   class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-primary/15 text-primary flex items-center justify-center text-3xl md:text-4xl font-black shrink-0 shadow-sm border-2 border-primary/20"
                 >
-                  {{ initials() }}
+                  {{ store.initials() }}
                 </div>
                 <div class="min-w-0">
-                  <h2 class="font-h2 text-h2 text-on-surface truncate">{{ me()?.name || '—' }}</h2>
-                  <p class="font-body-md text-body-md text-outline mt-1">{{ me()?.email || '—' }}</p>
+                  <h2 class="font-h2 text-h2 text-on-surface truncate">{{ store.profile()?.name || '—' }}</h2>
+                  <p class="font-body-md text-body-md text-outline mt-1">{{ store.profile()?.email || '—' }}</p>
                   <div class="flex items-center gap-3 mt-3">
                     <span
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                      [class.bg-primary/10]="isActive()"
-                      [class.text-primary]="isActive()"
-                      [class.bg-error/10]="!isActive()"
-                      [class.text-error]="!isActive()"
+                      [class.bg-primary/10]="store.isActive()"
+                      [class.text-primary]="store.isActive()"
+                      [class.bg-error/10]="!store.isActive()"
+                      [class.text-error]="!store.isActive()"
                     >
                       <span class="material-symbols-outlined text-[14px]">
-                        {{ isActive() ? 'check_circle' : 'block' }}
+                        {{ store.isActive() ? 'check_circle' : 'block' }}
                       </span>
-                      {{ isActive() ? copy().active : copy().blocked }}
+                      {{ store.isActive() ? copy().active : copy().blocked }}
                     </span>
                     <span
                       class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary"
                     >
                       <span class="material-symbols-outlined text-[14px]">badge</span>
-                      {{ me()?.role || '—' }}
+                      {{ store.profile()?.role || '—' }}
                     </span>
                   </div>
                 </div>
@@ -171,48 +173,44 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
               <div class="p-6 md:p-7">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                  <!-- Name -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().name }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">person</span>
-                      {{ me()?.name || '—' }}
+                      {{ store.profile()?.name || '—' }}
                     </p>
                   </div>
 
-                  <!-- Email -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().email }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium break-all flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">mail</span>
-                      {{ me()?.email || '—' }}
+                      {{ store.profile()?.email || '—' }}
                     </p>
                   </div>
 
-                  <!-- Role -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().role }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">manage_accounts</span>
-                      {{ me()?.role || '—' }}
+                      {{ store.profile()?.role || '—' }}
                     </p>
                   </div>
 
-                  <!-- Status -->
                   <div>
                     <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().status }}</p>
                     <div class="flex items-center gap-2">
                       <span
                         class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
-                        [class.bg-success/10]="isActive()"
-                        [class.text-success]="isActive()"
-                        [class.bg-error/10]="!isActive()"
-                        [class.text-error]="!isActive()"
+                        [class.bg-success/10]="store.isActive()"
+                        [class.text-success]="store.isActive()"
+                        [class.bg-error/10]="!store.isActive()"
+                        [class.text-error]="!store.isActive()"
                       >
                         <span class="material-symbols-outlined text-[14px]">
-                          {{ isActive() ? 'check_circle' : 'block' }}
+                          {{ store.isActive() ? 'check_circle' : 'block' }}
                         </span>
-                        {{ isActive() ? copy().active : copy().blocked }}
+                        {{ store.isActive() ? copy().active : copy().blocked }}
                       </span>
                     </div>
                   </div>
@@ -293,7 +291,7 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
 
             <!-- Failed login attempts warning -->
             <div
-              *ngIf="(failedAttempts() ?? 0) > 0"
+              *ngIf="(store.failedAttempts() ?? 0) > 0"
               class="rounded-2xl border border-warning/30 bg-warning/5 p-5 md:p-6 relative overflow-hidden"
             >
               <div class="absolute -right-6 -bottom-6 text-warning/10 pointer-events-none">
@@ -306,7 +304,7 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
                 <div class="min-w-0">
                   <p class="font-label-bold text-label-bold text-on-surface">{{ copy().failedAttempts }}</p>
                   <p class="font-body-sm text-body-sm text-outline mt-0.5">
-                    <span class="font-bold text-warning">{{ failedAttempts() }}</span>
+                    <span class="font-bold text-warning">{{ store.failedAttempts() }}</span>
                     {{ copy().failedAttemptsDesc }}
                   </p>
                 </div>
@@ -319,7 +317,6 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
   `,
 })
 export class ProfilePageComponent implements OnInit {
-  private readonly feedback = inject(UiFeedbackService);
   readonly localeService = inject(LocaleService);
   protected readonly session = inject(SessionService);
   protected readonly themeService = inject(ThemeService);
@@ -363,10 +360,6 @@ export class ProfilePageComponent implements OnInit {
 
   toggleLocale() {
     this.localeService.toggle();
-  }
-
-  openNotifications() {
-    // Placeholder — same as other pages
   }
 
   goToProfile() {

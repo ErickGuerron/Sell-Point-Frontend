@@ -14,7 +14,6 @@ import { DashboardParticlesBackgroundComponent } from '../dashboard/dashboard-pa
 import { BillflowMobileSidebarComponent } from '../../shared/components/billflow-mobile-sidebar.component';
 import { BillflowNotificationButtonComponent } from '../../shared/components/billflow-notification-button.component';
 import { BillflowUserMenuComponent } from '../../shared/components/billflow-user-menu.component';
-import { BillflowModalShellComponent } from '../../shared/components/billflow-modal-shell.component';
 import { BillflowComboboxComponent, type ComboboxOption } from '../../shared/components/billflow-combobox.component';
 import { BillflowDateRangePickerComponent } from '../../shared/components/billflow-date-range-picker.component';
 import { ProductKpiCardsComponent } from './components/product-kpi-cards.component';
@@ -44,13 +43,11 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     BillflowPageShellComponent,
     DashboardParticlesBackgroundComponent,
     BillflowMobileSidebarComponent,
     BillflowNotificationButtonComponent,
     BillflowUserMenuComponent,
-    BillflowModalShellComponent,
     BillflowComboboxComponent,
     BillflowDateRangePickerComponent,
     ProductKpiCardsComponent,
@@ -75,7 +72,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="openUserSettings()" (logout)="logout()">
+    <billflow-page-shell [items]="sidebarItems()" [locale]="locale()" (settings)="session.openUserSettings()" (logout)="session.logout()">
       <billflow-dashboard-particles-background class="app-invoice-bg"></billflow-dashboard-particles-background>
 
       <div class="flex-1 min-w-0 app-invoices-shell app-dashboard-main">
@@ -89,23 +86,19 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
               <span class="font-h3 text-h3 text-on-background">{{ copy().moduleLabel }}</span>
             </div>
 
-            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40" #userMenuPanel>
-              <billflow-notification-button (clicked)="openNotifications()"></billflow-notification-button>
+            <div class="flex items-center gap-2 ml-auto shrink-0 self-auto relative z-40">
+              <billflow-notification-button (clicked)="session.openNotifications()"></billflow-notification-button>
               <billflow-user-menu
-                [displayName]="displayName"
-                [initials]="userInitials"
-                [open]="userMenuVisible()"
-                [closing]="userMenuClosing()"
+                [displayName]="session.displayName()"
+                [initials]="session.userInitials()"
                 [showLanguageToggle]="true"
                 [languageLabel]="copy().languageToggle"
                 [settingsLabel]="copy().settings"
                 [logoutLabel]="copy().signOut"
                 [sessionLabel]="copy().sessionLabel"
-                (toggle)="toggleUserMenu($event)"
-                (close)="closeUserMenu()"
                 (languageToggle)="toggleLocale()"
-                (settings)="openUserSettings()"
-                (logout)="logout()"
+                (settings)="session.openUserSettings()"
+                (logout)="session.logout()"
               ></billflow-user-menu>
             </div>
           </div>
@@ -275,6 +268,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                   <option [value]="10">10</option>
                   <option [value]="20">20</option>
                   <option [value]="50">50</option>
+                  <option [value]="100">100</option>
                 </select>
               </div>
 
@@ -295,7 +289,7 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
                   <span class="material-symbols-outlined text-[18px]">chevron_left</span>
                 </button>
 
-                <button *ngFor="let pageNumber of visiblePages()" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
+                <button *ngFor="let pageNumber of visiblePages(); trackBy: trackByPage" type="button" class="h-9 w-9 rounded-lg text-sm font-semibold transition" [ngClass]="pageNumber === page() ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface'" (click)="goToPage(pageNumber)">
                   {{ pageNumber }}
                 </button>
 
@@ -357,8 +351,8 @@ import type { ProductsInitialData } from '../../shared/ssr-page-data';
         }
 
         <nav class="md:hidden app-dashboard-mobile-nav">
-          <a *ngFor="let item of mobileNavItems()" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
-            <span class="material-symbols-outlined" [style.font-variation-settings]="iconVariationSettings(item.active)">{{ item.icon }}</span>
+          <a *ngFor="let item of mobileNavItems(); trackBy: trackByHref" class="flex flex-col items-center justify-center w-full h-full pt-1 border-t-2 transition-colors app-dashboard-mobile-link" [href]="item.href" [ngClass]="item.active ? 'text-primary border-primary app-dashboard-mobile-link--active' : 'border-transparent'">
+            <span class="material-symbols-outlined" [style.font-variation-settings]="themeService.iconVariationSettings(item.active)">{{ item.icon }}</span>
             <span class="text-[10px] font-medium mt-1">{{ item.label }}</span>
           </a>
 
@@ -389,9 +383,6 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   private readonly permissions = inject(PermissionsService);
   private readonly keyboardShortcuts = inject(KeyboardShortcutService);
 
-  Math = Math;
-  String = String;
-  Number = Number;
   locale = this.localeService.locale;
   copy = computed(() => PRODUCTS_TEXT[this.locale()]);
 
@@ -438,7 +429,6 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   createdFrom = signal<string | null>(null);
   createdTo = signal<string | null>(null);
 
-  // Combobox options (computed from locale and categories)
   readonly statusFilterOptions = computed<ComboboxOption[]>(() => [
     { value: 'all', label: this.copy().allStatuses },
     { value: 'active', label: this.copy().active },
@@ -456,6 +446,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     { value: '10', label: '10' },
     { value: '20', label: '20' },
     { value: '50', label: '50' },
+    { value: '100', label: '100' },
   ];
 
   readonly categoryFilterOptions = computed<ComboboxOption[]>(() => [
@@ -463,11 +454,6 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     ...this.categories().map((c) => ({ value: c.id, label: c.name })),
   ]);
 
-  readonly categorySelectOptions = computed<ComboboxOption[]>(() => [
-    { value: '', label: this.copy().categorySelect },
-    ...this.categories().map((c) => ({ value: c.id, label: c.name })),
-  ]);
-  
   // Pagination
   page = signal(1);
   pageSize = signal(5);
@@ -477,65 +463,6 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   // TODO(backend): fetch these from a /products/aggregates endpoint
   activeCount = signal(0);
   lowStockCount = signal(0);
-
-  // Request management
-  private abortController: AbortController | null = null;
-  private searchTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  // User
-  displayName = 'Usuario';
-  userInitials = 'US';
-  userMenuVisible = signal(false);
-  userMenuClosing = signal(false);
-  userMenuOpen = signal(false);
-  private userMenuCloseTimeout: number | undefined;
-
-  // Modals state
-  productModalOpen = signal(false);
-  editingProduct = signal<ProductWithStockDto | null>(null);
-
-  // Form signals
-  formCode = signal('');
-  formName = signal('');
-  formDescription = signal('');
-  formSalePrice = signal<number | null>(null);
-  formCostPrice = signal<number | null>(null);
-  formInitialStock = signal<number | null>(null);
-  formCategoryId = signal('');
-
-  readonly formValid = computed(() =>
-    this.formCode().trim().length > 0 &&
-    this.formName().trim().length > 0 &&
-    this.formCategoryId().trim().length > 0 &&
-    this.formSalePrice() !== null && this.formSalePrice()! > 0 &&
-    this.formCostPrice() !== null && this.formCostPrice()! > 0
-  );
-
-  // Movements modal state
-  movementsModalOpen = signal(false);
-  selectedProductForMovements = signal<ProductWithStockDto | null>(null);
-  movements = signal<StockMovementDto[]>([]);
-  mvtLoading = signal(false);
-  mvtPage = signal(1);
-  mvtPageSize = signal(5);
-  mvtTotalCount = signal(0);
-  mvtTotalPages = computed(() => Math.max(1, Math.ceil(this.mvtTotalCount() / this.mvtPageSize())));
-
-  // Movement form state
-  mvtFormType = signal<'IN' | 'OUT' | 'ADJUST'>('IN');
-  mvtFormQuantity = signal<number | null>(null);
-  mvtFormDescription = signal('');
-  mvtFormSubmitting = signal(false);
-
-  readonly mvtFormValid = computed(() =>
-    this.mvtFormQuantity() !== null && this.mvtFormQuantity()! > 0
-  );
-
-  readonly movementTypeOptions = computed<ComboboxOption[]>(() => [
-    { value: 'IN', label: this.copy().stockTypeIn },
-    { value: 'OUT', label: this.copy().stockTypeOut },
-    { value: 'ADJUST', label: this.copy().stockTypeAdjust },
-  ]);
 
   readonly totalProducts = computed(() => this.totalProductsCount());
   readonly totalPages = computed(() => {
@@ -641,7 +568,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
 
   async loadCategories() {
     try {
-      const cats = await this.api.listCategories();
+      const cats = await this.dataSource.listCategories();
       this.categories.set(cats);
     } catch (err) {
       console.error('[load categories]', err);
@@ -649,27 +576,27 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   }
 
   async reloadProducts() {
-    // Cancel any in-flight request to prevent stale data & request pile-up
     this.abortController?.abort();
     this.abortController = new AbortController();
     const signal = this.abortController.signal;
 
     this.loading.set(true);
     try {
-      const res = await this.api.fetchProductsPage(
-        this.searchQuery(),
-        this.categoryFilter(),
-        this.statusFilter(),
-        this.page(),
-        this.pageSize(),
-        signal
-      );
+      const filters: ProductFilters = {
+        query: this.searchQuery(),
+        searchField: this.searchField(),
+        categoryId: this.categoryFilter(),
+        isActive: this.statusFilter(),
+        page: this.page(),
+        limit: this.pageSize(),
+      };
+      const res = await this.getProductsUseCase.execute(filters, signal);
       this.products.set(res.data);
       this.totalProductsCount.set(res.total);
       this.totalPagesFromResponse.set(res.totalPages);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        return; // Silently ignore cancelled requests
+        return;
       }
       console.error('[reload products]', err);
       await this.feedback.alert('error',
@@ -696,7 +623,6 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     this.searchQuery.set(value);
     this.page.set(1);
 
-    // Debounce: wait for the user to stop typing before fetching
     if (this.searchTimeout) clearTimeout(this.searchTimeout);
     this.searchTimeout = setTimeout(() => void this.reloadProducts(), 350);
   }
@@ -729,7 +655,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     void this.reloadProducts();
   }
 
-  // ── Pagination ────────────────────────────────────────────────────────────
+  // ─── Pagination ────────────────────────────────────────────────────────────
   nextPage() {
     if (this.page() < this.totalPages()) {
       this.page.update((v) => v + 1);
@@ -749,13 +675,13 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     void this.reloadProducts();
   }
 
-  // ── Theme & locale ────────────────────────────────────────────────────────
-  toggleTheme() {
-    const next = this.theme() === 'dark' ? 'light' : 'dark';
-    this.theme.set(next);
-    this.persistTheme(next);
+  goToPageFromInput(event: Event) {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    if (!Number.isFinite(value) || value < 1 || value > this.totalPages()) return;
+    this.goToPage(value);
   }
 
+  // ─── Theme & locale ────────────────────────────────────────────────────────
   toggleLocale() {
     this.localeService.toggle();
   }
@@ -805,27 +731,10 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     try {
       const editing = this.editingProduct();
       if (editing) {
-        const payload = {
-          categoryId: this.formCategoryId(),
-          code: this.formCode(),
-          name: this.formName(),
-          description: this.formDescription().trim() || undefined,
-          salePrice: Number(this.formSalePrice()),
-          costPrice: Number(this.formCostPrice()),
-        };
-        await this.api.updateProduct(editing.id, payload);
+        await this.updateProductUseCase.execute(editing.id, payload as UpdateProductPayload);
         await this.feedback.toast('success', this.copy().updatedToast);
       } else {
-        const payload: CreateProductPayload = {
-          categoryId: this.formCategoryId(),
-          code: this.formCode(),
-          name: this.formName(),
-          description: this.formDescription().trim() || undefined,
-          salePrice: Number(this.formSalePrice()),
-          costPrice: Number(this.formCostPrice()),
-          initialStock: this.formInitialStock() !== null ? Number(this.formInitialStock()) : 0,
-        };
-        await this.api.createProduct(payload);
+        await this.createProductUseCase.execute(payload as CreateProductPayload);
         await this.feedback.toast('success', this.copy().createdToast);
       }
       this.closeProductModal();
@@ -842,8 +751,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Logical activation/deactivation */
-  async toggleActive(product: ProductWithStockDto) {
+  async toggleActive(product: ProductEntity) {
     const isActive = product.isActive;
     const confirmed = await this.feedback.confirm(
       isActive ? this.copy().confirmDeactivateTitle : this.copy().confirmActivateTitle,
@@ -854,7 +762,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     if (!confirmed) return;
 
     try {
-      await this.api.toggleProductActive(product.id, isActive);
+      await this.toggleProductActiveUseCase.execute(product.id, isActive);
       const msg = isActive ? this.copy().toggledInactive : this.copy().toggledActive;
       await this.feedback.toast('success', msg);
       await this.reloadProducts();
@@ -866,8 +774,8 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Stock Movements Modal ──────────────────────────────────────────────────
-  openMovementsModal(product: ProductWithStockDto) {
+  // ─── Stock Movements Modal ──────────────────────────────────────────────────
+  openMovementsModal(product: ProductEntity) {
     this.selectedProductForMovements.set(product);
     this.movements.set([]);
     this.mvtPage.set(1);
@@ -888,7 +796,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
 
     this.mvtLoading.set(true);
     try {
-      const res = await this.api.getProductMovements(product.id, this.mvtPage(), this.mvtPageSize());
+      const res = await this.getProductMovementsUseCase.execute(product.id, this.mvtPage(), this.mvtPageSize());
       this.movements.set(res.data);
       this.mvtTotalCount.set(res.total);
       this.mvtTotalPagesFromResponse.set(res.totalPages);
@@ -913,40 +821,23 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  onMvtQuantityInput(raw: string) {
-    // Strip everything except digits
-    const cleaned = raw.replace(/\D/g, '');
-    this.mvtFormQuantity.set(cleaned ? Number(cleaned) : null);
-  }
-
-  async submitMovement() {
-    if (!this.mvtFormValid() || this.mvtFormSubmitting()) return;
-
+  async handleAdjustStock(payload: StockAdjustmentPayload) {
     const product = this.selectedProductForMovements();
     if (!product) return;
 
     this.mvtFormSubmitting.set(true);
     try {
-      const payload: AdjustStockPayload = {
-        type: this.mvtFormType(),
-        quantity: Number(this.mvtFormQuantity()),
-        description: this.mvtFormDescription().trim() || '',
-      };
-      await this.api.adjustStock(product.id, payload);
+      await this.adjustStockUseCase.execute(product.id, payload);
       await this.feedback.toast('success', this.copy().stockAdjustSuccess);
 
-      // Reset form
-      this.mvtFormType.set('IN');
-      this.mvtFormQuantity.set(null);
-      this.mvtFormDescription.set('');
-
-      // Reload movements and refresh product list
+      // Reset movement form and reload
+      this.resetFormTrigger.update(v => v + 1);
       this.mvtPage.set(1);
       await this.loadMovements();
       await this.reloadProducts();
       void this.reloadKpis();
     } catch (err) {
-      console.error('[submitMovement]', err);
+      console.error('[handleAdjustStock]', err);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.toLowerCase().includes('insufficient')) {
         await this.feedback.toast('error', this.copy().stockInsufficient);
@@ -958,17 +849,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // ── Helper methods ─────────────────────────────────────────────────────────
-  iconVariationSettings(active = false) {
-    return active ? "'FILL' 1" : "'FILL' 0";
-  }
-
-  currentThemeLabel() {
-    return this.locale() === 'es'
-      ? (this.theme() === 'dark' ? 'Modo oscuro' : 'Modo claro')
-      : (this.theme() === 'dark' ? 'Dark mode' : 'Light mode');
-  }
-
+  // ─── Helper methods ─────────────────────────────────────────────────────────
   visibleRangeStart() {
     if (this.products().length === 0) return 0;
     return (this.page() - 1) * this.pageSize() + 1;
@@ -976,55 +857,5 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
 
   visibleRangeEnd() {
     return Math.min(this.totalProductsCount(), this.page() * this.pageSize());
-  }
-
-  formatMoney(value: number) {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number.isFinite(Number(value)) ? Number(value) : 0);
-  }
-
-  formatDateTime(isoString: string): string {
-    if (!isoString) return '—';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString(this.locale() === 'es' ? 'es-PY' : 'en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return isoString;
-    }
-  }
-
-  // ── Private ───────────────────────────────────────────────────────────────
-  private applyStoredUser() {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return;
-      const session = JSON.parse(raw) as { id?: string; employeeId?: string; email?: string; role?: string; user?: { name?: string; firstName?: string; fullName?: string } };
-      const candidate = session.employeeId || session.id || session.email?.split('@')[0] || session.user?.fullName || session.user?.name || session.user?.firstName || 'Usuario';
-      this.displayName = candidate === 'Usuario' ? candidate : candidate.toUpperCase();
-      if (candidate !== 'Usuario') {
-        this.userInitials = candidate.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '').join('');
-      } else { this.userInitials = 'US'; }
-    } catch { this.displayName = 'Usuario'; this.userInitials = 'US'; }
-  }
-
-  private applyStoredTheme() {
-    if (typeof window === 'undefined') return;
-    const stored = window.localStorage.getItem('billflow-theme');
-    const prefersDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
-    const next = stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light';
-    this.theme.set(next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
-  }
-
-  private persistTheme(next: 'light' | 'dark') {
-    if (typeof window === 'undefined') return;
-    window.localStorage.setItem('billflow-theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
   }
 }
