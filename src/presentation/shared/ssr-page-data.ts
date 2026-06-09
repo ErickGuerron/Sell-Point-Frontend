@@ -20,7 +20,7 @@ import { toProfileEntity } from '../features/profile/data/profile.mapper';
 import type { ProfileRawDto } from '../features/profile/data/profile.dto';
 import type { EmployeeRowDto, RoleDto } from '../features/employees/employee-api.service';
 import type { AuditLogEntry, AuditSummary } from '../features/audit/domain/audit.entity';
-import { mapAuditEntry, mapAuditSummary } from '../features/audit/data/audit.dto';
+import { mapAuditEntry, mapAuditListResponse, mapAuditSummary } from '../features/audit/data/audit.dto';
 import type { AuditListResponseDto, AuditSummaryApiDto } from '../features/audit/data/audit.dto';
 
 // ── Role constants (must match PermissionsService) ─────────────────────────────
