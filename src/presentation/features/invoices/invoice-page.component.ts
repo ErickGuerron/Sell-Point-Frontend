@@ -77,6 +77,7 @@ interface InvoiceCopy {
   sidebarCustomers: string;
   sidebarProducts: string;
   sidebarEmployees: string;
+  sidebarAudit: string;
   sidebarInventory: string;
   sidebarReports: string;
   noInvoicesTitle: string;
@@ -154,6 +155,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     sidebarCustomers: 'Clientes',
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
+    sidebarAudit: 'Auditoría',
     sidebarInventory: 'Inventario',
     sidebarReports: 'Reportes',
     noInvoicesTitle: 'No hay facturas',
@@ -229,6 +231,7 @@ const INVOICE_TEXT: Record<InvoiceLocale, InvoiceCopy> = {
     sidebarCustomers: 'Customers',
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
+    sidebarAudit: 'Audit',
     sidebarInventory: 'Inventory',
     sidebarReports: 'Reports',
     noInvoicesTitle: 'No invoices found',
@@ -724,6 +727,7 @@ export class InvoicePageComponent implements OnInit, OnDestroy {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
+    audit: this.copy().sidebarAudit,
   }, 'invoices', this.permissions));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {

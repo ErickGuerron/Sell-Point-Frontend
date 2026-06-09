@@ -65,6 +65,9 @@ export const PERMISSIONS = {
   USERS_READ: 'users:read',
   USERS_UPDATE: 'users:update',
   USERS_UNLOCK: 'users:unlock',
+
+  // Audit logs — ADMIN only
+  AUDIT_LOGS_READ: 'audit-logs:read',
 } as const;
 
 export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
@@ -223,7 +226,7 @@ export class PermissionsService {
     const role = this.currentRole;
 
     // Admin-only routes
-    const adminRoutes = ['/employees', '/roles'];
+    const adminRoutes = ['/employees', '/roles', '/audit'];
     if (adminRoutes.some((r) => path.startsWith(r))) {
       return role === PermissionsService.ROLE_ADMIN;
     }
@@ -242,7 +245,7 @@ export class PermissionsService {
     if (!role) return ['/dashboard'];
 
     if (role === PermissionsService.ROLE_ADMIN) {
-      return ['/dashboard', '/invoices', '/products', '/customers', '/employees', '/categories'];
+      return ['/dashboard', '/invoices', '/products', '/customers', '/employees', '/categories', '/audit'];
     }
 
     // VENDEDOR, CAJERO, BODEGA — no employees page

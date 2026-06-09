@@ -72,6 +72,7 @@ interface EmployeesCopy {
   sidebarCustomers: string;
   sidebarProducts: string;
   sidebarEmployees: string;
+  sidebarAudit: string;
   sidebarCategories: string;
   signOut: string;
   settings: string;
@@ -164,6 +165,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     sidebarCustomers: 'Clientes',
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
+    sidebarAudit: 'Auditoría',
     sidebarCategories: 'Categorías',
     signOut: 'Cerrar sesión',
     settings: 'Configuración',
@@ -253,6 +255,7 @@ const EMPLOYEES_TEXT: Record<EmployeesLocale, EmployeesCopy> = {
     sidebarCustomers: 'Customers',
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
+    sidebarAudit: 'Audit',
     sidebarCategories: 'Categories',
     signOut: 'Sign out',
     settings: 'Settings',
@@ -614,6 +617,7 @@ export class EmployeesPageComponent implements OnInit, OnDestroy {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
+    audit: this.copy().sidebarAudit,
   }, 'employees', this.permissions));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {

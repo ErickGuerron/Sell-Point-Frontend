@@ -622,6 +622,7 @@ export class ProfilePageComponent implements OnInit {
         products: this.copy().sidebarProducts,
         customers: this.copy().sidebarCustomers,
         employees: this.copy().sidebarEmployees,
+        audit: this.copy().sidebarAudit,
       },
       'dashboard',
       this.permissions,

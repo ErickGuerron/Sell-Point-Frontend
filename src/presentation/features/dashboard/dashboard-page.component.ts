@@ -79,6 +79,7 @@ interface DashboardCopy {
   sidebarProducts: string;
   sidebarCustomers: string;
   sidebarEmployees: string;
+  sidebarAudit: string;
   mobileHome: string;
   mobileMore: string;
   newSale: string;
@@ -153,6 +154,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     sidebarProducts: 'Productos',
     sidebarCustomers: 'Clientes',
     sidebarEmployees: 'Empleados',
+    sidebarAudit: 'Auditoría',
     mobileHome: 'Inicio',
     mobileMore: 'Más',
     newSale: 'Nueva Venta',
@@ -225,6 +227,7 @@ const DASHBOARD_TEXT: Record<DashboardLocale, DashboardCopy> = {
     sidebarProducts: 'Products',
     sidebarCustomers: 'Customers',
     sidebarEmployees: 'Employees',
+    sidebarAudit: 'Audit',
     mobileHome: 'Home',
     mobileMore: 'More',
     newSale: 'New Sale',
@@ -601,6 +604,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     products: this.copy().sidebarProducts,
     customers: this.copy().sidebarCustomers,
     employees: this.copy().sidebarEmployees,
+    audit: this.copy().sidebarAudit,
   }, 'dashboard', this.permissions));
 
   readonly mobileNavItems = computed<DashboardNavItem[]>(() => {

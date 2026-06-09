@@ -48,6 +48,7 @@ export interface CategoriesCopy {
   sidebarProducts: string;
   sidebarEmployees: string;
   sidebarCategories: string;
+  sidebarAudit: string;
   signOut: string;
   settings: string;
   notifications: string;
@@ -104,6 +105,7 @@ export const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
     sidebarCategories: 'Categorías',
+    sidebarAudit: 'Auditoría',
     signOut: 'Cerrar sesión',
     settings: 'Configuración',
     notifications: 'Notificaciones',
@@ -158,6 +160,7 @@ export const CATEGORIES_TEXT: Record<CategoriesLocale, CategoriesCopy> = {
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
     sidebarCategories: 'Categories',
+    sidebarAudit: 'Audit',
     signOut: 'Sign out',
     settings: 'Settings',
     notifications: 'Notifications',

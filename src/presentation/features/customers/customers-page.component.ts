@@ -245,6 +245,7 @@ export class CustomersPageComponent implements OnInit, OnDestroy {
     customers: this.copy().sidebarCustomers,
     products: this.copy().sidebarProducts,
     employees: this.copy().sidebarEmployees,
+    audit: this.copy().sidebarAudit,
   }, 'customers', this.permissions));
 
   readonly mobileNavItems = computed<BillflowSidebarItem[]>(() => {

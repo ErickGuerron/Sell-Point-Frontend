@@ -47,6 +47,7 @@ export interface ProductsCopy {
   sidebarProducts: string;
   sidebarEmployees: string;
   sidebarCategories: string;
+  sidebarAudit: string;
   signOut: string;
   settings: string;
   notifications: string;
@@ -156,6 +157,7 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
     sidebarCategories: 'Categorías',
+    sidebarAudit: 'Auditoría',
     signOut: 'Cerrar sesión',
     settings: 'Configuración',
     notifications: 'Notificaciones',
@@ -258,6 +260,7 @@ export const PRODUCTS_TEXT: Record<ProductsLocale, ProductsCopy> = {
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
     sidebarCategories: 'Categories',
+    sidebarAudit: 'Audit',
     signOut: 'Sign out',
     settings: 'Settings',
     notifications: 'Notifications',
