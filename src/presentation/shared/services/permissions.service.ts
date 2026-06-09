@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { AuthIdentityStore } from '../auth/auth-identity.store';
 
 export const PERMISSIONS = {
   // Employee management — ADMIN only
@@ -73,6 +74,8 @@ export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS];
 
 @Injectable({ providedIn: 'root' })
 export class PermissionsService {
+  private readonly authIdentityStore = inject(AuthIdentityStore);
+
   // ── Role constants ──────────────────────────────────────────────
   static readonly ROLE_ADMIN = 'ADMIN';
   static readonly ROLE_VENDEDOR = 'VENDEDOR';
@@ -149,27 +152,18 @@ export class PermissionsService {
 
   // ── Current user ────────────────────────────────────────────────
   /**
-   * Returns the current user's role from the stored session.
-   * Falls back to 'user' object nested structure from /auth/me response.
+   * Returns the current user's role from the in-memory identity store.
+   * The store is populated by `AuthHttpService.fetchAndStoreIdentity()`
+   * on login / first authenticated call and is hydrated from
+   * `localStorage` (non-secret fields only) on boot.
    */
   get currentRole(): string | undefined {
     if (typeof window === 'undefined') return undefined;
-
-    try {
-      const raw = window.localStorage.getItem('billflow-session');
-      if (!raw) return undefined;
-
-      const session = JSON.parse(raw) as {
-        role?: string;
-        user?: { role?: string };
-        [key: string]: unknown;
-      };
-
-      // Top-level role first, then nested user.role
-      return session.role ?? session.user?.role;
-    } catch {
-      return undefined;
-    }
+    const identity = this.authIdentityStore.get();
+    const role = identity.role;
+    if (role) return role;
+    const inner = identity.user as { role?: string } | undefined;
+    return inner?.role;
   }
 
   // ── Role checks ──────────────────────────────────────────────────

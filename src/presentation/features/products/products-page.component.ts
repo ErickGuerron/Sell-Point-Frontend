@@ -514,7 +514,7 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   private hasInitialData = false;
 
   @Input() set initialData(value: ProductsInitialData | null | undefined) {
-    if (!value) return;
+    if (!value || value.isAuthenticated === false) return;
     this.hasInitialData = true;
     this.products.set(value.products);
     this.categories.set(value.categories);
@@ -538,12 +538,17 @@ export class ProductsPageComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     this.themeService.init();
     this.session.init();
-    this.keyboardShortcuts.register(
-      { keys: 'n', descriptionEn: 'New Product', descriptionEs: 'Nuevo Producto', category: 'actions', permission: PERMISSIONS.PRODUCTS_CREATE, action: () => { void this.openCreateModal(); } },
-      { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadProducts(); } },
-      { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
-    );
+
     if (typeof window !== 'undefined') {
+      const restored = await this.session.restoreSession();
+      if (!restored) return;
+
+      this.keyboardShortcuts.register(
+        { keys: 'n', descriptionEn: 'New Product', descriptionEs: 'Nuevo Producto', category: 'actions', permission: PERMISSIONS.PRODUCTS_CREATE, action: () => { void this.openCreateModal(); } },
+        { keys: 'r', descriptionEn: 'Refresh list', descriptionEs: 'Actualizar lista', category: 'actions', action: () => { void this.reloadProducts(); } },
+        { keys: '/', descriptionEn: 'Focus search', descriptionEs: 'Buscar', category: 'actions', action: () => this.focusSearch() },
+      );
+
       document.documentElement.lang = this.locale();
       if (this.hasInitialData) return;
       await this.loadCategories();
