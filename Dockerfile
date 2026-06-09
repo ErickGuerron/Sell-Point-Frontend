@@ -38,31 +38,47 @@ COPY public/ ./public/
 RUN npm run build
 
 # ============================================
-# Stage 2: Node SSR + Nginx reverse proxy
+# Stage 2: Node SSR + Nginx reverse proxy in one container
 # ============================================
-# Astro builds with `output: 'server'` and the @astrojs/node adapter,
-# which produces a Node SSR bundle at dist/server/entry.mjs. nginx is
-# used as a reverse proxy:
-#   - /api/* and /auth/* → BACKEND_URL (NestJS)
-#   - everything else    → Node SSR on :3000
+# This stage uses a minimal Alpine image with both Node and nginx:
+#   - Node SSR runs in the background (started by the entrypoint) on :3000
+#   - nginx serves as reverse proxy on :80:
+#       - /api/* and /auth/*  → NestJS backend (BACKEND_URL)
+#       - everything else     → Node SSR upstream (127.0.0.1:3000)
+# This way the container exposes a single :80 port and the browser sees
+# one origin (the container), keeping the auth-cookie-refresh contract
+# intact (SameSite=Strict works because everything is same-origin).
 # ============================================
-FROM node:22-alpine AS node-ssr
+FROM alpine:3.20 AS production
+
+# Install Node 22 and nginx + envsubst (not in nginx:alpine by default).
+RUN apk add --no-cache nodejs=~22 npm bash nginx gettext \
+    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
 WORKDIR /app
 
-# Copy the Astro SSR bundle from the builder.
-# node_modules are also needed because entry.mjs imports from there.
+# Astro SSR bundle and dependencies.
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-ENV HOST=0.0.0.0
-ENV PORT=3000
+# nginx config. We bake the upstream block into the config directly
+# (no envsubst needed) so BACKEND_URL is the only variable.
+RUN rm -f /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
 
-EXPOSE 3000
+# Entrypoint that:
+#   1. Generates config.json with the Firebase runtime values.
+#   2. Substitutes ${BACKEND_URL} into the nginx template.
+#   3. Starts Node SSR in the background.
+#   4. Starts nginx in the foreground.
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-# Healthcheck hits the Node SSR — nginx isn't on the network yet.
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+EXPOSE 80
 
-CMD ["node", "./dist/server/entry.mjs"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
