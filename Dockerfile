@@ -38,25 +38,49 @@ COPY public/ ./public/
 RUN npm run build
 
 # ============================================
-# Stage 2: Nginx
+# Stage 2: Node SSR + Nginx reverse proxy in one container
 # ============================================
-FROM nginx:1.27-alpine AS production
+# This stage uses a minimal Alpine image with both Node and nginx:
+#   - Node SSR runs in the background (started by the entrypoint) on :3000
+#   - nginx serves as reverse proxy on :80:
+#       - /api/* and /auth/*  → NestJS backend (BACKEND_URL)
+#       - everything else     → Node SSR upstream (127.0.0.1:3000)
+# This way the container exposes a single :80 port and the browser sees
+# one origin (the container), keeping the auth-cookie-refresh contract
+# intact (SameSite=Strict works because everything is same-origin).
+# ============================================
+FROM node:22-alpine AS production
 
-RUN rm /etc/nginx/conf.d/default.conf
+# Install nginx + envsubst on top of the official Node 22 alpine image.
+# We keep the Node 22 guarantee from the official image and layer nginx
+# for the reverse proxy.
+RUN apk add --no-cache nginx gettext \
+    && ln -sf /dev/stdout /var/log/nginx/access.log \
+    && ln -sf /dev/stderr /var/log/nginx/error.log
 
-# Copiar el template de nginx (con variables sin substituir)
-COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
+WORKDIR /app
 
-# Copiar el entrypoint que substituye variables
+# Astro SSR bundle and dependencies.
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+
+# nginx config. We bake the upstream block into the config directly
+# (no envsubst needed) so BACKEND_URL is the only variable.
+RUN rm -f /etc/nginx/http.d/default.conf
+COPY nginx.conf /etc/nginx/http.d/nginx.conf.template
+
+# Entrypoint that:
+#   1. Generates config.json with the Firebase runtime values.
+#   2. Substitutes ${BACKEND_URL} into the nginx template.
+#   3. Starts Node SSR in the background.
+#   4. Starts nginx in the foreground.
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-# chown only the files we actually need
-COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
-
 EXPOSE 80
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
