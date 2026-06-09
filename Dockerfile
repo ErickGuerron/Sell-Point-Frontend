@@ -38,25 +38,31 @@ COPY public/ ./public/
 RUN npm run build
 
 # ============================================
-# Stage 2: Nginx
+# Stage 2: Node SSR + Nginx reverse proxy
 # ============================================
-FROM nginx:1.27-alpine AS production
+# Astro builds with `output: 'server'` and the @astrojs/node adapter,
+# which produces a Node SSR bundle at dist/server/entry.mjs. nginx is
+# used as a reverse proxy:
+#   - /api/* and /auth/* → BACKEND_URL (NestJS)
+#   - everything else    → Node SSR on :3000
+# ============================================
+FROM node:22-alpine AS node-ssr
 
-RUN rm /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-# Copiar el template de nginx (con variables sin substituir)
-COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
+# Copy the Astro SSR bundle from the builder.
+# node_modules are also needed because entry.mjs imports from there.
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
 
-# Copiar el entrypoint que substituye variables
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
+ENV HOST=0.0.0.0
+ENV PORT=3000
 
-# chown only the files we actually need
-COPY --from=builder --chown=nginx:nginx /app/dist /usr/share/nginx/html
+EXPOSE 3000
 
-EXPOSE 80
+# Healthcheck hits the Node SSR — nginx isn't on the network yet.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
-
-ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["node", "./dist/server/entry.mjs"]
