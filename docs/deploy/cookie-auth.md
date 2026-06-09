@@ -140,6 +140,10 @@ the same origin so the cookie travels automatically.
 }
 ```
 
+> **Note**: the destination host is the **backend's public URL**
+> (e.g. `https://sell-point-pdsw.onrender.com`). It is NOT the
+> Vercel domain — Vercel would loop the request back to itself.
+
 ### `astro.config.mjs` (already wired in dev)
 
 The same Vite proxy that we use in dev is harmless in prod (Vite
@@ -154,6 +158,33 @@ server: {
   },
 },
 ```
+
+### Vercel project environment variables
+
+Vercel sets a few env vars automatically. The ones that need to be
+set manually are listed below.
+
+| Variable | Scope | Value | Why |
+|---|---|---|---|
+| `SSR_API_URL` | Production, Preview | `https://sell-point-pdsw.onrender.com` (your backend's public URL) | The Astro serverless function runs server-side during SSR. It cannot reach `localhost:3001` (the backend is on Render, not on Vercel's network). `resolveApiBaseUrl()` checks this var first when running SSR and falls back to `PUBLIC_API_URL` / `localhost:3001` otherwise. |
+| `PUBLIC_API_URL` | Production, Preview | `/api` (relative) | Used by the browser-side fetch layer. Always relative so the browser stays on the Vercel origin and the Vercel rewrites handle the proxy. |
+
+You can set these from the Vercel Dashboard → Project → Settings →
+Environment Variables, or via the Vercel CLI
+[`vercel env add`](https://vercel.com/docs/cli/env).
+
+**Without `SSR_API_URL`**: the SSR step (`getAccessTokenForRequest`,
+`fetchJsonWithAuth`) calls `fetch('http://localhost:3001/...')` which
+returns `ECONNREFUSED` inside the serverless function. The page
+responds with 500 Internal Server Error and the user sees a blank
+dashboard after login. This is the most common deploy-time failure
+mode for this change.
+
+**With `SSR_API_URL`**: the SSR fetch goes to your backend over HTTPS,
+the backend issues an access token, and the page renders with data.
+The browser-side flow is unaffected because the browser uses
+`PUBLIC_API_URL` (always relative), which the Vercel rewrites forward
+to the backend.
 
 ### What this gets you
 
