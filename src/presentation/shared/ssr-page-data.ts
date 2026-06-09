@@ -21,7 +21,7 @@ import type { ProfileRawDto } from '../features/profile/data/profile.dto';
 import type { EmployeeRowDto, RoleDto } from '../features/employees/employee-api.service';
 import type { AuditLogEntry, AuditSummary } from '../features/audit/domain/audit.entity';
 import { mapAuditEntry, mapAuditSummary } from '../features/audit/data/audit.dto';
-import type { AuditListResponseDto, AuditSummaryDto } from '../features/audit/data/audit.dto';
+import type { AuditListResponseDto, AuditSummaryApiDto } from '../features/audit/data/audit.dto';
 
 // ── Role constants (must match PermissionsService) ─────────────────────────────
 const ROLE_ADMIN = 'ADMIN';
@@ -525,9 +525,10 @@ export interface AuditInitialData {
 
 export async function loadAuditInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<AuditInitialData> {
   void locale;
+  const token = await getAccessTokenForRequest(astro);
   const [entriesResponse, summaryResponse] = await Promise.all([
-    fetchJsonWithAuth<AuditListResponseDto>(astro, '/audit?page=1&limit=5'),
-    fetchJsonWithAuth<AuditSummaryDto>(astro, '/audit/summary'),
+    fetchJsonWithAuth<AuditListResponseDto>(astro, '/audit?page=1&limit=5', {}, token),
+    fetchJsonWithAuth<AuditSummaryApiDto>(astro, '/audit/summary', {}, token),
   ]);
 
   const mapped = entriesResponse ? mapAuditListResponse(entriesResponse) : { data: [], total: 0, page: 1, limit: 5, totalPages: 0 };

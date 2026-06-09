@@ -3,7 +3,7 @@ import { AuthHttpService } from '../../shared/services/auth-http.service';
 import { resolveApiBaseUrl } from '../../shared/services/api-base';
 import type { AuditLogEntry, AuditFilters } from './domain/audit.entity';
 import { mapAuditEntry, mapAuditListResponse, mapAuditSummary } from './data/audit.dto';
-import type { AuditEntryDto, AuditListResponseDto, AuditSummaryDto } from './data/audit.dto';
+import type { AuditEntryDto, AuditListResponseDto, AuditSummaryApiDto } from './data/audit.dto';
 
 const API_BASE_URL = resolveApiBaseUrl();
 
@@ -21,12 +21,12 @@ export class AuditApiService {
     const search = new URLSearchParams();
     search.set('page', String(filters.page));
     search.set('limit', String(filters.limit));
-    if (filters.tableName?.trim()) search.set('table_name', filters.tableName.trim());
+    if (filters.tableName?.trim()) search.set('tableName', filters.tableName.trim());
     if (filters.action?.trim()) search.set('action', filters.action.trim());
-    if (filters.userId?.trim()) search.set('user_id', filters.userId.trim());
-    if (filters.recordId?.trim()) search.set('record_id', filters.recordId.trim());
-    if (filters.dateFrom) search.set('date_from', filters.dateFrom);
-    if (filters.dateTo) search.set('date_to', filters.dateTo);
+    if (filters.userId?.trim()) search.set('userId', filters.userId.trim());
+    if (filters.recordId?.trim()) search.set('recordId', filters.recordId.trim());
+    if (filters.dateFrom) search.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo) search.set('dateTo', filters.dateTo);
 
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/audit?${search.toString()}`);
     if (!response.ok) throw new Error(`Audit list failed: ${response.status}`);
@@ -44,7 +44,7 @@ export class AuditApiService {
   async getSummary(): Promise<{ actionsToday: number; activeUsers: number; topModifiedEntity: string }> {
     const response = await this.authHttp.fetchWithRefresh(`${API_BASE_URL}/audit/summary`);
     if (!response.ok) throw new Error(`Audit summary failed: ${response.status}`);
-    const body = (await response.json()) as AuditSummaryDto;
+    const body = (await response.json()) as AuditSummaryApiDto;
     return mapAuditSummary(body);
   }
 }
