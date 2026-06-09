@@ -14,6 +14,7 @@ export interface CustomersCopy {
   sidebarCustomers: string;
   sidebarProducts: string;
   sidebarEmployees: string;
+  sidebarAudit: string;
   searchPlaceholder: string;
   newCustomer: string;
   name: string;
@@ -88,6 +89,7 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     sidebarCustomers: 'Clientes',
     sidebarProducts: 'Productos',
     sidebarEmployees: 'Empleados',
+    sidebarAudit: 'Auditoría',
     searchPlaceholder: 'Buscar clientes...',
     newCustomer: 'Nuevo Cliente',
     name: 'Nombre',
@@ -158,6 +160,7 @@ export const CUSTOMERS_TEXT: Record<CustomersLocale, CustomersCopy> = {
     sidebarCustomers: 'Customers',
     sidebarProducts: 'Products',
     sidebarEmployees: 'Employees',
+    sidebarAudit: 'Audit',
     searchPlaceholder: 'Search customers...',
     newCustomer: 'New Customer',
     name: 'Name',

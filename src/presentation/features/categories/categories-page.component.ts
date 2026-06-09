@@ -365,6 +365,7 @@ export class CategoriesPageComponent implements OnInit, OnDestroy {
         customers: this.copy().sidebarCustomers,
         employees: this.copy().sidebarEmployees,
         categories: this.copy().sidebarCategories,
+        audit: this.copy().sidebarAudit,
       },
       'categories',
       this.permissions,

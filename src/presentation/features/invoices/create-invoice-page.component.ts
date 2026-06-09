@@ -284,6 +284,7 @@ export class CreateInvoicePageComponent implements OnInit, OnDestroy {
         products:   isEs ? 'Productos'  : 'Products',
         customers:  isEs ? 'Clientes'   : 'Customers',
         employees:  isEs ? 'Empleados'  : 'Employees',
+        audit:      isEs ? 'Auditoría'  : 'Audit',
       },
       'invoices',
       this.permissions,

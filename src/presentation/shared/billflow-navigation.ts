@@ -1,7 +1,7 @@
 import type { BillflowSidebarItem } from './components/billflow-sidebar.component';
 import { PermissionsService, PERMISSIONS } from './services/permissions.service';
 
-export type BillflowNavigationSection = 'dashboard' | 'invoices' | 'products' | 'customers' | 'employees' | 'categories';
+export type BillflowNavigationSection = 'dashboard' | 'invoices' | 'products' | 'customers' | 'employees' | 'categories' | 'audit';
 
 export interface BillflowNavigationLabels {
   dashboard: string;
@@ -10,6 +10,7 @@ export interface BillflowNavigationLabels {
   customers: string;
   employees: string;
   categories?: string;
+  audit?: string;
 }
 
 /**
@@ -36,6 +37,11 @@ export function buildBillflowSidebarItems(
   // Only ADMIN can see the Employees section
   if (!permissions || permissions.hasPermission(PERMISSIONS.EMPLOYEES_READ)) {
     items.push({ label: labels.employees, icon: 'badge', href: '/employees', active: active === 'employees' });
+  }
+
+  // Audit — ADMIN only (AUDIT_LOGS_READ)
+  if (labels.audit && (!permissions || permissions.hasPermission(PERMISSIONS.AUDIT_LOGS_READ))) {
+    items.push({ label: labels.audit, icon: 'assignment', href: '/audit', active: active === 'audit' });
   }
 
   // Categories is visible to all roles that can read categories

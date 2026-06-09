@@ -32,6 +32,7 @@ export interface ProfileCopy {
   sidebarProducts: string;
   sidebarCustomers: string;
   sidebarEmployees: string;
+  sidebarAudit: string;
   signOut: string;
   settings: string;
   notifications: string;
@@ -103,6 +104,7 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     sidebarProducts: 'Productos',
     sidebarCustomers: 'Clientes',
     sidebarEmployees: 'Empleados',
+    sidebarAudit: 'Auditoría',
     signOut: 'Cerrar sesión',
     settings: 'Configuración',
     notifications: 'Notificaciones',
@@ -172,6 +174,7 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     sidebarProducts: 'Products',
     sidebarCustomers: 'Customers',
     sidebarEmployees: 'Employees',
+    sidebarAudit: 'Audit',
     signOut: 'Sign out',
     settings: 'Settings',
     notifications: 'Notifications',
