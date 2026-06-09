@@ -15,6 +15,7 @@ describe('ProfileStore', () => {
     id: '1',
     name: 'Test User',
     email: 'test@example.com',
+    cedula: '1234567890',
     role: 'admin',
     isActive: true,
     failedLoginAttempts: 0,
@@ -23,7 +24,7 @@ describe('ProfileStore', () => {
   };
 
   beforeEach(() => {
-    mockRepository = jasmine.createSpyObj<ProfileRepository>('ProfileRepository', ['getProfile']);
+    mockRepository = jasmine.createSpyObj<ProfileRepository>('ProfileRepository', ['getProfile', 'updateProfile']);
     mockGoogleAuth = jasmine.createSpyObj<GoogleAuthService>('GoogleAuthService', ['signIn', 'requestIdToken']);
     mockAuthHttp = jasmine.createSpyObj<AuthHttpService>('AuthHttpService', ['fetchWithRefresh']);
 

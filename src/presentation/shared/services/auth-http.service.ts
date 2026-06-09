@@ -15,6 +15,7 @@ export interface AuthMeResponse {
   fullName?: string;
   name?: string;
   email?: string;
+  cedula?: string;
   role?: string;
   theme?: string;
   user?: {
@@ -25,9 +26,16 @@ export interface AuthMeResponse {
     fullName?: string;
     name?: string;
     email?: string;
+    cedula?: string;
     role?: string;
     theme?: string;
   };
+}
+
+export interface ChangePasswordPayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }
 
 interface RefreshResponse {
@@ -158,6 +166,19 @@ export class AuthHttpService {
     }
   }
 
+  async changePassword(payload: ChangePasswordPayload): Promise<{ success: boolean }> {
+    const response = await this.fetchWithRefresh(`${this.apiBase}/auth/me/password`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(await this.readErrorMessage(response));
+    }
+
+    return (await response.json()) as { success: boolean };
+  }
+
   private buildHeaders(inputHeaders: HeadersInit | undefined): Headers {
     const headers = new Headers(inputHeaders ?? {});
     if (!headers.has('Content-Type')) {
@@ -168,5 +189,18 @@ export class AuthHttpService {
       headers.set('Authorization', `Bearer ${token}`);
     }
     return headers;
+  }
+
+  private async readErrorMessage(response: Response): Promise<string> {
+    const text = await response.text().catch(() => '');
+    if (!text) return `Request failed: ${response.status}`;
+
+    try {
+      const parsed = JSON.parse(text) as { message?: string | string[]; error?: string };
+      if (Array.isArray(parsed.message)) return parsed.message.join(', ');
+      return parsed.message || parsed.error || text;
+    } catch {
+      return text;
+    }
   }
 }
