@@ -4,10 +4,6 @@
     {
       "source": "/api/(.*)",
       "destination": "https://sell-point-pdsw.onrender.com/$1"
-    },
-    {
-      "source": "/auth/(.*)",
-      "destination": "https://sell-point-pdsw.onrender.com/auth/$1"
     }
   ],
   "headers": [

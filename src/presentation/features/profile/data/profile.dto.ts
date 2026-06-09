@@ -6,6 +6,7 @@ export interface ProfileRawDto {
   fullName?: string;
   name?: string;
   email?: string;
+  cedula?: string;
   role?: string;
   isActive?: boolean;
   failedLoginAttempts?: number;
@@ -20,10 +21,17 @@ export interface ProfileRawDto {
     fullName?: string;
     name?: string;
     email?: string;
+    cedula?: string;
     role?: string;
     isActive?: boolean;
     failedLoginAttempts?: number;
     googleId?: string;
     googleEmail?: string;
   };
+}
+
+export interface UpdateProfilePayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
 }

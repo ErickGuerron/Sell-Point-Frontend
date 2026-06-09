@@ -5,6 +5,7 @@ export interface ProfileEntity {
   fullName?: string;
   name: string;
   email: string;
+  cedula?: string;
   role: string;
   isActive: boolean;
   failedLoginAttempts: number;

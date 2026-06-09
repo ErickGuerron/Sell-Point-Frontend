@@ -19,6 +19,7 @@ export function toProfileEntity(
     fullName: fullName || undefined,
     name: dto.name ?? dto.user?.name ?? dto.username ?? dto.user?.username ?? fullName ?? '',
     email: dto.email ?? dto.user?.email ?? '',
+    cedula: dto.cedula ?? dto.user?.cedula ?? undefined,
     role: dto.role ?? dto.user?.role ?? '',
     isActive:
       dto.isActive ?? dto.user?.isActive ?? true,
