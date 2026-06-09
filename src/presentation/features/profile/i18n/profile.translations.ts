@@ -3,9 +3,20 @@ export interface ProfileCopy {
   title: string;
   description: string;
   userInfo: string;
+  editInfo: string;
+  editInfoDesc: string;
+  editProfileButton: string;
+  backToProfile: string;
+  securityTitle: string;
+  securityDesc: string;
+  changePasswordButton: string;
+  backToSecurity: string;
   sessionInfo: string;
   name: string;
   email: string;
+  firstName: string;
+  lastName: string;
+  cedula: string;
   role: string;
   status: string;
   active: string;
@@ -43,6 +54,18 @@ export interface ProfileCopy {
   googleUnlinkConfirmMessage: string;
   googleUnlinkConfirmAction: string;
   googleUnlinkConfirmCancel: string;
+  saveChanges: string;
+  resetChanges: string;
+  saving: string;
+  profileUpdated: string;
+  profileUpdateError: string;
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+  passwordMinHint: string;
+  passwordMismatch: string;
+  passwordUpdated: string;
+  passwordUpdateError: string;
 }
 
 export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
@@ -51,9 +74,20 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     title: 'Perfil de Usuario',
     description: 'Información personal y estado de tu cuenta en el sistema.',
     userInfo: 'Datos Personales',
+    editInfo: 'Editar Perfil',
+    editInfoDesc: 'Actualiza tu nombre, apellido y correo electrónico.',
+    editProfileButton: 'Editar perfil',
+    backToProfile: 'Volver',
+    securityTitle: 'Seguridad',
+    securityDesc: 'Cambia tu contraseña sin afectar tu sesión actual.',
+    changePasswordButton: 'Cambiar contraseña',
+    backToSecurity: 'Cancelar',
     sessionInfo: 'Información de la Sesión',
     name: 'Nombre Completo',
     email: 'Correo Electrónico',
+    firstName: 'Nombre',
+    lastName: 'Apellido',
+    cedula: 'Cédula',
     role: 'Rol en el Sistema',
     status: 'Estado de la Cuenta',
     active: 'Activa',
@@ -91,15 +125,38 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     googleUnlinkConfirmMessage: '¿Seguro que quiere desvincular su cuenta de Google?',
     googleUnlinkConfirmAction: 'Desvincular',
     googleUnlinkConfirmCancel: 'Cancelar',
+    saveChanges: 'Guardar cambios',
+    resetChanges: 'Restablecer',
+    saving: 'Guardando…',
+    profileUpdated: 'Perfil actualizado correctamente',
+    profileUpdateError: 'No se pudo actualizar el perfil',
+    currentPassword: 'Contraseña actual',
+    newPassword: 'Nueva contraseña',
+    confirmPassword: 'Confirmar contraseña',
+    passwordMinHint: 'Mínimo 8 caracteres',
+    passwordMismatch: 'La confirmación no coincide',
+    passwordUpdated: 'Contraseña actualizada correctamente',
+    passwordUpdateError: 'No se pudo cambiar la contraseña',
   },
   en: {
     moduleLabel: 'My Account',
     title: 'User Profile',
     description: 'Personal information and account status in the system.',
     userInfo: 'Personal Details',
+    editInfo: 'Edit Profile',
+    editInfoDesc: 'Update your first name, last name, and email address.',
+    editProfileButton: 'Edit profile',
+    backToProfile: 'Back',
+    securityTitle: 'Security',
+    securityDesc: 'Change your password without affecting your current session.',
+    changePasswordButton: 'Change password',
+    backToSecurity: 'Cancel',
     sessionInfo: 'Session Information',
     name: 'Full Name',
     email: 'Email Address',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    cedula: 'ID Number',
     role: 'System Role',
     status: 'Account Status',
     active: 'Active',
@@ -137,5 +194,17 @@ export const PROFILE_TEXT: Record<'es' | 'en', ProfileCopy> = {
     googleUnlinkConfirmMessage: 'Are you sure you want to unlink your Google account?',
     googleUnlinkConfirmAction: 'Unlink',
     googleUnlinkConfirmCancel: 'Cancel',
+    saveChanges: 'Save changes',
+    resetChanges: 'Reset',
+    saving: 'Saving…',
+    profileUpdated: 'Profile updated successfully',
+    profileUpdateError: 'Could not update profile',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    confirmPassword: 'Confirm password',
+    passwordMinHint: 'Minimum 8 characters',
+    passwordMismatch: 'Confirmation does not match',
+    passwordUpdated: 'Password updated successfully',
+    passwordUpdateError: 'Could not change password',
   },
 };

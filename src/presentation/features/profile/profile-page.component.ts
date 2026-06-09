@@ -163,21 +163,40 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
             <!-- Personal Details card -->
             <div class="dashboard-table-card rounded-2xl border border-outline-variant/40 overflow-hidden">
               <div class="p-6 md:p-7 border-b border-outline-variant/20 bg-surface/60">
-                <div class="flex items-center gap-2">
-                  <span class="material-symbols-outlined text-outline text-[20px]">badge</span>
-                  <h3 class="font-label-bold text-label-bold text-outline uppercase tracking-wider">
-                    {{ copy().userInfo }}
-                  </h3>
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div class="flex items-center gap-2">
+                    <span class="material-symbols-outlined text-outline text-[20px]">badge</span>
+                    <h3 class="font-label-bold text-label-bold text-outline uppercase tracking-wider">
+                      {{ copy().userInfo }}
+                    </h3>
+                  </div>
+                  <button
+                    *ngIf="!editing()"
+                    type="button"
+                    class="px-4 py-2 rounded-xl bg-primary text-on-primary font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
+                    (click)="openEditView()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                    {{ copy().editProfileButton }}
+                  </button>
                 </div>
               </div>
 
-              <div class="p-6 md:p-7">
+              <div *ngIf="!editing()" class="p-6 md:p-7">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                   <div>
-                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().name }}</p>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().firstName }}</p>
                     <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">person</span>
-                      {{ store.profile()?.name || '—' }}
+                      {{ store.profile()?.firstName || '—' }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().lastName }}</p>
+                    <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
+                      <span class="material-symbols-outlined text-outline text-[18px]">badge</span>
+                      {{ store.profile()?.lastName || '—' }}
                     </p>
                   </div>
 
@@ -186,6 +205,14 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
                     <p class="font-body-md text-body-md text-on-surface font-medium break-all flex items-center gap-2">
                       <span class="material-symbols-outlined text-outline text-[18px]">mail</span>
                       {{ store.profile()?.email || '—' }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().cedula }}</p>
+                    <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
+                      <span class="material-symbols-outlined text-outline text-[18px]">pin</span>
+                      {{ store.profile()?.cedula || '—' }}
                     </p>
                   </div>
 
@@ -213,6 +240,255 @@ import type { ProfileInitialData } from '../../shared/ssr-page-data';
                         {{ store.isActive() ? copy().active : copy().blocked }}
                       </span>
                     </div>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="editing()" class="p-6 md:p-7 space-y-6">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h4 class="font-h3 text-h3 text-on-surface">{{ copy().editInfo }}</h4>
+                    <p class="text-sm text-on-surface-variant mt-1">{{ copy().editInfoDesc }}</p>
+                  </div>
+                  <span class="rounded-full border border-outline-variant/60 px-3 py-1 text-xs text-on-surface-variant">
+                    {{ copy().sessionInfo }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  <div>
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().firstName }}</label>
+                    <input
+                      type="text"
+                      class="w-full rounded-xl border border-outline-variant/60 bg-surface px-4 py-3 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      [value]="store.firstName()"
+                      (input)="store.setFirstName($any($event.target).value)"
+                    />
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().lastName }}</label>
+                    <input
+                      type="text"
+                      class="w-full rounded-xl border border-outline-variant/60 bg-surface px-4 py-3 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      [value]="store.lastName()"
+                      (input)="store.setLastName($any($event.target).value)"
+                    />
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().email }}</p>
+                    <p class="font-body-md text-body-md text-on-surface font-medium break-all flex items-center gap-2">
+                      <span class="material-symbols-outlined text-outline text-[18px]">mail</span>
+                      {{ store.profile()?.email || '—' }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().cedula }}</label>
+                    <div class="rounded-xl border border-outline-variant/60 bg-surface-container-low px-4 py-3 text-body-md text-on-surface-variant">
+                      {{ store.cedula() || '—' }}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().role }}</p>
+                    <p class="font-body-md text-body-md text-on-surface font-medium flex items-center gap-2">
+                      <span class="material-symbols-outlined text-outline text-[18px]">manage_accounts</span>
+                      {{ store.profile()?.role || '—' }}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5">{{ copy().status }}</p>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold"
+                        [class.bg-success/10]="store.isActive()"
+                        [class.text-success]="store.isActive()"
+                        [class.bg-error/10]="!store.isActive()"
+                        [class.text-error]="!store.isActive()"
+                      >
+                        <span class="material-symbols-outlined text-[14px]">
+                          {{ store.isActive() ? 'check_circle' : 'block' }}
+                        </span>
+                        {{ store.isActive() ? copy().active : copy().blocked }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-outline-variant/20">
+                  <p class="text-sm text-on-surface-variant">
+                    {{ store.formDirty() ? copy().editInfoDesc : copy().sessionInfo }}
+                  </p>
+                  <div class="flex items-center gap-3">
+                    <button
+                      type="button"
+                      class="px-4 py-2 rounded-xl border border-outline-variant/60 text-on-surface font-semibold hover:bg-surface-container transition-colors disabled:opacity-50"
+                      [disabled]="store.saving()"
+                      (click)="cancelEditView()"
+                    >
+                      {{ copy().backToProfile }}
+                    </button>
+                    <button
+                      type="button"
+                      class="px-5 py-2 rounded-xl bg-primary text-on-primary font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                      [disabled]="!store.canSave()"
+                      (click)="saveProfile()"
+                    >
+                      <span *ngIf="store.saving()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                      <span *ngIf="!store.saving()" class="material-symbols-outlined text-[18px]">save</span>
+                      {{ store.saving() ? copy().saving : copy().saveChanges }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Security card -->
+            <div class="dashboard-table-card rounded-2xl border border-outline-variant/40 overflow-hidden">
+              <div class="p-6 md:p-7 border-b border-outline-variant/20 bg-surface/60">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <span class="material-symbols-outlined text-outline text-[20px]">security</span>
+                      <h3 class="font-label-bold text-label-bold text-outline uppercase tracking-wider">
+                        {{ copy().securityTitle }}
+                      </h3>
+                    </div>
+                    <p class="text-sm text-on-surface-variant mt-1">{{ copy().securityDesc }}</p>
+                  </div>
+                  <button
+                    *ngIf="!changingPassword()"
+                    type="button"
+                    class="px-4 py-2 rounded-xl bg-primary text-on-primary font-semibold hover:bg-primary/90 transition-colors inline-flex items-center gap-2"
+                    (click)="openPasswordView()"
+                  >
+                    <span class="material-symbols-outlined text-[18px]">key</span>
+                    {{ copy().changePasswordButton }}
+                  </button>
+                </div>
+              </div>
+
+              <div *ngIf="!changingPassword()" class="p-6 md:p-7">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <p class="text-body-md text-on-surface-variant">
+                    {{ copy().securityDesc }}
+                  </p>
+                  <span class="rounded-full border border-outline-variant/60 px-3 py-1 text-xs text-on-surface-variant">
+                    {{ copy().sessionInfo }}
+                  </span>
+                </div>
+              </div>
+
+              <div *ngIf="changingPassword()" class="p-6 md:p-7 space-y-6">
+                <div class="flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <h4 class="font-h3 text-h3 text-on-surface">{{ copy().changePasswordButton }}</h4>
+                    <p class="text-sm text-on-surface-variant mt-1">{{ copy().passwordMinHint }}</p>
+                  </div>
+                  <span class="rounded-full border border-outline-variant/60 px-3 py-1 text-xs text-on-surface-variant">
+                    {{ copy().sessionInfo }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                  <div class="md:col-span-2">
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().currentPassword }}</label>
+                    <div class="relative">
+                      <input
+                        [type]="showCurrentPassword() ? 'text' : 'password'"
+                        class="w-full rounded-xl border border-outline-variant/60 bg-surface px-4 py-3 pr-12 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        [value]="store.currentPassword()"
+                        (input)="store.setCurrentPassword($any($event.target).value)"
+                        autocomplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        class="absolute inset-y-0 right-0 flex items-center px-4 text-outline hover:text-on-surface"
+                        (click)="toggleCurrentPasswordVisibility()"
+                      >
+                        <span class="material-symbols-outlined text-[20px]">{{ showCurrentPassword() ? 'visibility_off' : 'visibility' }}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().newPassword }}</label>
+                    <div class="relative">
+                      <input
+                        [type]="showNewPassword() ? 'text' : 'password'"
+                        class="w-full rounded-xl border border-outline-variant/60 bg-surface px-4 py-3 pr-12 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        [value]="store.newPassword()"
+                        (input)="store.setNewPassword($any($event.target).value)"
+                        autocomplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        class="absolute inset-y-0 right-0 flex items-center px-4 text-outline hover:text-on-surface"
+                        (click)="toggleNewPasswordVisibility()"
+                      >
+                        <span class="material-symbols-outlined text-[20px]">{{ showNewPassword() ? 'visibility_off' : 'visibility' }}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="text-xs font-semibold text-outline uppercase tracking-wider mb-1.5 block">{{ copy().confirmPassword }}</label>
+                    <div class="relative">
+                      <input
+                        [type]="showConfirmPassword() ? 'text' : 'password'"
+                        class="w-full rounded-xl border border-outline-variant/60 bg-surface px-4 py-3 pr-12 text-body-md text-on-surface focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        [value]="store.confirmPassword()"
+                        (input)="store.setConfirmPassword($any($event.target).value)"
+                        autocomplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        class="absolute inset-y-0 right-0 flex items-center px-4 text-outline hover:text-on-surface"
+                        (click)="toggleConfirmPasswordVisibility()"
+                      >
+                        <span class="material-symbols-outlined text-[20px]">{{ showConfirmPassword() ? 'visibility_off' : 'visibility' }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <p
+                  *ngIf="store.newPassword() && store.confirmPassword() && store.newPassword() !== store.confirmPassword()"
+                  class="text-sm text-error font-medium"
+                >
+                  {{ copy().passwordMismatch }}
+                </p>
+
+                <p *ngIf="store.passwordErrorMessage()" class="text-sm text-error font-medium">
+                  {{ store.passwordErrorMessage() }}
+                </p>
+
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2 border-t border-outline-variant/20">
+                  <p class="text-sm text-on-surface-variant">
+                    {{ copy().passwordMinHint }}
+                  </p>
+                  <div class="flex items-center gap-3">
+                    <button
+                      type="button"
+                      class="px-4 py-2 rounded-xl border border-outline-variant/60 text-on-surface font-semibold hover:bg-surface-container transition-colors disabled:opacity-50"
+                      [disabled]="store.passwordChanging()"
+                      (click)="cancelPasswordView()"
+                    >
+                      {{ copy().backToSecurity }}
+                    </button>
+                    <button
+                      type="button"
+                      class="px-5 py-2 rounded-xl bg-primary text-on-primary font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+                      [disabled]="!store.passwordCanSave()"
+                      (click)="savePasswordChange()"
+                    >
+                      <span *ngIf="store.passwordChanging()" class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>
+                      <span *ngIf="!store.passwordChanging()" class="material-symbols-outlined text-[18px]">lock_reset</span>
+                      {{ store.passwordChanging() ? copy().saving : copy().changePasswordButton }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -325,6 +601,11 @@ export class ProfilePageComponent implements OnInit {
   private readonly permissions = inject(PermissionsService);
 
   readonly copy = computed(() => PROFILE_TEXT[this.localeService.locale()]);
+  readonly editing = signal(false);
+  readonly changingPassword = signal(false);
+  readonly showCurrentPassword = signal(false);
+  readonly showNewPassword = signal(false);
+  readonly showConfirmPassword = signal(false);
   private hasInitialData = false;
 
   @Input() set initialData(value: ProfileInitialData | null | undefined) {
@@ -366,6 +647,40 @@ export class ProfilePageComponent implements OnInit {
     // Already on profile page
   }
 
+  openEditView() {
+    this.editing.set(true);
+  }
+
+  cancelEditView() {
+    this.store.resetFormFromProfile();
+    this.editing.set(false);
+  }
+
+  openPasswordView() {
+    this.changingPassword.set(true);
+    this.store.openPasswordForm();
+  }
+
+  cancelPasswordView() {
+    this.store.cancelPasswordForm();
+    this.changingPassword.set(false);
+    this.showCurrentPassword.set(false);
+    this.showNewPassword.set(false);
+    this.showConfirmPassword.set(false);
+  }
+
+  toggleCurrentPasswordVisibility() {
+    this.showCurrentPassword.update((value) => !value);
+  }
+
+  toggleNewPasswordVisibility() {
+    this.showNewPassword.update((value) => !value);
+  }
+
+  toggleConfirmPasswordVisibility() {
+    this.showConfirmPassword.update((value) => !value);
+  }
+
   async handleLinkGoogle() {
     try {
       await this.store.linkGoogle();
@@ -395,5 +710,42 @@ export class ProfilePageComponent implements OnInit {
       console.error('[ProfilePage.handleUnlinkGoogle]', err);
       await this.feedback.toast('error', message);
     }
+  }
+
+  async savePasswordChange() {
+    try {
+      await this.store.changePassword();
+      this.changingPassword.set(false);
+      this.showCurrentPassword.set(false);
+      this.showNewPassword.set(false);
+      this.showConfirmPassword.set(false);
+      await this.feedback.toast('success', this.copy().passwordUpdated);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().passwordUpdateError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.savePasswordChange]', err);
+      await this.feedback.toast('error', message || this.copy().passwordUpdateError);
+    }
+  }
+
+  async saveProfile() {
+    try {
+      await this.store.updateProfile({
+        firstName: this.store.firstName().trim(),
+        lastName: this.store.lastName().trim(),
+      });
+      await this.session.hydrateUserProfile();
+      this.editing.set(false);
+      await this.feedback.toast('success', this.copy().profileUpdated);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : this.copy().profileUpdateError;
+      // eslint-disable-next-line no-console
+      console.error('[ProfilePage.saveProfile]', err);
+      await this.feedback.toast('error', message || this.copy().profileUpdateError);
+    }
+  }
+
+  resetProfileForm() {
+    this.cancelEditView();
   }
 }
