@@ -67,8 +67,8 @@ COPY --from=builder /app/node_modules ./node_modules
 
 # nginx config. We bake the upstream block into the config directly
 # (no envsubst needed) so BACKEND_URL is the only variable.
-RUN rm -f /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
+RUN rm -f /etc/nginx/http.d/default.conf
+COPY nginx.conf /etc/nginx/http.d/nginx.conf.template
 
 # Entrypoint that:
 #   1. Generates config.json with the Firebase runtime values.

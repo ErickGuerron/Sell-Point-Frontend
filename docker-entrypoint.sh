@@ -14,7 +14,7 @@ cat > /usr/share/nginx/html/config.json <<EOF
 EOF
 
 # Substituir BACKEND_URL en nginx.conf
-envsubst '${BACKEND_URL}' < /etc/nginx/conf.d/nginx.conf.template > /etc/nginx/conf.d/default.conf
+envsubst '${BACKEND_URL}' < /etc/nginx/http.d/nginx.conf.template > /etc/nginx/http.d/default.conf
 
 # Arranca Node SSR (Astro) en background
 echo "[entrypoint] Starting Node SSR (Astro) on :3000..."
@@ -29,4 +29,5 @@ trap "echo '[entrypoint] Stopping Node SSR (pid='$NODE_PID')...'; kill $NODE_PID
 
 # Arranca nginx en foreground
 echo "[entrypoint] Starting nginx on :80..."
+nginx -t
 exec nginx -g 'daemon off;'
