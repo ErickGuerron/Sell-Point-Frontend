@@ -91,7 +91,7 @@ function authCookieRefreshDevProxy() {
     configureServer(server) {
       // eslint-disable-next-line no-console
       console.log('[auth-cookie-refresh-dev-proxy] loaded and configured server');
-      const BACKEND = 'http://localhost:3000';
+      const BACKEND = 'http://localhost:3001';
       // Exact backend endpoint prefixes. Adding a path here means
       // `^/auth/<x>` and `^/api/<x>` get proxied; bare `/auth` and
       // bare `/api` do NOT (those are SSR pages or 404s in the SPA).
