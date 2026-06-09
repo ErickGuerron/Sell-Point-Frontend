@@ -65,12 +65,10 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-# nginx config. We replace the entire main nginx.conf with our template
-# so the http { server { ... } } wrapper is valid at the top level.
-# Substituting via envsubst at entrypoint keeps BACKEND_URL the only
-# variable to interpolate.
+# nginx config. We bake the upstream block into the config directly
+# (no envsubst needed) so BACKEND_URL is the only variable.
 RUN rm -f /etc/nginx/conf.d/default.conf
-COPY nginx.conf /etc/nginx/nginx.conf.template
+COPY nginx.conf /etc/nginx/conf.d/nginx.conf.template
 
 # Entrypoint that:
 #   1. Generates config.json with the Firebase runtime values.

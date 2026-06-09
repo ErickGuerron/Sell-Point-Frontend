@@ -14,7 +14,7 @@ cat > /usr/share/nginx/html/config.json <<EOF
 EOF
 
 # Substituir BACKEND_URL en nginx.conf
-envsubst '${BACKEND_URL}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+envsubst '${BACKEND_URL}' < /etc/nginx/conf.d/nginx.conf.template > /etc/nginx/conf.d/default.conf
 
 # Arranca Node SSR (Astro) en background
 echo "[entrypoint] Starting Node SSR (Astro) on :3000..."
