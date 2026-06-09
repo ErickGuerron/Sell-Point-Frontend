@@ -1,15 +1,34 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import node from '@astrojs/node';
+import vercel from '@astrojs/vercel';
 
 import analogjsangular from '@analogjs/astro-angular';
 
 import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
+//
+// Adapter selection:
+//   - Vercel deploy (`VERCEL=1` is set by the Vercel build pipeline):
+//     use `@astrojs/vercel` so the bundle emits Vercel serverless
+//     functions and routes resolve natively. The `vercel.json` at
+//     the project root layers rewrites and security headers on top.
+//   - Docker / standalone Node (`npm run dev` and Docker images):
+//     use `@astrojs/node` standalone so the bundle emits
+//     `dist/server/entry.mjs` and `nginx.conf` can reverse-proxy to
+//     it. The `nginx.conf` at the project root provides the
+//     /api/* and /auth/* rewrites in that environment.
+//
+// Both adapters are installed as devDependencies. The runtime switch
+// is a single ternary — no second config file to keep in sync.
+const adapter = process.env.VERCEL === '1'
+  ? vercel()
+  : node({ mode: 'standalone' });
+
 export default defineConfig({
   output: 'server',
-  adapter: node({ mode: 'standalone' }),
+  adapter,
   integrations: [analogjsangular()],
   devToolbar: {
     enabled: false,
