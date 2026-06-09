@@ -3,11 +3,11 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://sellpoint-api.onrender.com/$1"
+      "destination": "https://sell-point-pdsw.onrender.com/$1"
     },
     {
       "source": "/auth/(.*)",
-      "destination": "https://sellpoint-api.onrender.com/auth/$1"
+      "destination": "https://sell-point-pdsw.onrender.com/auth/$1"
     }
   ],
   "headers": [
