@@ -1,7 +1,7 @@
 import type { BillflowSidebarItem } from './components/billflow-sidebar.component';
 import { PermissionsService, PERMISSIONS } from './services/permissions.service';
 
-export type BillflowNavigationSection = 'dashboard' | 'invoices' | 'products' | 'customers' | 'employees' | 'categories';
+export type BillflowNavigationSection = 'dashboard' | 'invoices' | 'products' | 'customers' | 'employees' | 'categories' | 'audit';
 
 export interface BillflowNavigationLabels {
   dashboard: string;
@@ -10,6 +10,7 @@ export interface BillflowNavigationLabels {
   customers: string;
   employees: string;
   categories?: string;
+  audit?: string;
 }
 
 /**
@@ -43,6 +44,11 @@ export function buildBillflowSidebarItems(
   if (labels.categories && (!permissions || permissions.hasPermission(PERMISSIONS.CATEGORIES_READ))) {
     const insertIndex = items.findIndex((i) => i.href === '/products') + 1;
     items.splice(insertIndex, 0, { label: labels.categories, icon: 'category', href: '/categories', active: active === 'categories' });
+  }
+
+  // Audit is ADMIN-only — visible on every page if the user has AUDIT_LOGS_READ
+  if (!permissions || permissions.hasPermission(PERMISSIONS.AUDIT_LOGS_READ)) {
+    items.push({ label: labels.audit ?? 'Auditoría', icon: 'assignment', href: '/audit', active: active === 'audit' });
   }
 
   return items;

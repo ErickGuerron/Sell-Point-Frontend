@@ -19,6 +19,9 @@ import type { ProfileEntity } from '../features/profile/domain/profile.entity';
 import { toProfileEntity } from '../features/profile/data/profile.mapper';
 import type { ProfileRawDto } from '../features/profile/data/profile.dto';
 import type { EmployeeRowDto, RoleDto } from '../features/employees/employee-api.service';
+import type { AuditLogEntry, AuditSummary } from '../features/audit/domain/audit.entity';
+import { mapAuditEntry, mapAuditSummary } from '../features/audit/data/audit.dto';
+import type { AuditListResponseDto, AuditSummaryDto } from '../features/audit/data/audit.dto';
 
 // ── Role constants (must match PermissionsService) ─────────────────────────────
 const ROLE_ADMIN = 'ADMIN';
@@ -419,5 +422,33 @@ export async function loadEmployeesInitialData(astro: AstroLike, locale: AppLoca
     blockedEmployeesKpi: kpisResponse?.blockedEmployees ?? 0,
     page,
     pageSize,
+  };
+}
+
+export interface AuditInitialData {
+  entries: AuditLogEntry[];
+  summary: AuditSummary;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export async function loadAuditInitialData(astro: AstroLike, locale: AppLocale = 'es'): Promise<AuditInitialData> {
+  void locale;
+  const [entriesResponse, summaryResponse] = await Promise.all([
+    fetchJsonWithAuth<AuditListResponseDto>(astro, '/audit?page=1&limit=5'),
+    fetchJsonWithAuth<AuditSummaryDto>(astro, '/audit/summary'),
+  ]);
+
+  const mapped = entriesResponse ? mapAuditListResponse(entriesResponse) : { data: [], total: 0, page: 1, limit: 5, totalPages: 0 };
+
+  return {
+    entries: mapped.data,
+    summary: summaryResponse ? mapAuditSummary(summaryResponse) : { actionsToday: 0, activeUsers: 0, topModifiedEntity: '—' },
+    total: mapped.total,
+    page: mapped.page,
+    pageSize: mapped.limit,
+    totalPages: mapped.totalPages,
   };
 }
