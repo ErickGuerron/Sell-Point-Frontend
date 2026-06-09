@@ -1,11 +1,17 @@
 export function resolveApiBaseUrl(): string {
   if (typeof window === 'undefined') {
-    // Server-side (SSR) requires an absolute URL.
-    const url = import.meta.env.PUBLIC_API_URL || import.meta.env.PUBLIC_API_BASE_URL;
-    if (url && url.startsWith('http')) {
-      return url;
+    // Server-side (SSR) must use a real backend origin reachable from the
+    // container/network namespace. `process.env` is the runtime source of
+    // truth in Astro SSR for non-public variables.
+    const runtimeUrl = process.env.BACKEND_URL
+      || process.env.PUBLIC_API_URL
+      || process.env.PUBLIC_API_BASE_URL;
+
+    if (runtimeUrl && runtimeUrl.startsWith('http')) {
+      return runtimeUrl;
     }
-    // Fallback to local NestJS backend port
+
+    // Local fallback for non-Docker dev only.
     return 'http://localhost:3001';
   }
 
