@@ -49,10 +49,12 @@ RUN npm run build
 # one origin (the container), keeping the auth-cookie-refresh contract
 # intact (SameSite=Strict works because everything is same-origin).
 # ============================================
-FROM alpine:3.20 AS production
+FROM node:22-alpine AS production
 
-# Install Node 22 and nginx + envsubst (not in nginx:alpine by default).
-RUN apk add --no-cache nodejs=~22 npm bash nginx gettext \
+# Install nginx + envsubst on top of the official Node 22 alpine image.
+# We keep the Node 22 guarantee from the official image and layer nginx
+# for the reverse proxy.
+RUN apk add --no-cache nginx gettext \
     && ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
